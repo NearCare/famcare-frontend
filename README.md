@@ -43,3 +43,47 @@ Key highlights:
 
 ### Dashboard
 ![Dashboard — health stats, charts, and appointment tracker](public/screenshots/dashboard.png)
+
+---
+
+## Getting Started
+
+### Prerequisites
+
+| Tool | Version |
+|------|---------|
+| Node.js | 20+ |
+| npm | 10+ |
+
+### Installation
+
+```bash
+# 1. Clone the repository
+git clone https://github.com/your-org/nearcare-frontend.git
+cd nearcare-frontend
+
+# 2. Install dependencies
+npm install
+
+# 3. Start the development server
+npm run dev
+```
+
+Open [http://localhost:3000](http://localhost:3000) in your browser.
+
+### Available Scripts
+
+| Command | Description |
+|---------|-------------|
+| `npm run dev` | Start the development server with hot reload |
+| `npm run build` | Build the app for production |
+| `npm run start` | Serve the production build locally |
+| `npm run lint` | Run ESLint across the codebase |
+
+### Pages
+
+| Route | Description |
+|-------|-------------|
+| `/` | Landing page with hero and feature overview |
+| `/login` | Authentication page (email/password + Google OAuth) |
+| `/dashboard` | Full health dashboard with charts and appointments |
