@@ -54,6 +54,49 @@ async function apiFetch<T>(path: string): Promise<T> {
   return res.json() as Promise<T>;
 }
 
+// ─── Auth ────────────────────────────────────────────────────────────────────
+
+export type AuthResponse = {
+  token: string;
+  user: User;
+};
+
+/**
+ * Sends a 6-digit OTP to the given WhatsApp number.
+ * Phone must include country code, e.g. "+919876543210"
+ */
+export async function sendOtp(phone: string): Promise<void> {
+  const res = await fetch(`${BASE_URL}/auth/send-otp`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ phone }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error((err as { error?: string }).error ?? "Failed to send OTP");
+  }
+}
+
+/**
+ * Verifies the OTP entered by the user.
+ * Returns a session token + user on success.
+ */
+export async function verifyOtp(
+  phone: string,
+  code: string
+): Promise<AuthResponse> {
+  const res = await fetch(`${BASE_URL}/auth/verify-otp`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ phone, code }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error((err as { error?: string }).error ?? "Invalid OTP");
+  }
+  return res.json() as Promise<AuthResponse>;
+}
+
 // ─── Public API ──────────────────────────────────────────────────────────────
 
 /**
