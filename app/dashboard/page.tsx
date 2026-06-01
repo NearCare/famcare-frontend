@@ -192,7 +192,7 @@ export default function DashboardPage() {
             <Skeleton h={28} w={260} />
             <div style={{ marginTop: 8 }}><Skeleton h={16} w={200} /></div>
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 13, marginBottom: 14 }}>
+          <div className="stat-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 13, marginBottom: 14 }}>
             {[1, 2, 3].map((i) => (
               <div key={i} style={{ background: "#fff", borderRadius: 16, padding: "17px 19px", boxShadow: "0 2px 12px rgba(26,20,20,.07)" }}>
                 <Skeleton h={50} w={50} radius={14} />
@@ -249,7 +249,7 @@ export default function DashboardPage() {
       <Sidebar />
 
       {/* Main */}
-      <div style={{ marginLeft: 214, padding: "22px 22px 36px", flex: 1 }}>
+      <div className="dashboard-main" style={{ marginLeft: 214, padding: "22px 22px 36px", flex: 1 }}>
         {/* Topbar */}
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 20 }}>
           <div>
@@ -281,7 +281,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Stat row */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 13, marginBottom: 14 }}>
+        <div className="stat-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 13, marginBottom: 14 }}>
           {[
             {
               ico: "👟", icoColor: "rgba(74,143,226,.15)", lblColor: "#4A8FE2",
@@ -332,7 +332,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Chart grid */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 272px", gap: 13, marginBottom: 13 }}>
+        <div className="chart-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 272px", gap: 13, marginBottom: 13 }}>
           {/* Steps chart */}
           <div style={{ background: "#fff", borderRadius: 16, padding: "17px 19px", boxShadow: "0 2px 12px rgba(26,20,20,.07)" }}>
             <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 13 }}>
@@ -434,7 +434,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Progress row */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 272px", gap: 13 }}>
+        <div className="progress-grid" style={{ display: "grid", gridTemplateColumns: "1fr 272px", gap: 13 }}>
           <div style={{ background: "#fff", borderRadius: 16, padding: "17px 19px", boxShadow: "0 2px 12px rgba(26,20,20,.07)" }}>
             <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 13 }}>
               <div style={{ fontSize: 14.5, fontWeight: 600 }}>Steps Trend (7 days)</div>
@@ -482,13 +482,35 @@ export default function DashboardPage() {
 // ─── Sidebar (shared between loading / full dashboard) ─────────────────────────
 
 function Sidebar() {
+  const [open, setOpen] = useState(false);
   return (
-    <div style={{
-      width: 214, minHeight: "100vh", background: "#fff",
-      borderRight: "1px solid #F5EEEE", padding: "24px 14px",
-      display: "flex", flexDirection: "column", position: "fixed",
-      top: 0, left: 0, bottom: 0,
-    }}>
+    <>
+      {/* Mobile top bar */}
+      <div style={{
+        display: "none", position: "fixed", top: 0, left: 0, right: 0, zIndex: 100,
+        background: "#fff", borderBottom: "1px solid #F5EEEE", padding: "12px 16px",
+        alignItems: "center", justifyContent: "space-between",
+      }} className="mobile-topbar">
+        <span style={{ fontSize: 16, fontWeight: 700 }}>
+          Health<em style={{ color: "#E85C5C", fontStyle: "normal" }}>Ease</em>
+        </span>
+        <button onClick={() => setOpen(!open)} style={{
+          background: "none", border: "none", cursor: "pointer", padding: 4, fontSize: 22,
+        }}>☰</button>
+      </div>
+
+      {/* Overlay */}
+      {open && <div onClick={() => setOpen(false)} style={{
+        position: "fixed", inset: 0, background: "rgba(0,0,0,.3)", zIndex: 150,
+      }} />}
+
+      <div style={{
+        width: 214, minHeight: "100vh", background: "#fff",
+        borderRight: "1px solid #F5EEEE", padding: "24px 14px",
+        display: "flex", flexDirection: "column", position: "fixed",
+        top: 0, left: 0, bottom: 0, zIndex: 200,
+        transform: open ? "translateX(0)" : undefined,
+      }} className="sidebar">
       <div style={{ display: "flex", alignItems: "center", gap: 9, padding: "0 8px", marginBottom: 26 }}>
         <div style={{
           width: 32, height: 32, background: "#E85C5C", borderRadius: 9, flexShrink: 0,
@@ -527,5 +549,16 @@ function Sidebar() {
         </div>
       </div>
     </div>
+    <style>{`
+      @media (max-width: 768px) {
+        .sidebar { transform: translateX(-100%); transition: transform .25s ease; }
+        .mobile-topbar { display: flex !important; }
+        .dashboard-main { margin-left: 0 !important; padding-top: 64px !important; }
+        .stat-grid { grid-template-columns: 1fr !important; }
+        .chart-grid { grid-template-columns: 1fr !important; }
+        .progress-grid { grid-template-columns: 1fr !important; }
+      }
+    `}</style>
+    </>
   );
 }
