@@ -9,7 +9,6 @@ import {
   BarController, LineController, DoughnutController,
 } from "chart.js";
 import {
-  getUsers,
   getUserLogs,
   getUserSummary,
   logsToWeeklySteps,
@@ -129,6 +128,13 @@ function Skeleton({ w = "100%", h = 20, radius = 6 }: { w?: string | number; h?:
 
 // ─── Main page ────────────────────────────────────────────────────────────────
 
+function getGreeting(): string {
+  const h = new Date().getHours();
+  if (h < 12) return "Good morning";
+  if (h < 17) return "Good afternoon";
+  return "Good evening";
+}
+
 export default function DashboardPage() {
   const [user, setUser] = useState<User | null>(null);
   const [logs, setLogs] = useState<HealthLog[]>([]);
@@ -140,16 +146,21 @@ export default function DashboardPage() {
     (async () => {
       try {
         setLoading(true);
-        const users = await getUsers();
-        if (users.length === 0) {
-          setLoading(false);
-          return; // will show EmptyState
+
+        // Read logged-in user from localStorage (set by login page after OTP verify)
+        const stored = localStorage.getItem("auth_user");
+        const authUser: User | null = stored ? JSON.parse(stored) : null;
+
+        if (!authUser) {
+          // Not logged in — redirect to login
+          window.location.href = "/login";
+          return;
         }
-        const first = users[0];
-        setUser(first);
+
+        setUser(authUser);
         const [fetchedLogs, fetchedSummary] = await Promise.all([
-          getUserLogs(first.id, 7),
-          getUserSummary(first.id),
+          getUserLogs(authUser.id, 7),
+          getUserSummary(authUser.id),
         ]);
         setLogs(fetchedLogs);
         setSummary(fetchedSummary);
@@ -242,7 +253,7 @@ export default function DashboardPage() {
         {/* Topbar */}
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 20 }}>
           <div>
-            <h2 style={{ fontSize: 21, fontWeight: 700, letterSpacing: "-.2px" }}>Good morning, {displayName}! 👋</h2>
+            <h2 style={{ fontSize: 21, fontWeight: 700, letterSpacing: "-.2px" }}>{getGreeting()}, {displayName}! 👋</h2>
             <p style={{ fontSize: 13, color: "#6B7A9A", marginTop: 3 }}>Here&apos;s your health overview for today.</p>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
