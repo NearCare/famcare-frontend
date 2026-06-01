@@ -97,7 +97,6 @@ export default function LoginPage() {
           {[
             { icon: "📱", text: "Enter your WhatsApp number" },
             { icon: "💬", text: "Get a one-time code on WhatsApp" },
-            { icon: "✅", text: "Verify and access your dashboard" },
           ].map((item, i) => (
             <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
               <div style={{ width: 32, height: 32, borderRadius: 8, background: "rgba(232,92,92,.12)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>
@@ -108,12 +107,10 @@ export default function LoginPage() {
           ))}
         </div>
 
-        {/* Hero images */}
+        {/* Hero image */}
         <div style={{ marginTop: "auto", position: "relative", zIndex: 1, borderRadius: "16px 16px 0 0", overflow: "hidden" }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/family-sunset.png" alt="Family health" style={{ width: "100%", display: "block", borderRadius: "16px 16px 0 0" }} />
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/family-whatsapp.png" alt="Family using WhatsApp" style={{ width: "100%", display: "block" }} />
+          <img src="/family-whatsapp.png" alt="Family using WhatsApp" style={{ width: "100%", display: "block", borderRadius: "16px 16px 0 0" }} />
         </div>
       </div>
 

@@ -402,22 +402,8 @@ export default function LandingPage() {
             </div>
           </div>
           <div style={{ width: 260, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <div style={{
-              width: 220, height: 280,
-              background: "repeating-linear-gradient(-45deg,#FFD5CC,#FFD5CC 1px,transparent 1px,transparent 14px)",
-              borderRadius: 16, display: "flex", flexDirection: "column",
-              alignItems: "center", justifyContent: "center", gap: 8,
-            }}>
-              <svg width="64" height="64" viewBox="0 0 64 64" fill="none" style={{ opacity: 0.3 }}>
-                <circle cx="32" cy="22" r="10" stroke="#E85C5C" strokeWidth="2" />
-                <circle cx="20" cy="30" r="7" stroke="#E85C5C" strokeWidth="2" />
-                <circle cx="44" cy="30" r="7" stroke="#E85C5C" strokeWidth="2" />
-                <path d="M6 52c0-8 10-12 26-12s26 4 26 12" stroke="#E85C5C" strokeWidth="2" strokeLinecap="round" />
-              </svg>
-              <span style={{ fontFamily: "'Courier New',monospace", fontSize: 10, color: "#BBA0A0", textAlign: "center", lineHeight: 1.6 }}>
-                family health<br />illustration
-              </span>
-            </div>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/family-sunset.png" alt="Family health" style={{ width: 240, borderRadius: 16, boxShadow: "0 4px 24px rgba(26,20,20,.10)" }} />
           </div>
         </div>
       </section>
