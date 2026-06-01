@@ -108,11 +108,36 @@ export default function LoginPage() {
           ))}
         </div>
 
-        {/* Art strip */}
-        <div style={{
-          marginTop: "auto", flex: 1, minHeight: 120, maxHeight: 180, borderRadius: "16px 16px 0 0",
-          background: "repeating-linear-gradient(-50deg,#FFCFC9 0,#FFCFC9 1px,transparent 1px,transparent 16px)",
-        }} />
+        {/* Hero illustration */}
+        <div style={{ marginTop: "auto", flex: 1, minHeight: 160, maxHeight: 220, display: "flex", alignItems: "flex-end", justifyContent: "center", position: "relative", zIndex: 1 }}>
+          <svg viewBox="0 0 400 200" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ width: "100%", maxWidth: 380 }}>
+            {/* Phone */}
+            <rect x="60" y="40" width="70" height="130" rx="12" fill="#fff" stroke="#FFCFC9" strokeWidth="2"/>
+            <rect x="68" y="55" width="54" height="80" rx="6" fill="#FFF0EF"/>
+            <circle cx="95" cy="155" r="6" fill="#FFCFC9"/>
+            {/* WhatsApp icon on phone */}
+            <circle cx="95" cy="95" r="18" fill="#25D366"/>
+            <path d="M95 80c-8.28 0-15 6.72-15 15 0 2.64.69 5.12 1.89 7.28L80 110l7.97-1.85A14.93 14.93 0 0 0 95 110c8.28 0 15-6.72 15-15s-6.72-15-15-15zm7.5 20.5c-.31.87-1.8 1.66-2.5 1.76-.64.09-1.45.13-2.34-.15-.54-.16-1.23-.38-2.11-.75-3.72-1.6-6.15-5.36-6.34-5.61-.18-.25-1.5-2-.1-3.13.11-.09.22-.14.33-.16.22-.04.44-.04.63-.04.14 0 .3.01.46.5.18.55.62 1.76.67 1.89.06.13.1.28.02.44-.08.17-.12.27-.24.41-.12.14-.25.3-.36.41-.12.11-.24.24-.1.47.14.23.62 1.02 1.33 1.65.91.82 1.68 1.07 1.92 1.19.24.12.38.1.52-.06.14-.16.6-.7.76-.94.16-.24.32-.2.54-.12.22.08 1.4.66 1.64.78.24.12.4.18.46.28.06.1.06.58-.25 1.43z" fill="white"/>
+            {/* Chat bubble */}
+            <rect x="150" y="30" width="130" height="50" rx="14" fill="#fff" stroke="#E85C5C" strokeWidth="1.5"/>
+            <path d="M165 80 L170 95 L185 80" fill="#fff" stroke="#E85C5C" strokeWidth="1.5" strokeLinejoin="round"/>
+            <text x="168" y="52" fontSize="9" fill="#1A2744" fontFamily="Arial" fontWeight="600">Aaj 8000 kadam chale</text>
+            <text x="168" y="65" fontSize="9" fill="#6B7A9A" fontFamily="Arial">dal chawal + dahi khaya 🥗</text>
+            {/* Dashboard card */}
+            <rect x="150" y="105" width="190" height="80" rx="14" fill="#fff" stroke="#E8F3FF" strokeWidth="1.5" style={{filter:"drop-shadow(0 4px 12px rgba(74,143,226,.12))"}}/>
+            <text x="168" y="126" fontSize="9" fill="#6B7A9A" fontFamily="Arial">Steps Today</text>
+            <text x="168" y="143" fontSize="16" fill="#1A2744" fontFamily="Arial" fontWeight="700">8,000</text>
+            {/* Mini bar chart */}
+            {[20,35,25,50,40,55,45].map((h, i) => (
+              <rect key={i} x={285 + i * 8} y={170 - h * 0.5} width="5" height={h * 0.5} rx="2"
+                fill={i === 5 ? "#1A2744" : "#BDDEFF"}/>
+            ))}
+            <text x="168" y="170" fontSize="8" fill="#3EB86A" fontFamily="Arial" fontWeight="600">✓ Goal reached!</text>
+            {/* Heart pulse line */}
+            <polyline points="50,175 65,175 72,155 79,195 86,160 93,180 100,175 350,175"
+              stroke="#E85C5C" strokeWidth="1.5" fill="none" opacity="0.3"/>
+          </svg>
+        </div>
       </div>
 
       {/* Right form */}
