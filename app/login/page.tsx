@@ -56,13 +56,13 @@ export default function LoginPage() {
   }
 
   return (
-    <div style={{ display: "flex", minHeight: "100vh", padding: 20, gap: 20, alignItems: "stretch" }}>
+    <div style={{ display: "flex", height: "100vh", padding: 20, gap: 20, alignItems: "stretch", overflow: "hidden" }}>
 
       {/* Left hero */}
       <div style={{
         flex: 1.25,
         background: "linear-gradient(145deg,#FFF5F3 0%,#FFE8E4 55%,#FFD8D0 100%)",
-        borderRadius: 20, padding: "36px 40px 0",
+        borderRadius: 20, padding: "28px 36px 0",
         display: "flex", flexDirection: "column", overflow: "hidden", position: "relative",
       }}>
         <div style={{ position: "absolute", top: -70, right: -70, width: 220, height: 220, background: "rgba(232,92,92,.07)", borderRadius: "50%" }} />
@@ -82,24 +82,24 @@ export default function LoginPage() {
         </div>
 
         {/* Copy */}
-        <div style={{ marginTop: 52, position: "relative", zIndex: 1 }}>
-          <h1 style={{ fontSize: 40, fontWeight: 700, lineHeight: 1.15, letterSpacing: "-.5px" }}>
+        <div style={{ marginTop: 24, position: "relative", zIndex: 1 }}>
+          <h1 style={{ fontSize: 34, fontWeight: 700, lineHeight: 1.15, letterSpacing: "-.5px" }}>
             Welcome to<br />
             <em style={{ color: "#E85C5C", fontStyle: "normal" }}>HealthEase</em>
           </h1>
-          <p style={{ marginTop: 14, fontSize: 14, color: "#6B7A9A", lineHeight: 1.7, maxWidth: 340 }}>
+          <p style={{ marginTop: 10, fontSize: 13, color: "#6B7A9A", lineHeight: 1.65, maxWidth: 340 }}>
             Track appointments, monitor your health journey, and find nearby providers — your complete health companion. ❤️
           </p>
         </div>
 
         {/* How it works */}
-        <div style={{ marginTop: 36, position: "relative", zIndex: 1 }}>
+        <div style={{ marginTop: 20, position: "relative", zIndex: 1 }}>
           {[
             { icon: "📱", text: "Enter your WhatsApp number" },
             { icon: "💬", text: "Get a one-time code on WhatsApp" },
           ].map((item, i) => (
-            <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
-              <div style={{ width: 32, height: 32, borderRadius: 8, background: "rgba(232,92,92,.12)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>
+            <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 10 }}>
+              <div style={{ width: 30, height: 30, borderRadius: 8, background: "rgba(232,92,92,.12)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15 }}>
                 {item.icon}
               </div>
               <span style={{ fontSize: 13, color: "#4A5568" }}>{item.text}</span>
@@ -107,10 +107,14 @@ export default function LoginPage() {
           ))}
         </div>
 
-        {/* Hero image */}
-        <div style={{ marginTop: "auto", position: "relative", zIndex: 1, borderRadius: "16px 16px 0 0", overflow: "hidden" }}>
+        {/* Hero image — fills remaining space */}
+        <div style={{ flex: 1, position: "relative", zIndex: 1, marginTop: 16, borderRadius: "16px 16px 0 0", overflow: "hidden", minHeight: 0 }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/family-whatsapp.png" alt="Family using WhatsApp" style={{ width: "100%", display: "block", borderRadius: "16px 16px 0 0" }} />
+          <img
+            src="/family-whatsapp.png"
+            alt="Family using WhatsApp"
+            style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "top center", display: "block", borderRadius: "16px 16px 0 0" }}
+          />
         </div>
       </div>
 
