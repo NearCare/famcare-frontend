@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Chart,
   BarElement, LineElement, PointElement, ArcElement,
@@ -209,7 +209,7 @@ export default function DashboardPage() {
   }, []);
 
   // ── Derived values ──────────────────────────────────────────────────────────
-  const weeklySteps = logsToWeeklySteps(logs);
+  const weeklySteps = useMemo(() => logsToWeeklySteps(logs), [logs]);
   const avgSteps = summary?.avg_steps ?? 0;
   const stepGoalPct = Math.min(Math.round((avgSteps / 10000) * 100), 100);
   const todayLog = logs.find((l) => l.logged_at === new Date().toISOString().split("T")[0]);
