@@ -39,24 +39,25 @@ const navItems = [
 // ─── Chart components ────────────────────────────────────────────────────────
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function useChart(canvasId: string, buildConfig: () => any, deps: unknown[] = []) {
+function useChart(canvasRef: React.RefObject<HTMLCanvasElement | null>, buildConfig: () => any, deps: unknown[] = []) {
   const chartRef = useRef<Chart | null>(null);
   useEffect(() => {
-    const el = document.getElementById(canvasId) as HTMLCanvasElement | null;
+    const el = canvasRef.current;
     if (!el) return;
     if (chartRef.current) chartRef.current.destroy();
     chartRef.current = new Chart(el, buildConfig());
     return () => { chartRef.current?.destroy(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [canvasId, ...deps]);
+  }, deps);
 }
 
 function StepsChart({ data }: { data: { label: string; value: number }[] }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
   const values = data.map((d) => d.value);
   const labels = data.map((d) => d.label);
   const maxIdx = values.indexOf(Math.max(...values));
 
-  useChart("stepsChart", () => ({
+  useChart(canvasRef, () => ({
     type: "bar",
     data: {
       labels,
@@ -76,7 +77,7 @@ function StepsChart({ data }: { data: { label: string; value: number }[] }) {
       },
     },
   }), [JSON.stringify(data)]);
-  return <canvas id="stepsChart" />;
+  return <canvas ref={canvasRef} />;
 }
 
 function TripleDonut({ stepPct, proteinPct, carbsPct }: { stepPct: number; proteinPct: number; carbsPct: number }) {
@@ -125,7 +126,8 @@ function TripleDonut({ stepPct, proteinPct, carbsPct }: { stepPct: number; prote
 }
 
 function ProgressChart({ data }: { data: { label: string; value: number }[] }) {
-  useChart("progressChart", () => ({
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  useChart(canvasRef, () => ({
     type: "line",
     data: {
       labels: data.map((d) => d.label),
@@ -146,7 +148,7 @@ function ProgressChart({ data }: { data: { label: string; value: number }[] }) {
       },
     },
   }), [JSON.stringify(data)]);
-  return <canvas id="progressChart" />;
+  return <canvas ref={canvasRef} />;
 }
 
 // ─── Loading skeleton ─────────────────────────────────────────────────────────
