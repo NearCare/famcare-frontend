@@ -278,7 +278,11 @@ export default function DashboardPage() {
   }
 
   // ── Full dashboard ───────────────────────────────────────────────────────────
-  const displayName = user.name ?? user.phone;
+  // If name is null, show "there" in greeting and use phone last 4 digits for avatar
+  const displayName = user.name ?? "there";
+  const avatarLetter = user.name
+    ? user.name.charAt(0).toUpperCase()
+    : user.phone.slice(-4, -3) || "U";
 
   return (
     <div style={{ display: "flex", minHeight: "100vh" }}>
@@ -311,7 +315,7 @@ export default function DashboardPage() {
               display: "flex", alignItems: "center", justifyContent: "center",
               fontSize: 13, fontWeight: 700, color: "#fff",
             }}>
-              {displayName.charAt(0).toUpperCase()}
+              {avatarLetter}
             </div>
           </div>
         </div>
