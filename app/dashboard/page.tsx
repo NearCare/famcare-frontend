@@ -79,13 +79,49 @@ function StepsChart({ data }: { data: { label: string; value: number }[] }) {
   return <canvas id="stepsChart" />;
 }
 
-function DonutChart({ pct }: { pct: number }) {
-  useChart("donutChart", () => ({
-    type: "doughnut",
-    data: { datasets: [{ data: [pct, 100 - pct], backgroundColor: ["#4A8FE2", "#E8F3FF"], borderWidth: 0, hoverOffset: 0 }] },
-    options: { cutout: "76%", responsive: false, plugins: { legend: { display: false }, tooltip: { enabled: false } } },
-  }), [pct]);
-  return <canvas id="donutChart" width={130} height={130} />;
+function TripleDonut({ stepPct, proteinPct, carbsPct }: { stepPct: number; proteinPct: number; carbsPct: number }) {
+  const size = 160;
+  const cx = size / 2;
+  const cy = size / 2;
+
+  // Three rings: outer=steps, middle=protein, inner=carbs
+  const rings = [
+    { r: 68, stroke: "#4A8FE2", track: "#E8F3FF", pct: stepPct,    label: "Steps"   },
+    { r: 52, stroke: "#3EB86A", track: "#E8F8EE", pct: proteinPct, label: "Protein" },
+    { r: 36, stroke: "#F5A623", track: "#FFF8E0", pct: carbsPct,   label: "Carbs"   },
+  ];
+
+  return (
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+      {rings.map(({ r, stroke, track, pct }) => {
+        const circumference = 2 * Math.PI * r;
+        const dash = (pct / 100) * circumference;
+        return (
+          <g key={r}>
+            {/* Track */}
+            <circle cx={cx} cy={cy} r={r} fill="none" stroke={track} strokeWidth={10} />
+            {/* Progress */}
+            <circle
+              cx={cx} cy={cy} r={r} fill="none"
+              stroke={stroke} strokeWidth={10}
+              strokeLinecap="round"
+              strokeDasharray={`${dash} ${circumference}`}
+              strokeDashoffset={0}
+              transform={`rotate(-90 ${cx} ${cy})`}
+              style={{ transition: "stroke-dasharray .6s ease" }}
+            />
+          </g>
+        );
+      })}
+      {/* Centre label — show step pct as primary */}
+      <text x={cx} y={cy - 6} textAnchor="middle" fontSize="18" fontWeight="700" fill="#1A2744" fontFamily="DM Sans, sans-serif">
+        {stepPct}%
+      </text>
+      <text x={cx} y={cy + 12} textAnchor="middle" fontSize="9" fill="#9AAABB" fontFamily="DM Sans, sans-serif">
+        step goal
+      </text>
+    </svg>
+  );
 }
 
 function ProgressChart({ data }: { data: { label: string; value: number }[] }) {
@@ -405,21 +441,22 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* Activity donut */}
+          {/* Activity donut — triple ring */}
           <div style={{ background: "#fff", borderRadius: 16, padding: "17px 19px", boxShadow: "0 2px 12px rgba(26,20,20,.07)" }}>
             <div style={{ fontSize: 14.5, fontWeight: 600 }}>Activity Summary</div>
-            <div style={{ display: "flex", justifyContent: "center", alignItems: "center", position: "relative", height: 130 }}>
-              <DonutChart pct={stepGoalPct} />
-              <div style={{ position: "absolute", textAlign: "center", pointerEvents: "none" }}>
-                <div style={{ fontSize: 22, fontWeight: 700, lineHeight: 1 }}>{stepGoalPct}%</div>
-                <div style={{ fontSize: 10, color: "#6B7A9A", marginTop: 2 }}>step goal</div>
-              </div>
+            <div style={{ display: "flex", justifyContent: "center", alignItems: "center", marginTop: 8 }}>
+              <TripleDonut
+                stepPct={stepGoalPct}
+                proteinPct={Math.min(Math.round((proteinAvg / 50) * 100), 100)}
+                carbsPct={Math.min(Math.round((carbsAvg / 200) * 100), 100)}
+              />
             </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 9, marginTop: 12 }}>
+            {/* Legend */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 9, marginTop: 8 }}>
               {[
-                { color: "#4A8FE2", label: "Steps", val: `${avgSteps ? avgSteps.toLocaleString() : "—"} / 10k avg` },
+                { color: "#4A8FE2", label: "Steps",   val: `${avgSteps ? avgSteps.toLocaleString() : "—"} / 10k avg` },
                 { color: "#3EB86A", label: "Protein", val: `${proteinAvg ? proteinAvg.toFixed(0) : "—"}g / 50g` },
-                { color: "#F5A623", label: "Carbs", val: `${carbsAvg ? carbsAvg.toFixed(0) : "—"}g / 200g` },
+                { color: "#F5A623", label: "Carbs",   val: `${carbsAvg ? carbsAvg.toFixed(0) : "—"}g / 200g` },
               ].map((row) => (
                 <div key={row.label} style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 12.5, color: "#6B7A9A" }}>
