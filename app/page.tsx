@@ -1,3 +1,4 @@
+"use client";
 import Link from "next/link";
 
 const HeartIcon = () => (
@@ -316,10 +317,12 @@ export default function LandingPage() {
               borderRadius: 8, fontSize: 15, fontWeight: 700,
               boxShadow: "0 4px 18px rgba(232,92,92,.32)",
             }}>Get Started for Free</Link>
-            <button style={{
-              display: "flex", alignItems: "center", gap: 10, background: "none", border: "none",
-              fontSize: 14, fontWeight: 600, color: "#6B7A9A", cursor: "pointer",
-            }}>
+            <button
+              onClick={() => document.getElementById("features")?.scrollIntoView({ behavior: "smooth" })}
+              style={{
+                display: "flex", alignItems: "center", gap: 10, background: "none", border: "none",
+                fontSize: 14, fontWeight: 600, color: "#6B7A9A", cursor: "pointer",
+              }}>
               <div style={{
                 width: 32, height: 32, background: "#fff", borderRadius: "50%",
                 boxShadow: "0 2px 12px rgba(26,20,20,.07)",
@@ -329,7 +332,7 @@ export default function LandingPage() {
                   <path d="M1 1l8 5-8 5V1z" fill="#1A2744" />
                 </svg>
               </div>
-              Watch how it works
+              See how it works
             </button>
           </div>
 
@@ -363,7 +366,7 @@ export default function LandingPage() {
       </section>
 
       {/* Features */}
-      <section style={{ background: "#FFF8F7", padding: "52px 60px 60px" }}>
+      <section id="features" style={{ background: "#FFF8F7", padding: "52px 60px 60px" }}>
         <div style={{
           fontSize: 22, fontWeight: 700, textAlign: "center", color: "#1A2744",
           marginBottom: 32, display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
