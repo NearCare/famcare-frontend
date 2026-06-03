@@ -250,14 +250,17 @@ export default function DashboardPage() {
         <div style={{ marginLeft: 214, display: "flex", alignItems: "center", justifyContent: "center", flex: 1 }}>
           <div style={{ textAlign: "center", padding: 48 }}>
             <div style={{ fontSize: 40, marginBottom: 16 }}>⚠️</div>
-            <h3 style={{ fontSize: 18, fontWeight: 700, color: "#1A2744", marginBottom: 8 }}>Couldn&apos;t reach the backend</h3>
+            <h3 style={{ fontSize: 18, fontWeight: 700, color: "#1A2744", marginBottom: 8 }}>Something went wrong</h3>
             <p style={{ fontSize: 13.5, color: "#6B7A9A", maxWidth: 340, lineHeight: 1.7 }}>
-              Make sure the GharSehat backend is running on{" "}
-              <code style={{ background: "#F5EEEE", padding: "1px 6px", borderRadius: 4 }}>
-                {process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080"}
-              </code>
+              We couldn&apos;t load your health data. Please try refreshing the page.
+              If the problem persists, contact support.
             </p>
-            <p style={{ fontSize: 12, color: "#B0BFCC", marginTop: 10 }}>{error}</p>
+            <button
+              onClick={() => window.location.reload()}
+              style={{ marginTop: 16, padding: "10px 24px", background: "#E85C5C", color: "#fff", border: "none", borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: "pointer" }}
+            >
+              Retry
+            </button>
           </div>
         </div>
       </div>
