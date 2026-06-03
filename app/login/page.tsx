@@ -18,10 +18,10 @@ export default function LoginPage() {
   async function handleSendOtp(e: React.FormEvent) {
     e.preventDefault();
     setError("");
-    if (!phone.trim()) return setError("Please enter your phone number");
+    if (phone.length !== 10) return setError("Please enter a valid 10-digit mobile number");
 
-    // Normalise: ensure leading +
-    const normalized = phone.trim().startsWith("+") ? phone.trim() : `+${phone.trim()}`;
+    // Prepend +91 for India
+    const normalized = `+91${phone}`;
 
     setLoading(true);
     try {
@@ -152,18 +152,36 @@ export default function LoginPage() {
                 </div>
                 <input
                   type="tel"
-                  placeholder="+91 98765 43210"
+                  placeholder="10-digit mobile number"
                   value={phone}
-                  onChange={e => { setPhone(e.target.value); setError(""); }}
+                  maxLength={10}
+                  inputMode="numeric"
+                  onChange={e => {
+                    // Only allow digits, max 10
+                    const digits = e.target.value.replace(/\D/g, "").slice(0, 10);
+                    setPhone(digits);
+                    setError("");
+                  }}
                   style={{
                     width: "100%", padding: "13px 14px 13px 44px",
                     border: "1.5px solid #EDE6E6", borderRadius: 8,
-                    fontSize: 14, fontFamily: "inherit", color: "#1A2744",
+                    fontSize: 14, fontFamily: "inherit",
+                    color: phone.length === 10 ? "#1A2744" : "#B0BFCC",
                     background: "#FAFAFA", outline: "none", boxSizing: "border-box",
+                    transition: "color .2s",
                   }}
                   onFocus={e => { e.target.style.borderColor = "#E85C5C"; e.target.style.background = "#fff"; }}
                   onBlur={e => { e.target.style.borderColor = "#EDE6E6"; e.target.style.background = "#FAFAFA"; }}
                 />
+                {/* Digit counter */}
+                {phone.length > 0 && phone.length < 10 && (
+                  <div style={{
+                    position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)",
+                    fontSize: 11, color: "#B0BFCC", fontWeight: 500,
+                  }}>
+                    {phone.length}/10
+                  </div>
+                )}
               </div>
 
               {error && (
@@ -172,12 +190,13 @@ export default function LoginPage() {
 
               <button
                 type="submit"
-                disabled={loading}
+                disabled={loading || phone.length !== 10}
                 style={{
                   marginTop: 4, width: "100%", padding: 14,
-                  background: loading ? "#F0A0A0" : "#E85C5C", color: "#fff",
+                  background: loading || phone.length !== 10 ? "#F0A0A0" : "#E85C5C", color: "#fff",
                   border: "none", borderRadius: 8, fontSize: 15, fontWeight: 600,
-                  fontFamily: "inherit", cursor: loading ? "not-allowed" : "pointer",
+                  fontFamily: "inherit", cursor: loading || phone.length !== 10 ? "not-allowed" : "pointer",
+                  transition: "background .2s",
                 }}
               >
                 {loading ? "Sending…" : "Get OTP on WhatsApp"}
