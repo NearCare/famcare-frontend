@@ -154,7 +154,7 @@ export function logsToWeeklySteps(
   for (let i = 6; i >= 0; i--) {
     const d = new Date();
     d.setDate(d.getDate() - i);
-    const key = d.toISOString().split("T")[0];
+    const key = d.toLocaleDateString("en-CA"); // "YYYY-MM-DD" in local timezone
     result.push({
       label: days[d.getDay() === 0 ? 6 : d.getDay() - 1],
       value: byDate[key] ?? 0,

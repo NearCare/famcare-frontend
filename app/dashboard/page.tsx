@@ -212,7 +212,9 @@ export default function DashboardPage() {
   const weeklySteps = useMemo(() => logsToWeeklySteps(logs), [logs]);
   const avgSteps = summary?.avg_steps ?? 0;
   const stepGoalPct = Math.min(Math.round((avgSteps / 10000) * 100), 100);
-  const todayLog = logs.find((l) => l.logged_at === new Date().toISOString().split("T")[0]);
+  // Use local date (not UTC) so IST users after 6:30 PM get the correct date
+  const todayIST = new Date().toLocaleDateString("en-CA"); // "YYYY-MM-DD" in local timezone
+  const todayLog = logs.find((l) => l.logged_at === todayIST);
   const todaySteps = todayLog?.steps ?? 0;
   const todayStepPct = Math.min(Math.round((todaySteps / 10000) * 100), 100);
   const proteinAvg = summary?.avg_protein_g ?? 0;
