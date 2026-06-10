@@ -751,37 +751,48 @@ export default function DashboardPage() {
               </button>
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 12 }}>
-              {familyMembers.map(member => (
-                <button
-                  key={member.id}
-                  onClick={() => setSelectedMember(member)}
-                  style={{
-                    background: "#fff", border: "1.5px solid #EDE8FF", borderRadius: 16,
-                    padding: "16px 14px", cursor: "pointer", textAlign: "left",
-                    transition: "box-shadow .2s, border-color .2s",
-                    fontFamily: "'Plus Jakarta Sans', sans-serif",
-                  }}
-                  onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.boxShadow = "0 4px 16px rgba(124,111,247,0.15)"; (e.currentTarget as HTMLButtonElement).style.borderColor = "#C4B8FF"; }}
-                  onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.boxShadow = "none"; (e.currentTarget as HTMLButtonElement).style.borderColor = "#EDE8FF"; }}
-                >
-                  <div style={{
-                    width: 40, height: 40, borderRadius: 12,
-                    background: member.type === "family" ? "#F0EEFF" : "#FFF4E8",
-                    color: member.type === "family" ? "#7C6FF7" : "#FF9F45",
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                    fontSize: 17, fontWeight: 800, marginBottom: 10,
-                  }}>
-                    {(member.name ?? member.label).charAt(0).toUpperCase()}
-                  </div>
-                  <div style={{ fontSize: 13.5, fontWeight: 800, color: "#2C2F3A", marginBottom: 2 }}>
-                    {member.name ?? member.label}
-                  </div>
-                  <div style={{ fontSize: 11, color: "#9AA0AD" }}>{member.label}</div>
-                  <div style={{ marginTop: 8, fontSize: 10.5, fontWeight: 700, color: member.type === "family" ? "#7C6FF7" : "#FF9F45", background: member.type === "family" ? "#F0EEFF" : "#FFF4E8", padding: "2px 8px", borderRadius: 20, display: "inline-block" }}>
-                    {member.type}
-                  </div>
-                </button>
-              ))}
+              {familyMembers.map(member => {
+                const isPending = member.status === "pending";
+                const accentColor = member.type === "family" ? "#7C6FF7" : "#FF9F45";
+                const accentBg    = member.type === "family" ? "#F0EEFF"  : "#FFF4E8";
+                return (
+                  <button
+                    key={member.id}
+                    onClick={() => !isPending && setSelectedMember(member)}
+                    style={{
+                      background: isPending ? "#FAFAFA" : "#fff",
+                      border: `1.5px solid ${isPending ? "#E8E4F5" : "#EDE8FF"}`,
+                      borderRadius: 16, padding: "16px 14px",
+                      cursor: isPending ? "default" : "pointer",
+                      textAlign: "left", opacity: isPending ? 0.8 : 1,
+                      transition: "box-shadow .2s, border-color .2s",
+                      fontFamily: "'Plus Jakarta Sans', sans-serif",
+                    }}
+                    onMouseEnter={e => { if (!isPending) { (e.currentTarget as HTMLButtonElement).style.boxShadow = "0 4px 16px rgba(124,111,247,0.15)"; (e.currentTarget as HTMLButtonElement).style.borderColor = "#C4B8FF"; } }}
+                    onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.boxShadow = "none"; (e.currentTarget as HTMLButtonElement).style.borderColor = isPending ? "#E8E4F5" : "#EDE8FF"; }}
+                  >
+                    <div style={{
+                      width: 40, height: 40, borderRadius: 12,
+                      background: accentBg, color: accentColor,
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      fontSize: 17, fontWeight: 800, marginBottom: 10,
+                      filter: isPending ? "grayscale(0.4)" : "none",
+                    }}>
+                      {(member.name ?? member.label).charAt(0).toUpperCase()}
+                    </div>
+                    <div style={{ fontSize: 13.5, fontWeight: 800, color: "#2C2F3A", marginBottom: 2 }}>
+                      {member.name ?? member.label}
+                    </div>
+                    <div style={{ fontSize: 11, color: "#9AA0AD" }}>{member.label}</div>
+                    <div style={{ marginTop: 8, fontSize: 10.5, fontWeight: 700, padding: "2px 8px", borderRadius: 20, display: "inline-block",
+                      color: isPending ? "#9AA0AD" : accentColor,
+                      background: isPending ? "#F0EEF5" : accentBg,
+                    }}>
+                      {isPending ? "⏳ Awaiting YES" : member.type}
+                    </div>
+                  </button>
+                );
+              })}
             </div>
           </div>
         )}

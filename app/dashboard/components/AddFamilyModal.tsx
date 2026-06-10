@@ -1,8 +1,8 @@
 "use client";
 import { useState } from "react";
-import { inviteFamilyMember, verifyFamilyOtp, type FamilyMember } from "@/lib/api";
+import { inviteFamilyMember, type FamilyMember } from "@/lib/api";
 
-type Step = "details" | "otp" | "success";
+type Step = "details" | "sent";
 
 interface Props {
   onClose: () => void;
@@ -14,14 +14,13 @@ export default function AddFamilyModal({ onClose, onAdded }: Props) {
   const [type, setType] = useState<"family" | "friend">("family");
   const [label, setLabel] = useState("");
   const [rawPhone, setRawPhone] = useState("");
-  const [otp, setOtp] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [addedMember, setAddedMember] = useState<FamilyMember | null>(null);
+  const [sentMember, setSentMember] = useState<FamilyMember | null>(null);
 
   const phone = `+91${rawPhone}`;
 
-  async function handleSendOtp(e: React.FormEvent) {
+  async function handleInvite(e: React.FormEvent) {
     e.preventDefault();
     setError("");
     if (!label.trim()) return setError("Please enter a name or label");
@@ -30,47 +29,16 @@ export default function AddFamilyModal({ onClose, onAdded }: Props) {
     const token = localStorage.getItem("auth_token") ?? "";
     setLoading(true);
     try {
-      await inviteFamilyMember(phone, label.trim(), type, token);
-      setStep("otp");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to send OTP");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function handleVerifyOtp(e: React.FormEvent) {
-    e.preventDefault();
-    setError("");
-    if (otp.length !== 6) return setError("Enter the 6-digit OTP");
-
-    const token = localStorage.getItem("auth_token") ?? "";
-    setLoading(true);
-    try {
-      const member = await verifyFamilyOtp(phone, otp, label.trim(), type, token);
-      setAddedMember(member);
-      setStep("success");
+      const member = await inviteFamilyMember(phone, label.trim(), type, token);
+      setSentMember(member);
       onAdded(member);
-      setTimeout(onClose, 2200);
+      setStep("sent");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Invalid OTP");
+      setError(err instanceof Error ? err.message : "Failed to send invite");
     } finally {
       setLoading(false);
     }
   }
-
-  async function handleResend() {
-    setError("");
-    setOtp("");
-    const token = localStorage.getItem("auth_token") ?? "";
-    try {
-      await inviteFamilyMember(phone, label.trim(), type, token);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to resend");
-    }
-  }
-
-  const stepIndex = { details: 0, otp: 1, success: 2 }[step];
 
   return (
     <div
@@ -86,32 +54,21 @@ export default function AddFamilyModal({ onClose, onAdded }: Props) {
         onClick={e => e.stopPropagation()}
         style={{
           background: "#fff", borderRadius: 22,
-          width: "100%", maxWidth: 460,
+          width: "100%", maxWidth: 440,
           padding: "32px 36px 28px",
           boxShadow: "0 24px 60px rgba(0,0,0,0.18)",
           position: "relative",
         }}
       >
         {/* Close */}
-        <button
-          onClick={onClose}
-          style={{
-            position: "absolute", top: 18, right: 18,
-            background: "#F5F3F8", border: "none", borderRadius: 10,
-            width: 32, height: 32, cursor: "pointer",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            fontSize: 16, color: "#5A5F6E",
-          }}
-        >
-          ✕
-        </button>
+        <button onClick={onClose} style={closeBtnStyle}>✕</button>
 
-        {/* Progress bar */}
+        {/* Progress */}
         <div style={{ display: "flex", gap: 5, marginBottom: 28 }}>
-          {[0, 1, 2].map(i => (
+          {[0, 1].map(i => (
             <div key={i} style={{
               flex: 1, height: 4, borderRadius: 4,
-              background: i <= stepIndex ? "#7C6FF7" : "#EDE8FF",
+              background: i <= (step === "sent" ? 1 : 0) ? "#7C6FF7" : "#EDE8FF",
               transition: "background .3s",
             }} />
           ))}
@@ -120,11 +77,9 @@ export default function AddFamilyModal({ onClose, onAdded }: Props) {
         {/* ── Step 1: details ── */}
         {step === "details" && (
           <>
-            <h2 style={{ fontSize: 20, fontWeight: 800, color: "#2C2F3A", margin: "0 0 4px", fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
-              Add a family member
-            </h2>
-            <p style={{ fontSize: 13.5, color: "#7A8099", margin: "0 0 22px", lineHeight: 1.5 }}>
-              We&apos;ll send an OTP to their WhatsApp to confirm.
+            <h2 style={headingStyle}>Add a family member</h2>
+            <p style={subStyle}>
+              They&apos;ll get a WhatsApp message and just need to reply <strong>YES</strong> to join.
             </p>
 
             {/* Type toggle */}
@@ -144,14 +99,12 @@ export default function AddFamilyModal({ onClose, onAdded }: Props) {
               ))}
             </div>
 
-            <form onSubmit={handleSendOtp} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            <form onSubmit={handleInvite} style={{ display: "flex", flexDirection: "column", gap: 13 }}>
               <div>
-                <label style={{ fontSize: 12, fontWeight: 700, color: "#5A5F6E", display: "block", marginBottom: 5 }}>
-                  Name / Label
-                </label>
+                <label style={labelStyle}>Name / Label</label>
                 <input
                   type="text"
-                  placeholder='e.g. "Dad", "Wife", "Best Friend"'
+                  placeholder='e.g. "Dad", "Mom", "Best Friend"'
                   value={label}
                   onChange={e => { setLabel(e.target.value); setError(""); }}
                   style={inputStyle}
@@ -161,9 +114,7 @@ export default function AddFamilyModal({ onClose, onAdded }: Props) {
               </div>
 
               <div>
-                <label style={{ fontSize: 12, fontWeight: 700, color: "#5A5F6E", display: "block", marginBottom: 5 }}>
-                  WhatsApp Number
-                </label>
+                <label style={labelStyle}>WhatsApp Number</label>
                 <div style={{ position: "relative" }}>
                   <div style={{
                     position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)",
@@ -185,82 +136,62 @@ export default function AddFamilyModal({ onClose, onAdded }: Props) {
 
               {error && <p style={{ fontSize: 12.5, color: "#E85C5C", margin: 0 }}>⚠ {error}</p>}
 
-              <button type="submit" disabled={loading} style={primaryBtn("#7C6FF7", loading)}>
-                {loading ? "Sending OTP…" : "Send OTP →"}
+              <button type="submit" disabled={loading} style={primaryBtnStyle(loading)}>
+                {loading ? "Sending…" : "Send WhatsApp Invite →"}
               </button>
             </form>
           </>
         )}
 
-        {/* ── Step 2: OTP ── */}
-        {step === "otp" && (
-          <>
-            <h2 style={{ fontSize: 20, fontWeight: 800, color: "#2C2F3A", margin: "0 0 4px", fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
-              Verify OTP
-            </h2>
-            <p style={{ fontSize: 13.5, color: "#7A8099", margin: "0 0 22px", lineHeight: 1.5 }}>
-              Enter the 6-digit code sent to <strong style={{ color: "#2C2F3A" }}>{phone}</strong> on WhatsApp.
+        {/* ── Step 2: invite sent ── */}
+        {step === "sent" && (
+          <div style={{ textAlign: "center", padding: "8px 0 4px" }}>
+            <div style={{ fontSize: 52, marginBottom: 14 }}>📲</div>
+            <h2 style={{ ...headingStyle, marginBottom: 8 }}>Invite sent!</h2>
+            <p style={{ fontSize: 13.5, color: "#7A8099", lineHeight: 1.65, margin: "0 0 6px" }}>
+              A WhatsApp message was sent to{" "}
+              <strong style={{ color: "#2C2F3A" }}>{phone}</strong>.
+            </p>
+            <p style={{ fontSize: 13.5, color: "#7A8099", lineHeight: 1.65, margin: "0 0 24px" }}>
+              Once <strong style={{ color: "#2C2F3A" }}>{sentMember?.label}</strong> replies{" "}
+              <strong style={{ color: "#7C6FF7" }}>YES</strong>, they&apos;ll appear active on your dashboard.
             </p>
 
-            <form onSubmit={handleVerifyOtp} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-              <input
-                type="text"
-                inputMode="numeric"
-                maxLength={6}
-                placeholder="• • • • • •"
-                value={otp}
-                autoFocus
-                onChange={e => { setOtp(e.target.value.replace(/\D/g, "")); setError(""); }}
-                style={{
-                  ...inputStyle,
-                  fontSize: 26, letterSpacing: 10, textAlign: "center",
-                  fontFamily: "'Courier New', monospace",
-                }}
-                onFocus={e => e.target.style.borderColor = "#7C6FF7"}
-                onBlur={e => e.target.style.borderColor = "#E8E4F5"}
-              />
-
-              {error && <p style={{ fontSize: 12.5, color: "#E85C5C", margin: 0 }}>⚠ {error}</p>}
-
-              <button type="submit" disabled={loading || otp.length !== 6} style={primaryBtn("#7C6FF7", loading || otp.length !== 6)}>
-                {loading ? "Verifying…" : "Verify & Add Member"}
-              </button>
-
-              <button type="button" onClick={() => { setStep("details"); setOtp(""); setError(""); }}
-                style={{ background: "none", border: "1.5px solid #E8E4F5", borderRadius: 11, padding: "11px 0", cursor: "pointer", fontSize: 13.5, color: "#7A8099", fontFamily: "'Plus Jakarta Sans', sans-serif", fontWeight: 600 }}>
-                ← Go back
-              </button>
-            </form>
-
-            <p style={{ marginTop: 16, textAlign: "center", fontSize: 12.5, color: "#9AA0AD" }}>
-              Didn&apos;t receive it?{" "}
-              <button onClick={handleResend} style={{ color: "#7C6FF7", fontWeight: 700, background: "none", border: "none", cursor: "pointer", fontSize: 12.5, padding: 0, fontFamily: "inherit" }}>
-                Resend OTP
-              </button>
-            </p>
-          </>
-        )}
-
-        {/* ── Step 3: success ── */}
-        {step === "success" && (
-          <div style={{ textAlign: "center", padding: "12px 0 8px" }}>
-            <div style={{ fontSize: 56, marginBottom: 16 }}>🎉</div>
-            <h2 style={{ fontSize: 20, fontWeight: 800, color: "#2C2F3A", margin: "0 0 8px", fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
-              {addedMember?.label ?? "Member"} added!
-            </h2>
-            <p style={{ fontSize: 13.5, color: "#7A8099", margin: 0, lineHeight: 1.6 }}>
-              You can now track their health from your dashboard.
-            </p>
-            <div style={{ marginTop: 20, height: 4, borderRadius: 4, background: "#F0EEFF", overflow: "hidden" }}>
-              <div style={{ height: "100%", background: "#7C6FF7", borderRadius: 4, animation: "shrink 2.2s linear forwards" }} />
+            {/* Preview of what dad gets */}
+            <div style={{
+              background: "#F4F1FF", borderRadius: 14, padding: "14px 16px",
+              textAlign: "left", marginBottom: 22,
+            }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: "#9AA0AD", marginBottom: 6, textTransform: "uppercase", letterSpacing: 0.5 }}>
+                WhatsApp message preview
+              </div>
+              <p style={{ fontSize: 12.5, color: "#4A4560", lineHeight: 1.6, margin: 0 }}>
+                <em>wants to track your health on <strong>NearCare</strong> 🌱</em><br />
+                Reply <strong>YES</strong> to join and start logging your health together!
+              </p>
             </div>
-            <style>{`@keyframes shrink { from { width: 100% } to { width: 0% } }`}</style>
+
+            <button onClick={onClose} style={primaryBtnStyle(false)}>Done</button>
           </div>
         )}
       </div>
     </div>
   );
 }
+
+const headingStyle: React.CSSProperties = {
+  fontSize: 20, fontWeight: 800, color: "#2C2F3A",
+  margin: "0 0 6px", fontFamily: "'Plus Jakarta Sans', sans-serif",
+};
+
+const subStyle: React.CSSProperties = {
+  fontSize: 13.5, color: "#7A8099", margin: "0 0 20px", lineHeight: 1.55,
+};
+
+const labelStyle: React.CSSProperties = {
+  fontSize: 12, fontWeight: 700, color: "#5A5F6E",
+  display: "block", marginBottom: 5,
+};
 
 const inputStyle: React.CSSProperties = {
   width: "100%", padding: "11px 14px",
@@ -270,10 +201,19 @@ const inputStyle: React.CSSProperties = {
   boxSizing: "border-box", transition: "border-color .2s",
 };
 
-function primaryBtn(color: string, disabled: boolean): React.CSSProperties {
+const closeBtnStyle: React.CSSProperties = {
+  position: "absolute", top: 18, right: 18,
+  background: "#F5F3F8", border: "none", borderRadius: 10,
+  width: 32, height: 32, cursor: "pointer",
+  display: "flex", alignItems: "center", justifyContent: "center",
+  fontSize: 16, color: "#5A5F6E",
+};
+
+function primaryBtnStyle(disabled: boolean): React.CSSProperties {
   return {
-    padding: "12px 0", borderRadius: 11, border: "none", cursor: disabled ? "not-allowed" : "pointer",
-    background: disabled ? "#C9C3F0" : color,
+    width: "100%", padding: "12px 0", borderRadius: 11,
+    border: "none", cursor: disabled ? "not-allowed" : "pointer",
+    background: disabled ? "#C9C3F0" : "#7C6FF7",
     color: "#fff", fontWeight: 800, fontSize: 14,
     fontFamily: "'Plus Jakarta Sans', sans-serif",
     transition: "background .2s",

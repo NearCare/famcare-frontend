@@ -144,6 +144,7 @@ export type FamilyMember = {
   name: string | null;
   label: string;
   type: string;
+  status: string;   // "pending" | "active"
   created_at: string;
 };
 
@@ -166,21 +167,11 @@ async function authedFetch<T>(path: string, token: string, options?: RequestInit
 
 export async function inviteFamilyMember(
   phone: string, label: string, type: string, token: string
-): Promise<void> {
-  await authedFetch("/family/invite", token, {
+): Promise<FamilyMember> {
+  return authedFetch<FamilyMember>("/family/invite", token, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ phone, label, type }),
-  });
-}
-
-export async function verifyFamilyOtp(
-  phone: string, code: string, label: string, type: string, token: string
-): Promise<FamilyMember> {
-  return authedFetch<FamilyMember>("/family/verify", token, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ phone, code, label, type }),
   });
 }
 
