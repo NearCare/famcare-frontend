@@ -11,12 +11,16 @@ import {
 import {
   getUserLogs,
   getUserSummary,
+  getFamilyMembers,
   logsToWeeklySteps,
   type User,
   type HealthLog,
   type Summary,
+  type FamilyMember,
 } from "@/lib/api";
 import EmptyState from "./components/EmptyState";
+import AddFamilyModal from "./components/AddFamilyModal";
+import FamilyMemberModal from "./components/FamilyMemberModal";
 
 Chart.register(
   BarElement, LineElement, PointElement, ArcElement,
@@ -207,6 +211,9 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showFamilyCard, setShowFamilyCard] = useState(false);
+  const [showAddFamily, setShowAddFamily] = useState(false);
+  const [familyMembers, setFamilyMembers] = useState<FamilyMember[]>([]);
+  const [selectedMember, setSelectedMember] = useState<FamilyMember | null>(null);
 
   useEffect(() => {
     const dismissed = localStorage.getItem("family_card_dismissed");
@@ -226,12 +233,15 @@ export default function DashboardPage() {
         const authUser: User | null = stored ? JSON.parse(stored) : null;
         if (!authUser) { window.location.href = "/login"; return; }
         setUser(authUser);
-        const [fetchedLogs, fetchedSummary] = await Promise.all([
+        const token = localStorage.getItem("auth_token") ?? "";
+        const [fetchedLogs, fetchedSummary, fetchedMembers] = await Promise.all([
           getUserLogs(authUser.id, 7),
           getUserSummary(authUser.id),
+          getFamilyMembers(token).catch(() => [] as FamilyMember[]),
         ]);
         setLogs(fetchedLogs);
         setSummary(fetchedSummary);
+        setFamilyMembers(fetchedMembers);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to load data");
       } finally {
@@ -496,7 +506,7 @@ export default function DashboardPage() {
                   boxShadow: "0 4px 14px rgba(124,111,247,0.35)",
                   fontFamily: "'Plus Jakarta Sans', sans-serif",
                 }}
-                  onClick={() => alert("Coming soon! 🚀")}
+                  onClick={() => setShowAddFamily(true)}
                 >
                   <span style={{ fontSize: 16 }}>+</span> Add Family Member
                 </button>
@@ -726,6 +736,56 @@ export default function DashboardPage() {
           </div>
         </div>
 
+        {/* ── Family members ── */}
+        {familyMembers.length > 0 && (
+          <div>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+              <h2 style={{ fontSize: 15, fontWeight: 800, color: "#2C2F3A", margin: 0, fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+                👨‍👩‍👦 Family &amp; Friends
+              </h2>
+              <button
+                onClick={() => setShowAddFamily(true)}
+                style={{ background: "#F0EEFF", border: "none", borderRadius: 20, padding: "6px 14px", fontSize: 12.5, fontWeight: 700, color: "#7C6FF7", cursor: "pointer", fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+              >
+                + Add
+              </button>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 12 }}>
+              {familyMembers.map(member => (
+                <button
+                  key={member.id}
+                  onClick={() => setSelectedMember(member)}
+                  style={{
+                    background: "#fff", border: "1.5px solid #EDE8FF", borderRadius: 16,
+                    padding: "16px 14px", cursor: "pointer", textAlign: "left",
+                    transition: "box-shadow .2s, border-color .2s",
+                    fontFamily: "'Plus Jakarta Sans', sans-serif",
+                  }}
+                  onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.boxShadow = "0 4px 16px rgba(124,111,247,0.15)"; (e.currentTarget as HTMLButtonElement).style.borderColor = "#C4B8FF"; }}
+                  onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.boxShadow = "none"; (e.currentTarget as HTMLButtonElement).style.borderColor = "#EDE8FF"; }}
+                >
+                  <div style={{
+                    width: 40, height: 40, borderRadius: 12,
+                    background: member.type === "family" ? "#F0EEFF" : "#FFF4E8",
+                    color: member.type === "family" ? "#7C6FF7" : "#FF9F45",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    fontSize: 17, fontWeight: 800, marginBottom: 10,
+                  }}>
+                    {(member.name ?? member.label).charAt(0).toUpperCase()}
+                  </div>
+                  <div style={{ fontSize: 13.5, fontWeight: 800, color: "#2C2F3A", marginBottom: 2 }}>
+                    {member.name ?? member.label}
+                  </div>
+                  <div style={{ fontSize: 11, color: "#9AA0AD" }}>{member.label}</div>
+                  <div style={{ marginTop: 8, fontSize: 10.5, fontWeight: 700, color: member.type === "family" ? "#7C6FF7" : "#FF9F45", background: member.type === "family" ? "#F0EEFF" : "#FFF4E8", padding: "2px 8px", borderRadius: 20, display: "inline-block" }}>
+                    {member.type}
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* ── Bottom banner ── */}
         <div className="db-banner">
           <div className="db-banner-ic">💬</div>
@@ -745,6 +805,20 @@ export default function DashboardPage() {
           <Link href="/" style={{ fontSize: 12, color: "#9AA0AD", fontWeight: 500 }}>← Back to home</Link>
         </div>
       </div>
+
+      {showAddFamily && (
+        <AddFamilyModal
+          onClose={() => setShowAddFamily(false)}
+          onAdded={(member) => setFamilyMembers(prev => [member, ...prev.filter(m => m.id !== member.id)])}
+        />
+      )}
+
+      {selectedMember && (
+        <FamilyMemberModal
+          member={selectedMember}
+          onClose={() => setSelectedMember(null)}
+        />
+      )}
     </div>
   );
 }

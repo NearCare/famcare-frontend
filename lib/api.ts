@@ -136,6 +136,74 @@ export async function getUserSummary(userId: string): Promise<Summary | null> {
   return data as Summary;
 }
 
+// ─── Family ──────────────────────────────────────────────────────────────────
+
+export type FamilyMember = {
+  id: string;
+  phone: string;
+  name: string | null;
+  label: string;
+  type: string;
+  created_at: string;
+};
+
+async function authedFetch<T>(path: string, token: string, options?: RequestInit): Promise<T> {
+  const res = await fetch(`${BASE_URL}${path}`, {
+    ...options,
+    headers: {
+      Accept: "application/json",
+      Authorization: `Bearer ${token}`,
+      ...(options?.headers ?? {}),
+    },
+    cache: "no-store",
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error((err as { error?: string }).error ?? `API ${path} → ${res.status}`);
+  }
+  return res.json() as Promise<T>;
+}
+
+export async function inviteFamilyMember(
+  phone: string, label: string, type: string, token: string
+): Promise<void> {
+  await authedFetch("/family/invite", token, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ phone, label, type }),
+  });
+}
+
+export async function verifyFamilyOtp(
+  phone: string, code: string, label: string, type: string, token: string
+): Promise<FamilyMember> {
+  return authedFetch<FamilyMember>("/family/verify", token, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ phone, code, label, type }),
+  });
+}
+
+export async function getFamilyMembers(token: string): Promise<FamilyMember[]> {
+  const data = await authedFetch<{ members: FamilyMember[] }>("/family/members", token);
+  return data.members;
+}
+
+export async function getMemberSummary(memberId: string, token: string): Promise<Summary | null> {
+  const data = await authedFetch<Summary | { message: string }>(
+    `/family/members/${memberId}/summary`, token
+  );
+  if ("message" in data) return null;
+  return data as Summary;
+}
+
+export async function getMemberLogs(memberId: string, token: string, days = 7): Promise<HealthLog[]> {
+  const data = await authedFetch<{ logs: HealthLog[] }>(
+    `/family/members/${memberId}/logs?days=${days}`, token
+  );
+  return data.logs;
+}
+
 // ─── Derived helpers used by the dashboard ───────────────────────────────────
 
 /** Pull the last 7 logs and bucket them into Mon–Sun arrays for charts. */
