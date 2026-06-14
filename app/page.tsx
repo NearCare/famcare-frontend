@@ -288,7 +288,7 @@ export default function LandingPage() {
       {/* Hero */}
       <section style={{
         display: "flex", alignItems: "center", padding: "48px 60px",
-        gap: 48, overflow: "hidden", flex: 1,
+        gap: 28, overflow: "hidden", flex: 1,
       }}>
         {/* Left */}
         <div style={{ flex: "0 0 480px", position: "relative" }}>
@@ -368,11 +368,11 @@ export default function LandingPage() {
         {/* Center — WhatsApp circle */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/whats_app_circle.png" alt="Log health via WhatsApp" style={{ width: 180, height: 180, objectFit: "contain" }} />
+          <img src="/whats_app_circle.png" alt="Log health via WhatsApp" style={{ width: 280, height: 280, objectFit: "contain" }} />
         </div>
 
         {/* Right — mockup */}
-        <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "flex-end" }}>
+        <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
           <DashboardMockup />
         </div>
       </section>
@@ -425,17 +425,6 @@ export default function LandingPage() {
           <div style={{ position: "absolute", top: -60, right: -60, width: 240, height: 240, background: "rgba(232,92,92,.06)", borderRadius: "50%" }} />
           <div style={{ position: "absolute", bottom: -40, left: 380, width: 180, height: 180, background: "rgba(232,92,92,.04)", borderRadius: "50%" }} />
 
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/family-sunset.png"
-            alt="Family health"
-            style={{
-              width: 380, flexShrink: 0, borderRadius: 20,
-              boxShadow: "0 12px 48px rgba(26,20,20,.14)",
-              position: "relative", zIndex: 1,
-            }}
-          />
-
           <div style={{ position: "relative", zIndex: 1 }}>
             <div style={{
               display: "inline-flex", alignItems: "center", gap: 7, background: "#FFEDEC",
@@ -472,6 +461,18 @@ export default function LandingPage() {
               background: "#E85C5C", color: "#fff", borderRadius: 8,
               fontSize: 14, fontWeight: 700, boxShadow: "0 4px 14px rgba(232,92,92,.3)",
             }}>Get Started Free →</Link>
+          </div>
+
+          <div style={{ flex: 1, display: "flex", justifyContent: "flex-end", position: "relative", zIndex: 1 }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/family_walking.png"
+              alt="Family health"
+              style={{
+                width: 480, borderRadius: 20,
+                boxShadow: "0 12px 48px rgba(26,20,20,.14)",
+              }}
+            />
           </div>
         </div>
       </section>
