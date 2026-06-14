@@ -4,6 +4,8 @@ import {
   BarChart, Bar, XAxis, YAxis, Tooltip as ReTooltip,
   ResponsiveContainer, Cell,
 } from "recharts";
+import { X, ChartBar, ClipboardText, Scroll } from "@phosphor-icons/react";
+import { FEShoe, FEMeat, FEWheat } from "./FluentEmoji";
 import { getMemberSummary, getMemberLogs, logsToWeeklySteps, type FamilyMember, type Summary, type HealthLog } from "@/lib/api";
 
 interface Props {
@@ -128,10 +130,10 @@ export default function FamilyMemberModal({ member, onClose }: Props) {
               background: "#F5F3F8", border: "none", borderRadius: 10,
               width: 32, height: 32, cursor: "pointer",
               display: "flex", alignItems: "center", justifyContent: "center",
-              fontSize: 16, color: "#5A5F6E", flexShrink: 0,
+              color: "#5A5F6E", flexShrink: 0,
             }}
           >
-            ✕
+            <X size={15} weight="bold" />
           </button>
         </div>
 
@@ -140,12 +142,12 @@ export default function FamilyMemberModal({ member, onClose }: Props) {
           {/* KPI row */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 12 }}>
             {[
-              { emoji: "👟", label: "Steps today", val: loading ? null : todaySteps ? `${todaySteps.toLocaleString()}` : "—", unit: "", bar: todayStepPct, color: "#7C6FF7", bg: "#F0EEFF" },
-              { emoji: "🥩", label: "Avg protein", val: loading ? null : summary?.avg_protein_g != null ? `${summary.avg_protein_g.toFixed(0)}` : "—", unit: "g", bar: Math.min(Math.round(((summary?.avg_protein_g ?? 0) / 50) * 100), 100), color: "#2FBE76", bg: "#EAFBF0" },
-              { emoji: "🦶", label: "Avg steps", val: loading ? null : summary?.avg_steps != null ? `${Math.round(summary.avg_steps).toLocaleString()}` : "—", unit: "", bar: Math.min(Math.round(((summary?.avg_steps ?? 0) / 10000) * 100), 100), color: "#FF9F45", bg: "#FFF4E8" },
+              { icon: <FEShoe size={24} />, label: "Steps today", val: loading ? null : todaySteps ? `${todaySteps.toLocaleString()}` : "—", unit: "", bar: todayStepPct, color: "#7C6FF7", bg: "#F0EEFF" },
+              { icon: <FEMeat size={24} />, label: "Avg protein", val: loading ? null : summary?.avg_protein_g != null ? `${summary.avg_protein_g.toFixed(0)}` : "—", unit: "g", bar: Math.min(Math.round(((summary?.avg_protein_g ?? 0) / 50) * 100), 100), color: "#2FBE76", bg: "#EAFBF0" },
+              { icon: <FEShoe size={24} />, label: "Avg steps", val: loading ? null : summary?.avg_steps != null ? `${Math.round(summary.avg_steps).toLocaleString()}` : "—", unit: "", bar: Math.min(Math.round(((summary?.avg_steps ?? 0) / 10000) * 100), 100), color: "#FF9F45", bg: "#FFF4E8" },
             ].map(card => (
               <div key={card.label} style={{ background: card.bg, borderRadius: 14, padding: "14px 14px 12px" }}>
-                <div style={{ fontSize: 18, marginBottom: 6 }}>{card.emoji}</div>
+                <div style={{ marginBottom: 6 }}>{card.icon}</div>
                 {loading ? (
                   <Skel h={24} w="60%" />
                 ) : (
@@ -163,16 +165,16 @@ export default function FamilyMemberModal({ member, onClose }: Props) {
 
           {/* Steps chart */}
           <div style={{ background: "#FAFAFA", borderRadius: 16, padding: "18px 18px 14px" }}>
-            <div style={{ fontSize: 13.5, fontWeight: 800, color: "#2C2F3A", marginBottom: 12, fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
-              📊 Steps this week
+            <div style={{ fontSize: 13.5, fontWeight: 800, color: "#2C2F3A", marginBottom: 12, fontFamily: "'Plus Jakarta Sans', sans-serif", display: "flex", alignItems: "center", gap: 7 }}>
+              <ChartBar size={15} weight="bold" color="#7C6FF7" /> Steps this week
             </div>
             {loading ? <Skel h={120} /> : <MiniStepsChart data={weeklySteps} />}
           </div>
 
           {/* Today's log */}
           <div style={{ background: "#FAFAFA", borderRadius: 16, padding: "16px 18px" }}>
-            <div style={{ fontSize: 13.5, fontWeight: 800, color: "#2C2F3A", marginBottom: 12, fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
-              📋 Today&apos;s log
+            <div style={{ fontSize: 13.5, fontWeight: 800, color: "#2C2F3A", marginBottom: 12, fontFamily: "'Plus Jakarta Sans', sans-serif", display: "flex", alignItems: "center", gap: 7 }}>
+              <ClipboardText size={15} weight="bold" color="#7C6FF7" /> Today&apos;s log
             </div>
             {loading ? (
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -181,12 +183,12 @@ export default function FamilyMemberModal({ member, onClose }: Props) {
             ) : todayLog ? (
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 {[
-                  { ic: "👟", label: "Steps", val: todayLog.steps != null ? todayLog.steps.toLocaleString() : "—" },
-                  { ic: "🥩", label: "Protein", val: todayLog.protein_g != null ? `${todayLog.protein_g.toFixed(0)}g` : "—" },
-                  { ic: "🌾", label: "Carbs", val: todayLog.carbs_g != null ? `${todayLog.carbs_g.toFixed(0)}g` : "—" },
+                  { ic: <FEShoe size={20} />, label: "Steps", val: todayLog.steps != null ? todayLog.steps.toLocaleString() : "—" },
+                  { ic: <FEMeat size={20} />, label: "Protein", val: todayLog.protein_g != null ? `${todayLog.protein_g.toFixed(0)}g` : "—" },
+                  { ic: <FEWheat size={20} />, label: "Carbs", val: todayLog.carbs_g != null ? `${todayLog.carbs_g.toFixed(0)}g` : "—" },
                 ].map(row => (
                   <div key={row.label} style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 13.5 }}>
-                    <span style={{ fontSize: 16 }}>{row.ic}</span>
+                    <span style={{ display: "flex", alignItems: "center" }}>{row.ic}</span>
                     <span style={{ color: "#7A8099", flex: 1 }}>{row.label}</span>
                     <span style={{ fontWeight: 700, color: "#2C2F3A" }}>{row.val}</span>
                   </div>
@@ -205,13 +207,13 @@ export default function FamilyMemberModal({ member, onClose }: Props) {
           {/* Recent logs */}
           {!loading && logs.length > 1 && (
             <div style={{ background: "#FAFAFA", borderRadius: 16, padding: "16px 18px" }}>
-              <div style={{ fontSize: 13.5, fontWeight: 800, color: "#2C2F3A", marginBottom: 12, fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
-                📜 Recent logs
+              <div style={{ fontSize: 13.5, fontWeight: 800, color: "#2C2F3A", marginBottom: 12, fontFamily: "'Plus Jakarta Sans', sans-serif", display: "flex", alignItems: "center", gap: 7 }}>
+                <Scroll size={15} weight="bold" color="#7C6FF7" /> Recent logs
               </div>
               {logs.slice(0, 5).map(log => (
                 <div key={log.id} style={{ display: "flex", alignItems: "center", gap: 10, paddingBottom: 10, marginBottom: 10, borderBottom: "1px solid #F0EEF5" }}>
-                  <div style={{ width: 34, height: 34, borderRadius: 10, background: "#EDE8FF", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, flexShrink: 0 }}>
-                    📋
+                  <div style={{ width: 34, height: 34, borderRadius: 10, background: "#EDE8FF", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                    <ClipboardText size={16} weight="bold" color="#7C6FF7" />
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 12.5, fontWeight: 700, color: "#2C2F3A" }}>

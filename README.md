@@ -1,18 +1,15 @@
 <div align="center">
 
-<img src="https://img.shields.io/badge/HealthEase-❤️-E85C5C?style=for-the-badge" alt="HealthEase" />
+# NearCare
 
-# HealthEase
+**Track your family's health — just send a WhatsApp message.**
 
-**Simple. Smart. Better Health, Every Day.**
+A warm-pastel health dashboard that visualises data logged by family members via WhatsApp. No app install for them, a beautiful dashboard for you.
 
-A modern personal health companion that helps individuals and families track appointments, monitor daily wellness habits, and visualise progress — all in one beautifully designed dashboard.
-
-[![Next.js](https://img.shields.io/badge/Next.js-16.2-black?style=flat-square&logo=next.js)](https://nextjs.org)
+[![Next.js](https://img.shields.io/badge/Next.js-15-black?style=flat-square&logo=next.js)](https://nextjs.org)
 [![React](https://img.shields.io/badge/React-19-61DAFB?style=flat-square&logo=react)](https://react.dev)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?style=flat-square&logo=typescript)](https://www.typescriptlang.org)
-[![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-4-38BDF8?style=flat-square&logo=tailwindcss)](https://tailwindcss.com)
-[![Chart.js](https://img.shields.io/badge/Chart.js-4.5-FF6384?style=flat-square&logo=chartdotjs)](https://www.chartjs.org)
+[![Recharts](https://img.shields.io/badge/Recharts-2-22B5BF?style=flat-square)](https://recharts.org)
 
 </div>
 
@@ -20,29 +17,28 @@ A modern personal health companion that helps individuals and families track app
 
 ## About
 
-HealthEase is a frontend web application designed around the needs of health-conscious families. It provides an intuitive interface for logging meals, tracking steps, managing medical appointments, and celebrating wellness milestones.
+NearCare is a WhatsApp-first family health tracker. Family members send casual Hindi/English messages or voice notes; a Kotlin/Ktor backend parses them with Gemini AI and stores structured health logs. This frontend displays that data in a clean, warm-pastel dashboard.
 
 Key highlights:
 
-- **Personalised dashboard** — at-a-glance stats for steps, calories, and appointments with real-time chart visualisations
-- **Nearby providers** — surface clinics and doctors in your area directly from the app
-- **Family-first design** — built to be shared and understood by the whole household
-- **Private & secure** — your health data stays yours; no third-party sharing
-
-> Trusted by 10,000+ families
+- **WhatsApp onboarding** — invite family members with one tap; they reply YES to join, no app install required
+- **Family health cards** — per-member KPI cards with step count, protein, and carbs; tap to open a full detail modal
+- **Animated charts** — line graph with dots (Recharts) showing weekly step trends
+- **KPI hover lift** — dashboard cards lift on hover with a shadow transition
+- **Mixed icon system** — Phosphor bold icons for UI chrome, hand-crafted Fluent Emoji-style SVGs for data slots
 
 ---
 
 ## Screenshots
 
 ### Landing Page
-![Landing page — hero section with dashboard mockup](public/screenshots/landing.png)
+![Landing page — hero section with features and CTA](public/screenshots/landing.png)
 
 ### Login
-![Login page — split-panel authentication form](public/screenshots/login.png)
+![Login page — WhatsApp OTP authentication](public/screenshots/login.png)
 
 ### Dashboard
-![Dashboard — health stats, charts, and appointment tracker](public/screenshots/dashboard.png)
+![Dashboard — health KPIs, step chart, and family tracking](public/screenshots/dashboard.png)
 
 ---
 
@@ -58,35 +54,37 @@ Key highlights:
 ### Installation
 
 ```bash
-# 1. Clone the repository
+# 1. Clone the repo
 git clone https://github.com/your-org/nearcare-frontend.git
 cd nearcare-frontend
 
 # 2. Install dependencies
 npm install
 
-# 3. Start the development server
+# 3. Configure environment
+cp .env.local.example .env.local
+# Set NEXT_PUBLIC_API_URL to your backend URL
+
+# 4. Start dev server
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) in your browser.
+Open [http://localhost:3000](http://localhost:3000).
 
 ### Available Scripts
 
 | Command | Description |
 |---------|-------------|
-| `npm run dev` | Start the development server with hot reload |
-| `npm run build` | Build the app for production |
-| `npm run start` | Serve the production build locally |
-| `npm run lint` | Run ESLint across the codebase |
+| `npm run dev` | Dev server with hot reload |
+| `npm run build` | Production build |
+| `npm run start` | Serve production build |
+| `npm run lint` | ESLint |
 
-### Pages
+### Environment Variables
 
-| Route | Description |
-|-------|-------------|
-| `/` | Landing page with hero and feature overview |
-| `/login` | Authentication page (email/password + Google OAuth) |
-| `/dashboard` | Full health dashboard with charts and appointments |
+| Variable | Purpose | Default |
+|----------|---------|---------|
+| `NEXT_PUBLIC_API_URL` | Backend base URL | `http://localhost:8080` |
 
 ---
 
@@ -94,69 +92,65 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 | Layer | Technology |
 |-------|-----------|
-| Framework | [Next.js 16](https://nextjs.org) (App Router) |
-| UI Library | [React 19](https://react.dev) |
-| Language | [TypeScript 5](https://www.typescriptlang.org) |
-| Styling | [Tailwind CSS 4](https://tailwindcss.com) |
-| Charts | [Chart.js 4](https://www.chartjs.org) via [react-chartjs-2](https://react-chartjs-2.js.org) |
-| Font | [DM Sans](https://fonts.google.com/specimen/DM+Sans) via `next/font` |
-
----
-
-## Project Structure
-
-```
-nearcare-frontend/
-├── app/
-│   ├── layout.tsx          # Root layout — DM Sans font, global CSS vars
-│   ├── globals.css         # CSS custom properties and base styles
-│   ├── page.tsx            # Landing page with hero, features, CTA
-│   ├── login/
-│   │   └── page.tsx        # Split-panel login with Google OAuth
-│   └── dashboard/
-│       └── page.tsx        # Health dashboard with Chart.js visualisations
-├── public/
-│   ├── screenshots/        # App screenshots used in README
-│   └── *.svg               # Static assets
-├── next.config.ts
-├── tailwind.config.ts
-└── tsconfig.json
-```
+| Framework | Next.js 15 (App Router) |
+| UI Library | React 19 |
+| Language | TypeScript 5 |
+| Styling | Inline styles + CSS custom properties (no Tailwind) |
+| Charts | Recharts — `LineChart` + `Line` with dot props |
+| Icons (UI) | [@phosphor-icons/react](https://phosphoricons.com) — `weight="bold"` |
+| Icons (data) | Custom Fluent Emoji-style SVG components (`FluentEmoji.tsx`) |
+| Font | Plus Jakarta Sans via `next/font/google` |
+| Auth | WhatsApp OTP — token stored in `localStorage` |
 
 ---
 
 ## Features
 
 ### Dashboard
-- **Stat cards** — daily steps, calories burned, and appointment count, each with a progress bar and goal indicator
-- **Steps Overview** — weekly bar chart highlighting the best day
-- **Activity Summary** — doughnut chart showing percentage of daily goal reached across steps, active time, and calories
-- **Appointments Today** — list view with distance, time slot, and status badge (Done / Upcoming / Pending), plus a quick-book action
-- **Progress & Trends** — line charts for weekly step average and appointment frequency
+- **KPI cards** — steps, protein, carbs with animated progress bars; lift on hover
+- **Weekly steps chart** — `LineChart` with dot markers; light tooltip with white background
+- **Wellness widgets** — hydration, sleep, mood with Fluent Emoji SVG icons
+- **Family section** — member cards showing active/pending status; tap opens detail modal
+- **AI insights panel** — recent log entries with smart summaries
+- **WhatsApp banner** — dismissible onboarding prompt for first-time users
+- **Mobile-responsive** — hamburger nav collapses on small screens
 
-### Authentication
-- Email / password login with show/hide password toggle
-- Google OAuth sign-in button
-- "Remember me" and "Forgot password" flows
-- Link back to landing page
+### Family Tracking
+- Invite family or friends by WhatsApp number + label
+- Member replies YES to activate (no OTP, no app install)
+- Per-member modal: steps/protein/avg KPIs, weekly chart, today's log, recent log history
 
-### Landing Page
-- Hero section with live dashboard mockup rendered entirely in React/SVG — no images required
-- Feature grid: Track Health, Beautiful Insights, Set Goals, Celebrate Progress, Secure & Private
-- Trust badge ("Trusted by 10,000+ families") and CTA strip
+### Auth
+- Phone number → 6-digit OTP delivered via WhatsApp
+- Session token stored in `localStorage` as `auth_token`
+- Dashboard redirects to `/login` when token is absent
+
+---
+
+## Icon System
+
+| Use case | Icon source |
+|----------|------------|
+| Nav, close, card titles, badges | `@phosphor-icons/react` — `weight="bold"`, size 15–22 |
+| KPI slots (steps, protein, carbs) | `FEShoe`, `FEMeat`, `FEWheat` from `FluentEmoji.tsx` |
+| Wellness widgets (hydration, sleep, mood) | `FEDroplet`, `FEMoon`, `FESmile` |
+| WhatsApp banner | `FEChat` |
+| Invite sent confirmation | `FESmartphone` |
+
+The `FluentEmoji.tsx` components are hand-crafted layered SVGs that match the Microsoft Fluent Emoji flat-3D aesthetic. Each is a `({ size = 28 }) => <svg>` component with a 32×32 viewBox.
 
 ---
 
 ## Contributing
 
-1. Fork the repo and create a feature branch: `git checkout -b feat/your-feature`
-2. Make your changes and commit with a descriptive message
-3. Open a pull request — describe what changed and why
+1. Branch off `development`: `git checkout -b feat/your-feature`
+2. Keep inline-style conventions — no Tailwind classes, no CSS modules
+3. Open a PR against `development`, not `main`
 
-Please keep PRs focused. One feature or fix per PR makes review faster.
+`main` auto-deploys to Netlify — never push directly to it.
 
 ---
 
 <div align="center">
-Made with ❤️ by the NearCare team
+Made with care by the NearCare team
 </div>

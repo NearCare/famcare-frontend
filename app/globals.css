@@ -246,6 +246,12 @@ a {
   border-radius: var(--he-r-card);
   padding: 20px 20px 18px;
   min-height: 132px;
+  transition: transform .2s var(--he-ease), box-shadow .2s var(--he-ease);
+  cursor: default;
+}
+.db-kpi:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--he-shadow-pop);
 }
 .db-kpi.k-coral {
   background:

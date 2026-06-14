@@ -1,5 +1,7 @@
 "use client";
 import { useState } from "react";
+import { X, Users, UserCheck, WarningCircle, DeviceMobile } from "@phosphor-icons/react";
+import { FESmartphone } from "./FluentEmoji";
 import { inviteFamilyMember, type FamilyMember } from "@/lib/api";
 
 type Step = "details" | "sent";
@@ -61,7 +63,7 @@ export default function AddFamilyModal({ onClose, onAdded }: Props) {
         }}
       >
         {/* Close */}
-        <button onClick={onClose} style={closeBtnStyle}>✕</button>
+        <button onClick={onClose} style={{ ...closeBtnStyle, display: "flex", alignItems: "center", justifyContent: "center" }}><X size={15} weight="bold" /></button>
 
         {/* Progress */}
         <div style={{ display: "flex", gap: 5, marginBottom: 28 }}>
@@ -94,7 +96,9 @@ export default function AddFamilyModal({ onClose, onAdded }: Props) {
                   fontFamily: "'Plus Jakarta Sans', sans-serif",
                   transition: "all .2s",
                 }}>
-                  {t === "family" ? "👨‍👩‍👦 Family" : "👫 Friend"}
+                  {t === "family"
+                    ? <><Users size={15} weight="bold" style={{ verticalAlign: "middle", marginRight: 5 }} />Family</>
+                    : <><UserCheck size={15} weight="bold" style={{ verticalAlign: "middle", marginRight: 5 }} />Friend</>}
                 </button>
               ))}
             </div>
@@ -134,7 +138,7 @@ export default function AddFamilyModal({ onClose, onAdded }: Props) {
                 </div>
               </div>
 
-              {error && <p style={{ fontSize: 12.5, color: "#E85C5C", margin: 0 }}>⚠ {error}</p>}
+              {error && <p style={{ fontSize: 12.5, color: "#E85C5C", margin: 0, display: "flex", alignItems: "center", gap: 5 }}><WarningCircle size={14} weight="bold" />{error}</p>}
 
               <button type="submit" disabled={loading} style={primaryBtnStyle(loading)}>
                 {loading ? "Sending…" : "Send WhatsApp Invite →"}
@@ -146,7 +150,7 @@ export default function AddFamilyModal({ onClose, onAdded }: Props) {
         {/* ── Step 2: invite sent ── */}
         {step === "sent" && (
           <div style={{ textAlign: "center", padding: "8px 0 4px" }}>
-            <div style={{ fontSize: 52, marginBottom: 14 }}>📲</div>
+            <div style={{ marginBottom: 14, display: "flex", justifyContent: "center" }}><FESmartphone size={64} /></div>
             <h2 style={{ ...headingStyle, marginBottom: 8 }}>Invite sent!</h2>
             <p style={{ fontSize: 13.5, color: "#7A8099", lineHeight: 1.65, margin: "0 0 6px" }}>
               A WhatsApp message was sent to{" "}

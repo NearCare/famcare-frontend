@@ -2,14 +2,19 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import {
-  BarChart, Bar, XAxis, YAxis, Tooltip as ReTooltip,
-  ResponsiveContainer, Cell,
+  LineChart, Line, XAxis, YAxis, Tooltip as ReTooltip,
+  ResponsiveContainer, CartesianGrid,
 } from "recharts";
 import {
-  Home, TrendingUp, CalendarDays, MapPin, FileText,
-  Zap, Bell, Settings2, Calendar, ChevronRight,
-  Check, CheckCircle2, AlertTriangle,
-} from "lucide-react";
+  House, TrendUp, CalendarDots, MapPin, FileText,
+  Lightning, Bell, Gear, CalendarBlank, CaretRight,
+  Check, CheckCircle, Warning, X as PhX, List,
+  Users, ChartBar, ClipboardText, Scroll, Sparkle, Target,
+} from "@phosphor-icons/react";
+import {
+  FEDroplet, FEMoon, FESmile,
+  FEShoe, FEMeat, FEWheat, FETarget, FEChat,
+} from "./components/FluentEmoji";
 import {
   getUserLogs,
   getUserSummary,
@@ -38,47 +43,49 @@ const navItems = [
 ];
 
 const NAV_ICONS: Record<string, React.ElementType> = {
-  "Home":             Home,
-  "Progress":         TrendingUp,
-  "Appointments":     CalendarDays,
+  "Home":             House,
+  "Progress":         TrendUp,
+  "Appointments":     CalendarDots,
   "Nearby Providers": MapPin,
   "Health Records":   FileText,
-  "Activity":         Zap,
+  "Activity":         Lightning,
   "Reminders":        Bell,
-  "Settings":         Settings2,
+  "Settings":         Gear,
 };
 
 function NavIcon({ name }: { name: string }) {
-  const Icon = NAV_ICONS[name] ?? Home;
-  return <Icon className="ni-icon" size={19} strokeWidth={2} />;
+  const Icon = NAV_ICONS[name] ?? House;
+  return <Icon className="ni-icon" size={19} weight="bold" />;
 }
 
 // ── Charts ────────────────────────────────────────────────────────────────────
 
 function StepsChart({ data }: { data: { label: string; value: number }[] }) {
-  const values = data.map(d => d.value);
-  const maxIdx = values.indexOf(Math.max(...values));
   return (
     <ResponsiveContainer width="100%" height={164}>
-      <BarChart data={data} barSize={28} margin={{ top: 4, right: 4, left: -18, bottom: 0 }}>
+      <LineChart data={data} margin={{ top: 8, right: 4, left: -18, bottom: 0 }}>
+        <CartesianGrid vertical={false} stroke="#F0EEF0" strokeDasharray="3 3" />
         <XAxis dataKey="label" axisLine={false} tickLine={false}
           tick={{ fontSize: 11, fill: "#9AA0AD", fontFamily: "Plus Jakarta Sans" }} />
         <YAxis axisLine={false} tickLine={false}
           tick={{ fontSize: 10, fill: "#9AA0AD" }}
           tickFormatter={(v: number) => v >= 1000 ? v / 1000 + "k" : String(v)} />
         <ReTooltip
-          cursor={{ fill: "rgba(0,0,0,0.04)", radius: 7 }}
-          contentStyle={{ background: "#2C2F3A", border: "none", borderRadius: 10, fontSize: 12, fontFamily: "Plus Jakarta Sans" }}
-          labelStyle={{ color: "#9AA0AD", fontSize: 11 }}
-          itemStyle={{ color: "#fff", fontWeight: 700 }}
+          cursor={{ stroke: "#FF6B6B", strokeWidth: 1, strokeDasharray: "4 3" }}
+          contentStyle={{ background: "#fff", border: "1px solid #EDE6E6", borderRadius: 10, fontSize: 12, fontFamily: "Plus Jakarta Sans", boxShadow: "0 4px 14px rgba(0,0,0,0.08)" }}
+          labelStyle={{ color: "#9AA0AD", fontSize: 11, fontWeight: 600 }}
+          itemStyle={{ color: "#FF6B6B", fontWeight: 700 }}
           formatter={(v) => [(Number(v) || 0).toLocaleString() + " steps", ""]}
         />
-        <Bar dataKey="value" radius={[7, 7, 0, 0]}>
-          {data.map((_, i) => (
-            <Cell key={i} fill={i === maxIdx ? "#FF6B6B" : "#FFD5D5"} />
-          ))}
-        </Bar>
-      </BarChart>
+        <Line
+          type="monotone"
+          dataKey="value"
+          stroke="#FF6B6B"
+          strokeWidth={2.5}
+          dot={{ fill: "#FF6B6B", stroke: "#fff", strokeWidth: 2, r: 4 }}
+          activeDot={{ fill: "#FF6B6B", stroke: "#fff", strokeWidth: 2, r: 6 }}
+        />
+      </LineChart>
     </ResponsiveContainer>
   );
 }
@@ -152,7 +159,7 @@ const WaIcon = ({ size = 16 }: { size?: number }) => (
   </svg>
 );
 
-const CheckMark = () => <Check size={12} strokeWidth={2.5} color="white" />;
+const CheckMark = () => <Check size={12} weight="bold" color="white" />;
 
 // ── Dashboard page ────────────────────────────────────────────────────────────
 
@@ -314,7 +321,7 @@ export default function DashboardPage() {
           </div>
           <div className="db-top-actions">
             <div className="db-pill">
-              <Calendar size={15} strokeWidth={2} />
+              <CalendarBlank size={15} weight="bold" />
               {new Date().toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
             </div>
             <a href={WA_LINK} target="_blank" rel="noopener noreferrer" className="db-pill cta">
@@ -329,7 +336,7 @@ export default function DashboardPage() {
         <div className="db-kpi-row">
           <div className="db-kpi k-coral">
             <div className="db-kpi-top">
-              <div className="db-kpi-ic" style={{ background: "#FFD5D5" }}>👟</div>
+              <div className="db-kpi-ic" style={{ background: "#FFD5D5" }}><FEShoe size={20} /></div>
               <span className="db-kpi-label">Steps Today</span>
             </div>
             <div className="db-kpi-val">
@@ -345,7 +352,7 @@ export default function DashboardPage() {
 
           <div className="db-kpi k-blue">
             <div className="db-kpi-top">
-              <div className="db-kpi-ic" style={{ background: "#EAF4FF" }}>🥩</div>
+              <div className="db-kpi-ic" style={{ background: "#EAF4FF" }}><FEMeat size={20} /></div>
               <span className="db-kpi-label">Avg Protein</span>
             </div>
             <div className="db-kpi-val">
@@ -359,7 +366,7 @@ export default function DashboardPage() {
 
           <div className="db-kpi k-orange">
             <div className="db-kpi-top">
-              <div className="db-kpi-ic" style={{ background: "#FFE9D2" }}>🌾</div>
+              <div className="db-kpi-ic" style={{ background: "#FFE9D2" }}><FEWheat size={20} /></div>
               <span className="db-kpi-label">Avg Carbs</span>
             </div>
             <div className="db-kpi-val">
@@ -373,7 +380,7 @@ export default function DashboardPage() {
 
           <div className="db-kpi k-green">
             <div className="db-kpi-top">
-              <div className="db-kpi-ic" style={{ background: "#D8F5E4" }}>🎯</div>
+              <div className="db-kpi-ic" style={{ background: "#D8F5E4" }}><FETarget size={20} /></div>
               <span className="db-kpi-label">Goal Hits</span>
             </div>
             <div className="db-kpi-val">
@@ -497,7 +504,7 @@ export default function DashboardPage() {
           <div className="db-col">
             <div className="db-card db-card-pad">
               <div className="db-card-h">
-                <div className="db-card-title">📊 Steps Overview</div>
+                <div className="db-card-title"><ChartBar size={16} weight="bold" /> Steps Overview</div>
                 <div className="db-mini-sel">This Week</div>
               </div>
               <div className="db-steps-big">
@@ -518,7 +525,7 @@ export default function DashboardPage() {
               <a href={WA_LINK} target="_blank" rel="noopener noreferrer" className="db-wa-btn">
                 <div className="db-wa-ic"><WaIcon size={16} /></div>
                 <span>Log today&apos;s health via WhatsApp</span>
-                <ChevronRight size={16} strokeWidth={2.5} style={{ marginLeft: "auto", color: "#20A865", flexShrink: 0 }} />
+                <CaretRight size={16} weight="bold" style={{ marginLeft: "auto", color: "#20A865", flexShrink: 0 }} />
               </a>
             </div>
           </div>
@@ -527,11 +534,11 @@ export default function DashboardPage() {
           <div className="db-col">
             <div className="db-card db-card-pad">
               <div className="db-card-h" style={{ marginBottom: 4 }}>
-                <div className="db-card-title">📋 Today&apos;s Log</div>
+                <div className="db-card-title"><ClipboardText size={16} weight="bold" /> Today&apos;s Log</div>
               </div>
 
               <div className="db-sum-row">
-                <div className="db-sum-ic" style={{ background: "#FFE7E6" }}>👟</div>
+                <div className="db-sum-ic" style={{ background: "#FFE7E6" }}><FEShoe size={22} /></div>
                 <span className="db-sum-label">Steps</span>
                 <div className="db-sum-val">
                   {todaySteps ? todaySteps.toLocaleString() : "—"}
@@ -542,7 +549,7 @@ export default function DashboardPage() {
               </div>
 
               <div className="db-sum-row">
-                <div className="db-sum-ic" style={{ background: "#EAF4FF" }}>🥩</div>
+                <div className="db-sum-ic" style={{ background: "#EAF4FF" }}><FEMeat size={22} /></div>
                 <span className="db-sum-label">Protein</span>
                 <div className="db-sum-val">
                   {todayLog?.protein_g != null ? `${todayLog.protein_g.toFixed(0)}g` : "—"}
@@ -553,7 +560,7 @@ export default function DashboardPage() {
               </div>
 
               <div className="db-sum-row">
-                <div className="db-sum-ic" style={{ background: "#FFF4E8" }}>🌾</div>
+                <div className="db-sum-ic" style={{ background: "#FFF4E8" }}><FEWheat size={22} /></div>
                 <span className="db-sum-label">Carbs</span>
                 <div className="db-sum-val">
                   {todayLog?.carbs_g != null ? `${todayLog.carbs_g.toFixed(0)}g` : "—"}
@@ -569,12 +576,12 @@ export default function DashboardPage() {
 
             <div className="db-card db-card-pad">
               <div className="db-card-h" style={{ marginBottom: 12 }}>
-                <div className="db-card-title">📜 Recent Logs</div>
+                <div className="db-card-title"><Scroll size={16} weight="bold" /> Recent Logs</div>
                 <span style={{ fontSize: 11.5, fontWeight: 700, color: "#FF6B6B", background: "#FFF3F2", padding: "3px 9px", borderRadius: 20 }}>7 days</span>
               </div>
               {logs.slice(0, 4).map((log) => (
                 <div key={log.id} className="db-log-row">
-                  <div className="db-log-ic" style={{ background: "#FFF3F2" }}>📋</div>
+                  <div className="db-log-ic" style={{ background: "#FFF3F2", display: "flex", alignItems: "center", justifyContent: "center" }}><ClipboardText size={17} weight="bold" color="#FF8A7A" /></div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 12.5, fontWeight: 700, color: "#2C2F3A" }}>
                       {log.steps != null ? `${log.steps.toLocaleString()} steps` : "No steps logged"}
@@ -605,7 +612,7 @@ export default function DashboardPage() {
           <div className="db-col">
             <div className="db-card db-card-pad">
               <div className="db-card-h" style={{ marginBottom: 8 }}>
-                <div className="db-card-title">🎯 Activity</div>
+                <div className="db-card-title"><Target size={16} weight="bold" /> Activity</div>
               </div>
               <div style={{ display: "flex", justifyContent: "center", marginTop: 4 }}>
                 <TripleDonut stepPct={stepGoalPct} proteinPct={proteinPct} carbsPct={carbsPct} />
@@ -629,14 +636,14 @@ export default function DashboardPage() {
 
             <div className="db-card db-card-pad">
               <div className="db-card-h" style={{ marginBottom: 12 }}>
-                <div className="db-card-title">✨ AI Insights</div>
+                <div className="db-card-title"><Sparkle size={16} weight="bold" /> AI Insights</div>
               </div>
               {insights.slice(0, 2).map((ins, i) => (
                 <div key={i} className={`db-ai-card ${ins.type}`}>
                   <div className="db-ai-dot">
                     {ins.type === "good"
-                      ? <CheckCircle2 size={14} strokeWidth={2.5} color="white" />
-                      : <AlertTriangle size={14} strokeWidth={2.5} color="white" />}
+                      ? <CheckCircle size={14} weight="bold" color="white" />
+                      : <Warning size={14} weight="bold" color="white" />}
                   </div>
                   <p>{ins.text}</p>
                 </div>
@@ -648,7 +655,7 @@ export default function DashboardPage() {
         {/* ── Wellness widgets ── */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 18 }}>
           <div className="db-widget w-water">
-            <div className="db-w-emoji">💧</div>
+            <div className="db-w-emoji"><FEDroplet size={34} /></div>
             <div>
               <div className="db-w-label">Water Intake</div>
               <div className="db-w-val">—<span className="unit"> L</span></div>
@@ -657,7 +664,7 @@ export default function DashboardPage() {
             <div className="db-w-art">🌊</div>
           </div>
           <div className="db-widget w-sleep">
-            <div className="db-w-emoji">😴</div>
+            <div className="db-w-emoji"><FEMoon size={34} /></div>
             <div>
               <div className="db-w-label">Sleep</div>
               <div className="db-w-val">—<span className="unit"> hrs</span></div>
@@ -666,7 +673,7 @@ export default function DashboardPage() {
             <div className="db-w-art">🌙</div>
           </div>
           <div className="db-widget w-mood">
-            <div className="db-w-emoji">😊</div>
+            <div className="db-w-emoji"><FESmile size={34} /></div>
             <div>
               <div className="db-w-label">Mood</div>
               <div className="db-w-val">—</div>
@@ -680,8 +687,8 @@ export default function DashboardPage() {
         {familyMembers.length > 0 && (
           <div>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
-              <h2 style={{ fontSize: 15, fontWeight: 800, color: "#2C2F3A", margin: 0, fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
-                👨‍👩‍👦 Family &amp; Friends
+              <h2 style={{ fontSize: 15, fontWeight: 800, color: "#2C2F3A", margin: 0, fontFamily: "'Plus Jakarta Sans', sans-serif", display: "flex", alignItems: "center", gap: 7 }}>
+                <Users size={17} weight="bold" color="#7C6FF7" /> Family &amp; Friends
               </h2>
               <button
                 onClick={() => setShowAddFamily(true)}
@@ -739,7 +746,7 @@ export default function DashboardPage() {
 
         {/* ── Bottom banner ── */}
         <div className="db-banner">
-          <div className="db-banner-ic">💬</div>
+          <div className="db-banner-ic" style={{ display: "grid", placeItems: "center" }}><FEChat size={30} /></div>
           <div>
             <h3>Track your health in seconds</h3>
             <p>Send a WhatsApp message with steps, meals, or any update — your dashboard fills in automatically.</p>
@@ -786,8 +793,8 @@ function Sidebar() {
           Near<span style={{ color: "#FF6B6B" }}>Care</span>
         </span>
         <button onClick={() => setMobileOpen(!mobileOpen)}
-          style={{ background: "none", border: "none", cursor: "pointer", fontSize: 22, padding: 4, lineHeight: 1 }}>
-          ☰
+          style={{ background: "none", border: "none", cursor: "pointer", padding: 4, display: "flex", alignItems: "center" }}>
+          <List size={22} weight="bold" />
         </button>
       </div>
 
