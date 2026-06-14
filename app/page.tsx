@@ -292,11 +292,27 @@ export default function LandingPage() {
       }}>
         {/* Left */}
         <div style={{ flex: "0 0 480px", position: "relative" }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/family-whatsapp.png"
+            alt=""
+            style={{
+              position: "absolute",
+              top: "50%", left: "50%",
+              transform: "translate(-50%, -50%)",
+              width: 560,
+              opacity: 0.1,
+              pointerEvents: "none",
+              zIndex: 0,
+              userSelect: "none",
+            }}
+          />
           <svg style={{ position: "absolute", top: 100, right: -10, pointerEvents: "none", opacity: 0.09 }}
             width="200" height="180" viewBox="0 0 200 180" fill="none">
             <path d="M100 160C100 160 10 108 10 52C10 26 30 6 56 6C73 6 88 16 100 32C112 16 127 6 144 6C170 6 190 26 190 52C190 108 100 160 100 160Z" stroke="#E85C5C" strokeWidth="2.5" />
           </svg>
 
+          <div style={{ position: "relative", zIndex: 1 }}>
           <div style={{
             display: "inline-flex", alignItems: "center", gap: 7, background: "#F0FFF6",
             color: "#239A50", fontSize: 12, fontWeight: 600, padding: "5px 13px",
@@ -363,6 +379,7 @@ export default function LandingPage() {
               </div>
             ))}
           </div>
+          </div>{/* end zIndex wrapper */}
         </div>
 
         {/* Right — mockup */}
