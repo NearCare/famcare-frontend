@@ -1,12 +1,10 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import {
-  Chart, BarElement, BarController,
-  CategoryScale, LinearScale, Tooltip,
-} from "chart.js";
+  BarChart, Bar, XAxis, YAxis, Tooltip as ReTooltip,
+  ResponsiveContainer, Cell,
+} from "recharts";
 import { getMemberSummary, getMemberLogs, logsToWeeklySteps, type FamilyMember, type Summary, type HealthLog } from "@/lib/api";
-
-Chart.register(BarElement, BarController, CategoryScale, LinearScale, Tooltip);
 
 interface Props {
   member: FamilyMember;
@@ -14,51 +12,30 @@ interface Props {
 }
 
 function MiniStepsChart({ data }: { data: { label: string; value: number }[] }) {
-  const ref = useRef<HTMLCanvasElement>(null);
-  const chartRef = useRef<Chart | null>(null);
-
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    chartRef.current?.destroy();
-    const values = data.map(d => d.value);
-    const maxIdx = values.indexOf(Math.max(...values));
-    chartRef.current = new Chart(el, {
-      type: "bar",
-      data: {
-        labels: data.map(d => d.label),
-        datasets: [{
-          data: values,
-          backgroundColor: values.map((_, i) => i === maxIdx ? "#7C6FF7" : "#E8E4FF"),
-          borderRadius: 6,
-          borderSkipped: false,
-        }],
-      },
-      options: {
-        responsive: true, maintainAspectRatio: false,
-        plugins: {
-          legend: { display: false },
-          tooltip: {
-            backgroundColor: "#2C2F3A",
-            callbacks: { label: (c: { parsed: { y: number | null } }) => (c.parsed.y ?? 0).toLocaleString() + " steps" },
-          },
-        },
-        scales: {
-          x: { grid: { display: false }, ticks: { font: { size: 10 }, color: "#9AA0AD" }, border: { display: false } },
-          y: {
-            grid: { color: "#F2F1F3" }, beginAtZero: true, border: { display: false },
-            ticks: {
-              font: { size: 9 }, color: "#9AA0AD",
-              callback: (v: number | string) => Number(v) >= 1000 ? Number(v) / 1000 + "k" : v,
-            },
-          },
-        },
-      },
-    });
-    return () => chartRef.current?.destroy();
-  }, [data]);
-
-  return <canvas ref={ref} />;
+  const values = data.map(d => d.value);
+  const maxIdx = values.indexOf(Math.max(...values));
+  return (
+    <ResponsiveContainer width="100%" height={120}>
+      <BarChart data={data} barSize={22} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
+        <XAxis dataKey="label" axisLine={false} tickLine={false}
+          tick={{ fontSize: 10, fill: "#9AA0AD", fontFamily: "Plus Jakarta Sans" }} />
+        <YAxis axisLine={false} tickLine={false}
+          tick={{ fontSize: 9, fill: "#9AA0AD" }}
+          tickFormatter={(v: number) => v >= 1000 ? v / 1000 + "k" : String(v)} />
+        <ReTooltip
+          cursor={{ fill: "rgba(0,0,0,0.04)", radius: 6 }}
+          contentStyle={{ background: "#2C2F3A", border: "none", borderRadius: 8, fontSize: 11 }}
+          itemStyle={{ color: "#fff", fontWeight: 700 }}
+          formatter={(v) => [(Number(v) || 0).toLocaleString() + " steps", ""]}
+        />
+        <Bar dataKey="value" radius={[5, 5, 0, 0]}>
+          {data.map((_, i) => (
+            <Cell key={i} fill={i === maxIdx ? "#7C6FF7" : "#E8E4FF"} />
+          ))}
+        </Bar>
+      </BarChart>
+    </ResponsiveContainer>
+  );
 }
 
 function Skel({ w = "100%", h = 16 }: { w?: string | number; h?: number }) {
@@ -189,11 +166,7 @@ export default function FamilyMemberModal({ member, onClose }: Props) {
             <div style={{ fontSize: 13.5, fontWeight: 800, color: "#2C2F3A", marginBottom: 12, fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
               📊 Steps this week
             </div>
-            {loading ? <Skel h={120} /> : (
-              <div style={{ height: 120 }}>
-                <MiniStepsChart data={weeklySteps} />
-              </div>
-            )}
+            {loading ? <Skel h={120} /> : <MiniStepsChart data={weeklySteps} />}
           </div>
 
           {/* Today's log */}
