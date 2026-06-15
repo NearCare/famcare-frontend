@@ -41,7 +41,7 @@ export type Summary = {
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 async function apiFetch<T>(path: string): Promise<T> {
-  const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+  const token = typeof window !== "undefined" ? localStorage.getItem("auth_token") : null;
 
   const res = await fetch(`${BASE_URL}${path}`, {
     headers: {
