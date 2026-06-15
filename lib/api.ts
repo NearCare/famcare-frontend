@@ -41,11 +41,22 @@ export type Summary = {
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 async function apiFetch<T>(path: string): Promise<T> {
+  const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+
   const res = await fetch(`${BASE_URL}${path}`, {
-    headers: { Accept: "application/json" },
-    // Don't cache — dashboard data should always be fresh
+    headers: {
+      Accept: "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
     cache: "no-store",
   });
+
+  if (res.status === 401 || res.status === 403) {
+    if (typeof window !== "undefined") {
+      window.location.href = "/login";
+    }
+    throw new Error("Unauthorized");
+  }
 
   if (!res.ok) {
     throw new Error(`API ${path} → ${res.status} ${res.statusText}`);
