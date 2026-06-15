@@ -196,7 +196,10 @@ export default function DashboardPage() {
         const [fetchedLogs, fetchedSummary, fetchedMembers] = await Promise.all([
           getUserLogs(authUser.id, 7),
           getUserSummary(authUser.id),
-          getFamilyMembers(token).catch(() => [] as FamilyMember[]),
+          getFamilyMembers(token).catch((err) => {
+            if (err?.message === "Unauthorized") throw err;
+            return [] as FamilyMember[];
+          }),
         ]);
         setLogs(fetchedLogs);
         setSummary(fetchedSummary);
