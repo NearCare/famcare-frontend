@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   LineChart, Line, XAxis, YAxis, Tooltip as ReTooltip,
   ResponsiveContainer, CartesianGrid,
@@ -9,7 +9,7 @@ import {
   House, TrendUp, CalendarDots, MapPin, FileText,
   Lightning, Bell, Gear, CalendarBlank, CaretRight,
   Check, CheckCircle, Warning, X as PhX, List,
-  Users, ChartBar, ClipboardText, Scroll, Sparkle, Target,
+  Users, ChartBar, ClipboardText, Scroll, Sparkle, Target, SignOut,
 } from "@phosphor-icons/react";
 import {
   FEDroplet, FEMoon, FESmile,
@@ -174,15 +174,33 @@ export default function DashboardPage() {
   const [showAddFamily, setShowAddFamily] = useState(false);
   const [familyMembers, setFamilyMembers] = useState<FamilyMember[]>([]);
   const [selectedMember, setSelectedMember] = useState<FamilyMember | null>(null);
+  const [showAccountMenu, setShowAccountMenu] = useState(false);
+  const accountMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const dismissed = localStorage.getItem("family_card_dismissed");
     if (!dismissed) setShowFamilyCard(true);
   }, []);
 
+  useEffect(() => {
+    if (!showAccountMenu) return;
+    function handleClickOutside(e: MouseEvent) {
+      if (accountMenuRef.current && !accountMenuRef.current.contains(e.target as Node)) {
+        setShowAccountMenu(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [showAccountMenu]);
+
   const dismissFamilyCard = () => {
     localStorage.setItem("family_card_dismissed", "1");
     setShowFamilyCard(false);
+  };
+
+  const handleLogout = () => {
+    localStorage.clear();
+    window.location.href = "/login";
   };
 
   useEffect(() => {
@@ -334,7 +352,45 @@ export default function DashboardPage() {
               <WaIcon size={15} />
               Log via WhatsApp
             </a>
-            <div className="db-avatar">{avatarLetter}</div>
+            <div ref={accountMenuRef} style={{ position: "relative" }}>
+              <div
+                className="db-avatar"
+                onClick={() => setShowAccountMenu(v => !v)}
+                style={{ cursor: "pointer" }}
+              >
+                {avatarLetter}
+              </div>
+              {showAccountMenu && (
+                <div style={{
+                  position: "absolute", top: "calc(100% + 10px)", right: 0,
+                  background: "#fff", borderRadius: 14, border: "1px solid #ECE7E7",
+                  boxShadow: "0 10px 30px rgba(26,20,20,.14)", minWidth: 180,
+                  overflow: "hidden", zIndex: 100,
+                  fontFamily: "'Plus Jakarta Sans', sans-serif",
+                }}>
+                  <div style={{ padding: "12px 16px", borderBottom: "1px solid #F2EFEF" }}>
+                    <div style={{ fontSize: 13.5, fontWeight: 800, color: "#2C2F3A", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {displayName}
+                    </div>
+                    <div style={{ fontSize: 11.5, color: "#9AA0AD", marginTop: 2 }}>{user.phone}</div>
+                  </div>
+                  <button
+                    onClick={handleLogout}
+                    style={{
+                      width: "100%", display: "flex", alignItems: "center", gap: 9,
+                      padding: "11px 16px", background: "none", border: "none",
+                      fontSize: 13.5, fontWeight: 700, color: "#E85C5C", cursor: "pointer",
+                      fontFamily: "inherit", textAlign: "left",
+                    }}
+                    onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = "#FFF3F2"; }}
+                    onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = "none"; }}
+                  >
+                    <SignOut size={16} weight="bold" />
+                    Logout
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
