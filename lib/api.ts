@@ -13,15 +13,15 @@ const BASE_URL =
 // ─── Types (mirror the Kotlin data classes) ──────────────────────────────────
 
 export type User = {
-  id: string;
+  id: number;
   phone: string;
   name: string | null;
   created_at: string;
 };
 
 export type HealthLog = {
-  id: string;
-  user_id: string;
+  id: number;
+  user_id: number;
   logged_at: string; // "YYYY-MM-DD"
   steps: number | null;
   protein_g: number | null;
@@ -142,7 +142,7 @@ export async function getUserSummary(userId: string): Promise<Summary | null> {
 // ─── Family ──────────────────────────────────────────────────────────────────
 
 export type FamilyMember = {
-  id: string;
+  id: number;
   phone: string;
   name: string | null;
   label: string;
