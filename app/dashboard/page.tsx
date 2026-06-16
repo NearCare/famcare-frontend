@@ -192,6 +192,7 @@ export default function DashboardPage() {
         const stored = localStorage.getItem("auth_user");
         const authUser: User | null = stored ? JSON.parse(stored) : null;
         if (!authUser) { window.location.href = "/login"; return; }
+        if (!authUser.name) { window.location.href = "/onboarding/name"; return; }
         setUser(authUser);
         const token = localStorage.getItem("auth_token") ?? "";
         const [fetchedLogs, fetchedSummary, fetchedMembers] = await Promise.all([

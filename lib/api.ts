@@ -108,6 +108,20 @@ export async function verifyOtp(
   return res.json() as Promise<AuthResponse>;
 }
 
+/** Sets the caller's display name. Used by the first-login onboarding step. */
+export async function updateUserName(userId: number, name: string, token: string): Promise<User> {
+  const res = await fetch(`${BASE_URL}/api/users/${userId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ name }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error((err as { error?: string }).error ?? "Failed to update name");
+  }
+  return res.json() as Promise<User>;
+}
+
 // ─── Public API ──────────────────────────────────────────────────────────────
 
 /**

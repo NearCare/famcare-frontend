@@ -63,7 +63,7 @@ export default function LoginPage() {
       // Save session to localStorage
       localStorage.setItem("auth_token", auth.token);
       localStorage.setItem("auth_user", JSON.stringify(auth.user));
-      router.push("/dashboard");
+      router.push(auth.user.name ? "/dashboard" : "/onboarding/name");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Verification failed");
     } finally {
