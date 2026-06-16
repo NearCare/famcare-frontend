@@ -39,7 +39,7 @@ export default function PrivacyPolicy() {
 
 • Phone number — used to identify your account and send you OTPs and health summaries via WhatsApp.
 • Name — optionally provided via your WhatsApp profile.
-• Health data — steps, protein, carbohydrates, and other metrics you share via WhatsApp messages or voice notes.
+• Health data — steps, protein, calories, and other metrics you share via WhatsApp messages or voice notes.
 • Message content — the raw text or transcription of your WhatsApp messages, stored alongside your health log.
 • Session tokens — used to keep you logged in on the dashboard.
 

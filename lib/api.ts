@@ -25,7 +25,7 @@ export type HealthLog = {
   logged_at: string; // "YYYY-MM-DD"
   steps: number | null;
   protein_g: number | null;
-  carbs_g: number | null;
+  calories: number | null;
   raw_message: string | null;
 };
 
@@ -33,7 +33,7 @@ export type Summary = {
   period_days: number;
   avg_steps: number | null;
   avg_protein_g: number | null;
-  avg_carbs_g: number | null;
+  avg_calories: number | null;
   step_goal_hits: number;
   last_logged: string | null;
 };

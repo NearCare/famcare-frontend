@@ -90,15 +90,15 @@ function StepsChart({ data }: { data: { label: string; value: number }[] }) {
   );
 }
 
-function TripleDonut({ stepPct, proteinPct, carbsPct }: {
-  stepPct: number; proteinPct: number; carbsPct: number;
+function TripleDonut({ stepPct, proteinPct, caloriesPct }: {
+  stepPct: number; proteinPct: number; caloriesPct: number;
 }) {
   const size = 152;
   const cx = size / 2, cy = size / 2;
   const rings = [
     { r: 64, stroke: "#FF6B6B", track: "#FFE7E6", pct: stepPct },
     { r: 49, stroke: "#2FBE76", track: "#EAFBF0", pct: proteinPct },
-    { r: 34, stroke: "#FF9F45", track: "#FFF4E8", pct: carbsPct },
+    { r: 34, stroke: "#FF9F45", track: "#FFF4E8", pct: caloriesPct },
   ];
   return (
     <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
@@ -220,9 +220,9 @@ export default function DashboardPage() {
   const todaySteps   = todayLog?.steps ?? 0;
   const todayStepPct = Math.min(Math.round((todaySteps / 10000) * 100), 100);
   const proteinAvg   = summary?.avg_protein_g ?? 0;
-  const carbsAvg     = summary?.avg_carbs_g ?? 0;
+  const caloriesAvg  = summary?.avg_calories ?? 0;
   const proteinPct   = Math.min(Math.round((proteinAvg / 50) * 100), 100);
-  const carbsPct     = Math.min(Math.round((carbsAvg / 200) * 100), 100);
+  const caloriesPct  = Math.min(Math.round((caloriesAvg / 2000) * 100), 100);
   const goalHits     = summary?.step_goal_hits ?? 0;
 
   // ── Loading ─────────────────────────────────────────────────────────────────
@@ -370,15 +370,15 @@ export default function DashboardPage() {
           <div className="db-kpi k-orange">
             <div className="db-kpi-top">
               <div className="db-kpi-ic" style={{ background: "#FFE9D2" }}><FEWheat size={20} /></div>
-              <span className="db-kpi-label">Avg Carbs</span>
+              <span className="db-kpi-label">Avg Calories</span>
             </div>
             <div className="db-kpi-val">
-              {carbsAvg ? <>{carbsAvg.toFixed(0)}<span className="unit">g</span></> : "—"}
+              {caloriesAvg ? <>{caloriesAvg.toFixed(0)}<span className="unit">kcal</span></> : "—"}
             </div>
             <div className="db-bar-track">
-              <div className="db-bar-fill" style={{ width: `${carbsPct}%`, background: "#FF9F45" }} />
+              <div className="db-bar-fill" style={{ width: `${caloriesPct}%`, background: "#FF9F45" }} />
             </div>
-            <div className="db-kpi-sub">{carbsPct}% of 200g goal · 7-day avg</div>
+            <div className="db-kpi-sub">{caloriesPct}% of 2000 kcal goal · 7-day avg</div>
           </div>
 
           <div className="db-kpi k-green">
@@ -564,9 +564,9 @@ export default function DashboardPage() {
 
               <div className="db-sum-row">
                 <div className="db-sum-ic" style={{ background: "#FFF4E8" }}><FEWheat size={22} /></div>
-                <span className="db-sum-label">Carbs</span>
+                <span className="db-sum-label">Calories</span>
                 <div className="db-sum-val">
-                  {todayLog?.carbs_g != null ? `${todayLog.carbs_g.toFixed(0)}g` : "—"}
+                  {todayLog?.calories != null ? `${todayLog.calories} kcal` : "—"}
                 </div>
               </div>
 
@@ -593,7 +593,7 @@ export default function DashboardPage() {
                       {log.raw_message ?? (
                         [
                           log.protein_g != null ? `protein ${log.protein_g.toFixed(0)}g` : null,
-                          log.carbs_g != null ? `carbs ${log.carbs_g.toFixed(0)}g` : null,
+                          log.calories != null ? `${log.calories} kcal` : null,
                         ].filter(Boolean).join(" · ") || "No details"
                       )}
                     </div>
@@ -618,13 +618,13 @@ export default function DashboardPage() {
                 <div className="db-card-title"><Target size={16} weight="bold" /> Activity</div>
               </div>
               <div style={{ display: "flex", justifyContent: "center", marginTop: 4 }}>
-                <TripleDonut stepPct={stepGoalPct} proteinPct={proteinPct} carbsPct={carbsPct} />
+                <TripleDonut stepPct={stepGoalPct} proteinPct={proteinPct} caloriesPct={caloriesPct} />
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 9, marginTop: 14 }}>
                 {([
-                  { color: "#FF6B6B", label: "Steps",   val: `${avgSteps ? avgSteps.toLocaleString() : "—"} / 10k` },
-                  { color: "#2FBE76", label: "Protein", val: `${proteinAvg ? proteinAvg.toFixed(0) : "—"}g / 50g` },
-                  { color: "#FF9F45", label: "Carbs",   val: `${carbsAvg ? carbsAvg.toFixed(0) : "—"}g / 200g` },
+                  { color: "#FF6B6B", label: "Steps",    val: `${avgSteps ? avgSteps.toLocaleString() : "—"} / 10k` },
+                  { color: "#2FBE76", label: "Protein",  val: `${proteinAvg ? proteinAvg.toFixed(0) : "—"}g / 50g` },
+                  { color: "#FF9F45", label: "Calories", val: `${caloriesAvg ? caloriesAvg.toFixed(0) : "—"} / 2000 kcal` },
                 ] as const).map((row) => (
                   <div key={row.label} style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 12.5, color: "#5A5F6E" }}>

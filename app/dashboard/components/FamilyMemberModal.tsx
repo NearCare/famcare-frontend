@@ -185,7 +185,7 @@ export default function FamilyMemberModal({ member, onClose }: Props) {
                 {[
                   { ic: <FEShoe size={20} />, label: "Steps", val: todayLog.steps != null ? todayLog.steps.toLocaleString() : "—" },
                   { ic: <FEMeat size={20} />, label: "Protein", val: todayLog.protein_g != null ? `${todayLog.protein_g.toFixed(0)}g` : "—" },
-                  { ic: <FEWheat size={20} />, label: "Carbs", val: todayLog.carbs_g != null ? `${todayLog.carbs_g.toFixed(0)}g` : "—" },
+                  { ic: <FEWheat size={20} />, label: "Calories", val: todayLog.calories != null ? `${todayLog.calories} kcal` : "—" },
                 ].map(row => (
                   <div key={row.label} style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 13.5 }}>
                     <span style={{ display: "flex", alignItems: "center" }}>{row.ic}</span>
@@ -224,7 +224,7 @@ export default function FamilyMemberModal({ member, onClose }: Props) {
                         ? log.raw_message
                         : [
                             log.protein_g != null ? `protein ${log.protein_g.toFixed(0)}g` : null,
-                            log.carbs_g != null ? `carbs ${log.carbs_g.toFixed(0)}g` : null,
+                            log.calories != null ? `${log.calories} kcal` : null,
                           ].filter(Boolean).join(" · ") || "—"}
                     </div>
                   </div>
