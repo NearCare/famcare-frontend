@@ -515,7 +515,7 @@ export default function LandingPage() {
         <span style={{ fontSize: 13, color: "#6B7A9A" }}>© 2026 NearCare. All rights reserved.</span>
         <div style={{ display: "flex", gap: 24 }}>
           <Link href="/privacy" style={{ fontSize: 13, color: "#6B7A9A", textDecoration: "none" }}>Privacy Policy</Link>
-          <a href="mailto:mailforsamarth@gmail.com" style={{ fontSize: 13, color: "#6B7A9A", textDecoration: "none" }}>Contact</a>
+          <a href="https://wa.me/14155238886" target="_blank" rel="noopener noreferrer" style={{ fontSize: 13, color: "#6B7A9A", textDecoration: "none" }}>Contact</a>
         </div>
       </div>
     </div>

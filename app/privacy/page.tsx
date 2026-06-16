@@ -31,7 +31,7 @@ export default function PrivacyPolicy() {
         {[
           {
             title: "1. Who We Are",
-            body: `NearCare is a family health tracking platform that allows you to log health data (steps, meals, vitals) by sending casual messages on WhatsApp — in Hindi or English. We are operated by the NearCare team and can be reached at mailforsamarth@gmail.com.`,
+            body: `NearCare is a family health tracking platform that allows you to log health data (steps, meals, vitals) by sending casual messages on WhatsApp — in Hindi or English. We are operated by the NearCare team.`,
           },
           {
             title: "2. What Data We Collect",
@@ -76,7 +76,7 @@ We do not sell, rent, or trade your personal data to any third party.`,
           },
           {
             title: "7. Data Retention",
-            body: `We retain your health logs and account data for as long as your account is active. If you wish to delete your data, send an email to mailforsamarth@gmail.com with the subject "Delete My Data" from the email associated with your account, or message us on WhatsApp. We will delete all your data within 7 business days.`,
+            body: `We retain your health logs and account data for as long as your account is active. If you wish to delete your data, message us on WhatsApp and we will delete all your data within 7 business days.`,
           },
           {
             title: "8. Your Rights (DPDP Act 2023)",
@@ -88,7 +88,7 @@ We do not sell, rent, or trade your personal data to any third party.`,
 • Withdraw consent at any time — this will result in your account being deactivated.
 • Nominate a person to exercise your rights on your behalf.
 
-To exercise any of these rights, contact us at mailforsamarth@gmail.com.`,
+To exercise any of these rights, contact us via WhatsApp.`,
           },
           {
             title: "9. Data Security",
@@ -104,7 +104,7 @@ To exercise any of these rights, contact us at mailforsamarth@gmail.com.`,
           },
           {
             title: "12. Contact Us",
-            body: `For any privacy-related questions or requests, contact us at:\n\nmailforsamarth@gmail.com`,
+            body: `For any privacy-related questions or requests, reach us via WhatsApp.`,
           },
         ].map((section) => (
           <div key={section.title} style={{ marginBottom: 36 }}>
