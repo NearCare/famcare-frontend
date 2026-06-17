@@ -293,6 +293,7 @@ export default function LoginPage() {
                 <button
                   onClick={async () => {
                     setError("");
+                    setOtp("");
                     setLoading(true);
                     try { await sendOtp(phone); startResendTimer(); }
                     catch (e) { setError(e instanceof Error ? e.message : "Failed"); }
