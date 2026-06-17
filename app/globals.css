@@ -56,6 +56,17 @@ a {
   100% { background-position: -200% 0; }
 }
 
+@keyframes dbHeartBeat {
+  0%, 100% { transform: translate(-50%, -50%) scale(1); }
+  20%      { transform: translate(-50%, -50%) scale(1.08); }
+  40%      { transform: translate(-50%, -50%) scale(1); }
+}
+
+@keyframes dbSparkle {
+  0%, 100% { opacity: .35; transform: scale(.85); }
+  50%      { opacity: 1;   transform: scale(1.1); }
+}
+
 /* ── NearCare Dashboard — HealthEase design system ── */
 :root {
   --he-page-bg: #FBFAF9;
