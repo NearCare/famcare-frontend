@@ -12,7 +12,7 @@ import {
   Users, ChartBar, ClipboardText, Scroll, Sparkle, Target, SignOut,
 } from "@phosphor-icons/react";
 import {
-  FEDroplet, FEMoon, FESmile,
+  FEDroplet, FEMoon,
   FEShoe, FEMeat, FEWheat, FEChat, FEFlame,
 } from "./components/FluentEmoji";
 import {
@@ -769,7 +769,7 @@ export default function DashboardPage() {
         </div>
 
         {/* ── Wellness widgets ── */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 18 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: 18 }}>
           <div className="db-widget w-water">
             <div className="db-w-emoji"><FEDroplet size={34} /></div>
             <div>
@@ -787,15 +787,6 @@ export default function DashboardPage() {
               <div className="db-w-tag">Coming soon</div>
             </div>
             <div className="db-w-art">🌙</div>
-          </div>
-          <div className="db-widget w-mood">
-            <div className="db-w-emoji"><FESmile size={34} /></div>
-            <div>
-              <div className="db-w-label">Mood</div>
-              <div className="db-w-val">—</div>
-              <div className="db-w-tag">Coming soon</div>
-            </div>
-            <div className="db-w-art">⭐</div>
           </div>
         </div>
 
