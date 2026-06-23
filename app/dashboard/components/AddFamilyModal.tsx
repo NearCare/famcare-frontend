@@ -135,10 +135,11 @@ export default function AddFamilyModal({ onClose, onAdded, onActivated }: Props)
                   fontWeight: 700, fontSize: 13.5,
                   fontFamily: "'Plus Jakarta Sans', sans-serif",
                   transition: "all .2s",
+                  display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
                 }}>
                   {t === "family"
-                    ? <><Users size={15} weight="bold" style={{ verticalAlign: "middle", marginRight: 5 }} />Family</>
-                    : <><UserCheck size={15} weight="bold" style={{ verticalAlign: "middle", marginRight: 5 }} />Friend</>}
+                    ? <><Users size={15} weight="bold" /><span>Family</span></>
+                    : <><UserCheck size={15} weight="bold" /><span>Friend</span></>}
                 </button>
               ))}
             </div>

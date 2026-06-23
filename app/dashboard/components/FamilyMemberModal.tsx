@@ -6,14 +6,21 @@ import {
 } from "recharts";
 import { X, ChartBar, ClipboardText, Scroll } from "@phosphor-icons/react";
 import { FEShoe, FEMeat, FEWheat } from "./FluentEmoji";
-import { getMemberSummary, getMemberLogs, logsToWeeklySteps, type FamilyMember, type Summary, type HealthLog } from "@/lib/api";
+import { getMemberSummary, getMemberLogs, logsToWeeklyMetric, type FamilyMember, type Summary, type HealthLog } from "@/lib/api";
 
 interface Props {
   member: FamilyMember;
   onClose: () => void;
 }
 
-function MiniStepsChart({ data }: { data: { label: string; value: number }[] }) {
+function MiniMetricChart({
+  data, unitLabel, activeColor, idleColor,
+}: {
+  data: { label: string; value: number }[];
+  unitLabel: string;
+  activeColor: string;
+  idleColor: string;
+}) {
   const values = data.map(d => d.value);
   const maxIdx = values.indexOf(Math.max(...values));
   return (
@@ -28,11 +35,11 @@ function MiniStepsChart({ data }: { data: { label: string; value: number }[] }) 
           cursor={{ fill: "rgba(0,0,0,0.04)", radius: 6 }}
           contentStyle={{ background: "#2C2F3A", border: "none", borderRadius: 8, fontSize: 11 }}
           itemStyle={{ color: "#fff", fontWeight: 700 }}
-          formatter={(v) => [(Number(v) || 0).toLocaleString() + " steps", ""]}
+          formatter={(v) => [(Number(v) || 0).toLocaleString() + " " + unitLabel, ""]}
         />
         <Bar dataKey="value" radius={[5, 5, 0, 0]}>
           {data.map((_, i) => (
-            <Cell key={i} fill={i === maxIdx ? "#7C6FF7" : "#E8E4FF"} />
+            <Cell key={i} fill={i === maxIdx ? activeColor : idleColor} />
           ))}
         </Bar>
       </BarChart>
@@ -66,7 +73,9 @@ export default function FamilyMemberModal({ member, onClose }: Props) {
     }).finally(() => setLoading(false));
   }, [member.id]);
 
-  const weeklySteps = logsToWeeklySteps(logs);
+  const weeklySteps = logsToWeeklyMetric(logs, "steps");
+  const weeklyProtein = logsToWeeklyMetric(logs, "protein_g");
+  const weeklyCalories = logsToWeeklyMetric(logs, "calories");
   const todayIST = new Date().toLocaleDateString("en-CA");
   const todayLog = logs.find(l => l.logged_at === todayIST);
   const todaySteps = todayLog?.steps ?? 0;
@@ -140,7 +149,7 @@ export default function FamilyMemberModal({ member, onClose }: Props) {
             {[
               { icon: <FEShoe size={24} />, label: "Steps today", val: loading ? null : todaySteps ? `${todaySteps.toLocaleString()}` : "—", unit: "", bar: todayStepPct, color: "#7C6FF7", bg: "#F0EEFF" },
               { icon: <FEMeat size={24} />, label: "Avg protein", val: loading ? null : summary?.avg_protein_g != null ? `${summary.avg_protein_g.toFixed(0)}` : "—", unit: "g", bar: Math.min(Math.round(((summary?.avg_protein_g ?? 0) / 50) * 100), 100), color: "#2FBE76", bg: "#EAFBF0" },
-              { icon: <FEShoe size={24} />, label: "Avg steps", val: loading ? null : summary?.avg_steps != null ? `${Math.round(summary.avg_steps).toLocaleString()}` : "—", unit: "", bar: Math.min(Math.round(((summary?.avg_steps ?? 0) / 10000) * 100), 100), color: "#FF9F45", bg: "#FFF4E8" },
+              { icon: <FEWheat size={24} />, label: "Avg calories", val: loading ? null : summary?.avg_calories != null ? `${Math.round(summary.avg_calories).toLocaleString()}` : "—", unit: "", bar: Math.min(Math.round(((summary?.avg_calories ?? 0) / 2000) * 100), 100), color: "#FF9F45", bg: "#FFF4E8" },
             ].map(card => (
               <div key={card.label} style={{ background: card.bg, borderRadius: 14, padding: "14px 14px 12px" }}>
                 <div style={{ marginBottom: 6 }}>{card.icon}</div>
@@ -159,13 +168,26 @@ export default function FamilyMemberModal({ member, onClose }: Props) {
             ))}
           </div>
 
-          {/* Steps chart */}
-          <div style={{ background: "#FAFAFA", borderRadius: 16, padding: "18px 18px 14px" }}>
-            <div style={{ fontSize: 13.5, fontWeight: 800, color: "#2C2F3A", marginBottom: 12, fontFamily: "'Plus Jakarta Sans', sans-serif", display: "flex", alignItems: "center", gap: 7 }}>
-              <ChartBar size={15} weight="bold" color="#7C6FF7" /> Steps this week
+          {/* Weekly charts */}
+          {[
+            { title: "Steps this week", data: weeklySteps, unitLabel: "steps", activeColor: "#7C6FF7", idleColor: "#E8E4FF" },
+            { title: "Protein this week", data: weeklyProtein, unitLabel: "g", activeColor: "#2FBE76", idleColor: "#DBF6E6" },
+            { title: "Calories this week", data: weeklyCalories, unitLabel: "kcal", activeColor: "#FF9F45", idleColor: "#FFE7CC" },
+          ].map(chart => (
+            <div key={chart.title} style={{ background: "#FAFAFA", borderRadius: 16, padding: "18px 18px 14px" }}>
+              <div style={{ fontSize: 13.5, fontWeight: 800, color: "#2C2F3A", marginBottom: 12, fontFamily: "'Plus Jakarta Sans', sans-serif", display: "flex", alignItems: "center", gap: 7 }}>
+                <ChartBar size={15} weight="bold" color="#7C6FF7" /> {chart.title}
+              </div>
+              {loading ? <Skel h={120} /> : (
+                <MiniMetricChart
+                  data={chart.data}
+                  unitLabel={chart.unitLabel}
+                  activeColor={chart.activeColor}
+                  idleColor={chart.idleColor}
+                />
+              )}
             </div>
-            {loading ? <Skel h={120} /> : <MiniStepsChart data={weeklySteps} />}
-          </div>
+          ))}
 
           {/* Today's log */}
           <div style={{ background: "#FAFAFA", borderRadius: 16, padding: "16px 18px" }}>

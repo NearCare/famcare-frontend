@@ -2,106 +2,114 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  LineChart, Line, XAxis, YAxis, Tooltip as ReTooltip,
-  ResponsiveContainer, CartesianGrid,
-} from "recharts";
-import {
-  CalendarBlank,
-  Check, CheckCircle, Warning,
-  Users, ChartBar, ClipboardText, Scroll, Sparkle, Target, SignOut,
+  CheckCircle, Warning, Sparkle, CaretRight, Info, TrendUp, Minus, X,
+  Star, CalendarBlank, CalendarCheck, Trophy, SignOut, UserPlus,
 } from "@phosphor-icons/react";
-import {
-  FEDroplet, FEMoon,
-  FEShoe, FEMeat, FEWheat, FEChat, FEFlame,
-} from "./components/FluentEmoji";
+import { Flame, Dumbbell, Footprints } from "lucide-react";
+import { FEShoe, FEMeat, FEWheat, FEDroplet, FEMoon, FEFlame, FEChat } from "./components/FluentEmoji";
 import {
   getUserLogs,
   getUserSummary,
   getFamilyMembers,
-  logsToWeeklySteps,
+  getMemberSummary,
+  logsToWeeklyMetric,
   calculateStreak,
   type User,
   type HealthLog,
   type Summary,
   type FamilyMember,
 } from "@/lib/api";
+import { scoreTier, computeScore, scoreFromAverages, ScoreRing } from "./components/Score";
 import EmptyState from "./components/EmptyState";
-import AddFamilyModal from "./components/AddFamilyModal";
-import FamilyMemberModal from "./components/FamilyMemberModal";
 import Sidebar from "./components/Sidebar";
+import FamilyMemberModal from "./components/FamilyMemberModal";
+import AddFamilyModal from "./components/AddFamilyModal";
 
-// ── Charts ────────────────────────────────────────────────────────────────────
-
-function StepsChart({ data }: { data: { label: string; value: number }[] }) {
-  return (
-    <ResponsiveContainer width="100%" height={164}>
-      <LineChart data={data} margin={{ top: 8, right: 4, left: -18, bottom: 0 }}>
-        <CartesianGrid vertical={false} stroke="#F0EEF0" strokeDasharray="3 3" />
-        <XAxis dataKey="label" axisLine={false} tickLine={false}
-          tick={{ fontSize: 11, fill: "#9AA0AD", fontFamily: "Plus Jakarta Sans" }} />
-        <YAxis axisLine={false} tickLine={false}
-          tick={{ fontSize: 10, fill: "#9AA0AD" }}
-          tickFormatter={(v: number) => v >= 1000 ? v / 1000 + "k" : String(v)} />
-        <ReTooltip
-          cursor={{ stroke: "#FF6B6B", strokeWidth: 1, strokeDasharray: "4 3" }}
-          contentStyle={{ background: "#fff", border: "1px solid #EDE6E6", borderRadius: 10, fontSize: 12, fontFamily: "Plus Jakarta Sans", boxShadow: "0 4px 14px rgba(0,0,0,0.08)" }}
-          labelStyle={{ color: "#9AA0AD", fontSize: 11, fontWeight: 600 }}
-          itemStyle={{ color: "#FF6B6B", fontWeight: 700 }}
-          formatter={(v) => [(Number(v) || 0).toLocaleString() + " steps", ""]}
-        />
-        <Line
-          type="monotone"
-          dataKey="value"
-          stroke="#FF6B6B"
-          strokeWidth={2.5}
-          dot={{ fill: "#FF6B6B", stroke: "#fff", strokeWidth: 2, r: 4 }}
-          activeDot={{ fill: "#FF6B6B", stroke: "#fff", strokeWidth: 2, r: 6 }}
-        />
-      </LineChart>
-    </ResponsiveContainer>
-  );
+/** Averages raw logs falling within [minDaysAgo, maxDaysAgo] of today — used to compare this week vs last week. */
+function rangeAverages(logs: HealthLog[], minDaysAgo: number, maxDaysAgo: number) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const inRange = logs.filter((l) => {
+    const d = new Date(`${l.logged_at}T00:00:00`);
+    const diff = Math.round((today.getTime() - d.getTime()) / 86400000);
+    return diff >= minDaysAgo && diff <= maxDaysAgo;
+  });
+  if (inRange.length === 0) return null;
+  const avg = (key: "steps" | "protein_g" | "calories") =>
+    inRange.reduce((sum, l) => sum + (l[key] ?? 0), 0) / inRange.length;
+  return { steps: avg("steps"), protein: avg("protein_g"), calories: avg("calories") };
 }
 
-function TripleDonut({ stepPct, proteinPct, caloriesPct }: {
-  stepPct: number; proteinPct: number; caloriesPct: number;
-}) {
-  const size = 152;
-  const cx = size / 2, cy = size / 2;
-  const rings = [
-    { r: 64, stroke: "#FF6B6B", track: "#FFE7E6", pct: stepPct },
-    { r: 49, stroke: "#2FBE76", track: "#EAFBF0", pct: proteinPct },
-    { r: 34, stroke: "#FF9F45", track: "#FFF4E8", pct: caloriesPct },
-  ];
+function Sparkline({ data, color }: { data: number[]; color: string }) {
+  const w = 68, h = 20;
+  const max = Math.max(...data, 1);
+  const min = Math.min(...data, 0);
+  const range = max - min || 1;
+  const points = data
+    .map((v, i) => `${(i / (data.length - 1)) * w},${h - ((v - min) / range) * h}`)
+    .join(" ");
   return (
-    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
-      {rings.map(({ r, stroke, track, pct }) => {
-        const c = 2 * Math.PI * r;
-        const dash = (pct / 100) * c;
-        return (
-          <g key={r}>
-            <circle cx={cx} cy={cy} r={r} fill="none" stroke={track} strokeWidth={10} />
-            <circle cx={cx} cy={cy} r={r} fill="none" stroke={stroke} strokeWidth={10}
-              strokeLinecap="round"
-              strokeDasharray={`${dash} ${c}`}
-              transform={`rotate(-90 ${cx} ${cy})`}
-              style={{ transition: "stroke-dasharray .6s ease" }}
-            />
-          </g>
-        );
-      })}
-      <text x={cx} y={cy - 6} textAnchor="middle" fontSize="18" fontWeight="800"
-        fill="#2C2F3A" fontFamily="Plus Jakarta Sans, sans-serif">
-        {stepPct}%
-      </text>
-      <text x={cx} y={cy + 12} textAnchor="middle" fontSize="9"
-        fill="#9AA0AD" fontFamily="Plus Jakarta Sans, sans-serif">
-        step goal
-      </text>
+    <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} style={{ flexShrink: 0 }}>
+      <polyline points={points} fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }
 
-// ── Loading screen ───────────────────────────────────────────────────────────
+function MetricTile({
+  icon, label, color, deepColor, chipBg, stripBg, value, unit, goalText, pct, deltaDown, deltaText, sparkline,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  color: string;
+  deepColor: string;
+  chipBg: string;
+  stripBg: string;
+  value: React.ReactNode;
+  unit?: string;
+  goalText: string;
+  pct: number;
+  deltaDown: boolean;
+  deltaText: string;
+  sparkline: number[];
+}) {
+  return (
+    <div className="db-card fo-metric-tile" style={{ display: "flex", flexDirection: "column", padding: "13px 14px" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+          <div style={{ width: 26, height: 26, borderRadius: 8, background: chipBg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+            {icon}
+          </div>
+          <span style={{ fontSize: 12.5, fontWeight: 800, color: deepColor }}>{label}</span>
+        </div>
+        <CaretRight size={13} color="#BFC4CE" />
+      </div>
+
+      <div style={{ marginTop: 8 }}>
+        <span style={{ fontSize: 20, fontWeight: 800, color: "#1A2744", letterSpacing: "-.5px" }}>{value}</span>
+        {unit && <span style={{ fontSize: 11.5, fontWeight: 700, color: "#9AA0AD", marginLeft: 3 }}>{unit}</span>}
+      </div>
+      <p style={{ margin: "1px 0 0", fontSize: 10.5, color: "#9AA0AD", fontWeight: 500 }}>{goalText}</p>
+
+      <div style={{ display: "flex", alignItems: "center", gap: 7, marginTop: 7 }}>
+        <div className="db-bar-track" style={{ flex: 1, margin: 0, height: 5 }}>
+          <div className="db-bar-fill" style={{ width: `${pct}%`, background: color }} />
+        </div>
+        <span style={{ fontSize: 11, fontWeight: 800, color }}>{pct}%</span>
+      </div>
+
+      <div style={{
+        marginTop: 8, background: stripBg, borderRadius: 10, padding: "6px 10px",
+        display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6,
+      }}>
+        <span style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 10.5, fontWeight: 700, color: deepColor }}>
+          <TrendUp size={12} weight="bold" style={deltaDown ? { transform: "rotate(180deg)" } : undefined} />
+          {deltaText}
+        </span>
+        <Sparkline data={sparkline} color={color} />
+      </div>
+    </div>
+  );
+}
 
 function DashboardLoadingScreen() {
   const [progress, setProgress] = useState(8);
@@ -184,8 +192,6 @@ function DashboardLoadingScreen() {
   );
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
 function getGreeting(): string {
   const h = new Date().getHours();
   if (h < 12) return "Good morning";
@@ -201,21 +207,26 @@ const WaIcon = ({ size = 16 }: { size?: number }) => (
   </svg>
 );
 
-const CheckMark = () => <Check size={12} weight="bold" color="white" />;
+const RANK_PALETTE = [
+  { bg: "var(--he-green-bg)", accent: "var(--he-green)", text: "var(--he-green-deep)", caption: "Great job!" },
+  { bg: "var(--he-blue-bg)", accent: "var(--he-blue)", text: "var(--he-blue-deep)", caption: "Doing well!" },
+  { bg: "var(--he-orange-bg)", accent: "var(--he-orange)", text: "var(--he-orange-deep)", caption: "Keep it up!" },
+  { bg: "var(--he-violet-bg)", accent: "#8B7FE8", text: "#6A5BD0", caption: "Room to improve" },
+];
 
-// ── Dashboard page ────────────────────────────────────────────────────────────
+type MemberRow = { member: FamilyMember; summary: Summary | null };
 
 export default function DashboardPage() {
   const [user, setUser] = useState<User | null>(null);
   const [logs, setLogs] = useState<HealthLog[]>([]);
   const [summary, setSummary] = useState<Summary | null>(null);
+  const [memberRows, setMemberRows] = useState<MemberRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showFamilyCard, setShowFamilyCard] = useState(false);
-  const [showAddFamily, setShowAddFamily] = useState(false);
-  const [familyMembers, setFamilyMembers] = useState<FamilyMember[]>([]);
-  const [selectedMember, setSelectedMember] = useState<FamilyMember | null>(null);
   const [showAccountMenu, setShowAccountMenu] = useState(false);
+  const [selectedMember, setSelectedMember] = useState<FamilyMember | null>(null);
+  const [showAddFamily, setShowAddFamily] = useState(false);
   const accountMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -253,7 +264,7 @@ export default function DashboardPage() {
       if (!authUser.name) { window.location.href = "/onboarding/name"; return; }
       setUser(authUser);
       const token = localStorage.getItem("auth_token") ?? "";
-      const [fetchedLogs, fetchedSummary, fetchedMembers] = await Promise.all([
+      const [fetchedLogs, fetchedSummary, members] = await Promise.all([
         getUserLogs(authUser.id, 30),
         getUserSummary(authUser.id),
         getFamilyMembers(token).catch((err) => {
@@ -263,7 +274,15 @@ export default function DashboardPage() {
       ]);
       setLogs(fetchedLogs);
       setSummary(fetchedSummary);
-      setFamilyMembers(fetchedMembers);
+
+      const activeMembers = members.filter((m) => m.status === "active");
+      const rows = await Promise.all(
+        activeMembers.map(async (member) => ({
+          member,
+          summary: await getMemberSummary(member.id, token).catch(() => null),
+        }))
+      );
+      setMemberRows(rows);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load data");
     } finally {
@@ -277,31 +296,97 @@ export default function DashboardPage() {
     })();
   }, [loadDashboard]);
 
-  const refreshAfterActivation = useCallback(() => {
-    loadDashboard(true);
-  }, [loadDashboard]);
+  const weeklySteps = useMemo(() => logsToWeeklyMetric(logs, "steps"), [logs]);
+  const streak = useMemo(() => calculateStreak(logs), [logs]);
+  const proteinSeries = useMemo(() => logsToWeeklyMetric(logs, "protein_g").map((d) => d.value), [logs]);
+  const caloriesSeries = useMemo(() => logsToWeeklyMetric(logs, "calories").map((d) => d.value), [logs]);
+  const stepsSeries = useMemo(() => weeklySteps.map((d) => d.value), [weeklySteps]);
+  const hasData = !!summary?.last_logged;
+  const proteinAvg = summary?.avg_protein_g ?? 0;
+  const caloriesAvg = summary?.avg_calories ?? 0;
+  const stepsAvg = summary?.avg_steps ?? 0;
+  const proteinPct = Math.min(Math.round((proteinAvg / 50) * 100), 100);
+  const caloriesPct = Math.min(Math.round((caloriesAvg / 2000) * 100), 100);
+  const stepsAvgPct = Math.min(Math.round((stepsAvg / 10000) * 100), 100);
 
-  const handleFamilyMemberAdded = useCallback((member: FamilyMember) => {
-    setFamilyMembers(prev => [member, ...prev.filter(m => m.id !== member.id)]);
-  }, []);
+  const todayIST = new Date().toLocaleDateString("en-CA");
+  const yesterdayDate = new Date(); yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+  const yesterdayIST = yesterdayDate.toLocaleDateString("en-CA");
+  const todaySteps = logs.find((l) => l.logged_at === todayIST)?.steps ?? 0;
+  const yesterdaySteps = logs.find((l) => l.logged_at === yesterdayIST)?.steps ?? 0;
+  const stepsTodayPct = Math.min(Math.round((todaySteps / 10000) * 100), 100);
+  const stepsVsYesterday = todaySteps - yesterdaySteps;
 
-  const weeklySteps  = useMemo(() => logsToWeeklySteps(logs), [logs]);
-  const avgSteps     = summary?.avg_steps ?? 0;
-  const stepGoalPct  = Math.min(Math.round((avgSteps / 10000) * 100), 100);
-  const todayIST     = new Date().toLocaleDateString("en-CA");
-  const todayLog     = logs.find((l) => l.logged_at === todayIST);
-  const todaySteps   = todayLog?.steps ?? 0;
-  const todayStepPct = Math.min(Math.round((todaySteps / 10000) * 100), 100);
-  const proteinAvg   = summary?.avg_protein_g ?? 0;
-  const caloriesAvg  = summary?.avg_calories ?? 0;
-  const proteinPct   = Math.min(Math.round((proteinAvg / 50) * 100), 100);
-  const caloriesPct  = Math.min(Math.round((caloriesAvg / 2000) * 100), 100);
-  const todayCalories    = todayLog?.calories ?? 0;
-  const todayCaloriesPct = Math.min(Math.round((todayCalories / 2000) * 100), 100);
-  const goalHits     = summary?.step_goal_hits ?? 0;
-  const streak       = useMemo(() => calculateStreak(logs), [logs]);
+  const stepsPts = hasData ? Math.round(stepsAvgPct * 0.4) : 0;
+  const proteinPts = hasData ? Math.round(proteinPct * 0.3) : 0;
+  const caloriesPts = hasData ? Math.round(caloriesPct * 0.3) : 0;
+  const personalScore = hasData ? stepsPts + proteinPts + caloriesPts : null;
+  const personalTier = scoreTier(personalScore);
 
-  // ── Loading ─────────────────────────────────────────────────────────────────
+  const rankedFamily = useMemo(() => {
+    const rows = [
+      { id: user?.id ?? 0, name: user?.name ?? "You", score: personalScore, isYou: true },
+      ...memberRows.map(({ member, summary: memberSummary }) => ({
+        id: member.id,
+        name: member.name ?? member.label,
+        score: computeScore(memberSummary),
+        isYou: false,
+      })),
+    ];
+    return rows.sort((a, b) => (b.score ?? -1) - (a.score ?? -1));
+  }, [user, personalScore, memberRows]);
+
+  const prevWeekAvgs = useMemo(() => rangeAverages(logs, 7, 13), [logs]);
+  const prevWeekScore = prevWeekAvgs ? scoreFromAverages(prevWeekAvgs.steps, prevWeekAvgs.protein, prevWeekAvgs.calories) : null;
+  const scoreDelta = personalScore !== null && prevWeekScore !== null ? personalScore - prevWeekScore : null;
+  const proteinDeltaPct = prevWeekAvgs && prevWeekAvgs.protein > 0
+    ? Math.round(((proteinAvg - prevWeekAvgs.protein) / prevWeekAvgs.protein) * 100)
+    : null;
+  const caloriesDeltaAbs = prevWeekAvgs ? Math.round(caloriesAvg - prevWeekAvgs.calories) : null;
+
+  const daysLoggedThisWeek = useMemo(() => {
+    const last7Dates = Array.from({ length: 7 }, (_, i) => {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      return d.toLocaleDateString("en-CA");
+    });
+    return last7Dates.filter((date) => logs.some((l) => l.logged_at === date)).length;
+  }, [logs]);
+  const consistencyMessage = daysLoggedThisWeek === 7
+    ? "Amazing consistency! 🎉"
+    : daysLoggedThisWeek >= 5
+    ? "Great job staying consistent!"
+    : daysLoggedThisWeek >= 1
+    ? "Keep logging to build your streak."
+    : "Start logging today to see your trends.";
+
+  const daysGoalMet = weeklySteps.filter((d) => d.value >= 10000).length;
+  const bestDay = weeklySteps.reduce((best, d) => (d.value > best.value ? d : best), weeklySteps[0] ?? { label: "—", value: 0 });
+  const weeklyCalorieTotal = Math.round(caloriesAvg * 7);
+
+  const weeklyInsights: { icon: React.ReactNode; text: string }[] = [];
+  if (daysGoalMet > 0) {
+    weeklyInsights.push({ icon: <TrendUp size={15} weight="bold" color="var(--he-green-deep)" />, text: `Great job! You hit your step goal ${daysGoalMet} of 7 days.` });
+  }
+  if (proteinDeltaPct !== null && proteinDeltaPct !== 0) {
+    weeklyInsights.push({ icon: <FEMeat size={15} />, text: `Protein intake ${proteinDeltaPct > 0 ? "improved" : "dropped"} by ${Math.abs(proteinDeltaPct)}% this week.` });
+  }
+  if (weeklyCalorieTotal > 0) {
+    weeklyInsights.push({ icon: <FEFlame size={15} />, text: `You logged ~${weeklyCalorieTotal.toLocaleString()} kcal this week.` });
+  }
+  weeklyInsights.push({ icon: <FEDroplet size={15} />, text: "Water & sleep tracking is coming soon." });
+  if (weeklyInsights.length === 1) {
+    weeklyInsights.unshift({ icon: <Warning size={15} weight="bold" color="var(--he-orange-deep)" />, text: "No health data logged yet this week." });
+  }
+
+  const motivCopy = personalTier.label === "All good"
+    ? { title: "Keep it up!", message: "You're doing great this week. Stay consistent and crush your goals!" }
+    : personalTier.label === "Needs attention"
+    ? { title: "Almost there!", message: "A few small tweaks this week could make a big difference." }
+    : personalTier.label === "Action required"
+    ? { title: "Let's turn it around", message: "Send a quick WhatsApp update today to get back on track." }
+    : { title: "Get started!", message: "Send your first WhatsApp update to start tracking your health." };
+
   if (loading) {
     return (
       <div className="db-page">
@@ -313,7 +398,6 @@ export default function DashboardPage() {
     );
   }
 
-  // ── Error ───────────────────────────────────────────────────────────────────
   if (error) {
     return (
       <div className="db-page">
@@ -335,7 +419,6 @@ export default function DashboardPage() {
     );
   }
 
-  // ── Empty state ─────────────────────────────────────────────────────────────
   if (!user || logs.length === 0) {
     return (
       <div className="db-page">
@@ -347,36 +430,16 @@ export default function DashboardPage() {
     );
   }
 
-  // ── Full dashboard ──────────────────────────────────────────────────────────
-  const displayName  = user.name ?? "there";
+  const displayName = user.name ?? "there";
   const avatarLetter = user.name
     ? user.name.charAt(0).toUpperCase()
     : user.phone.slice(-4, -3) || "U";
-
-  // Dynamic AI insights based on real data
-  const insights: { type: "good" | "warn"; text: React.ReactNode }[] = [];
-  if (goalHits >= 5) {
-    insights.push({ type: "good", text: <><b>Incredible week!</b> You hit your 10k step goal {goalHits} out of 7 days — that&apos;s elite consistency.</> });
-  } else if (goalHits >= 3) {
-    insights.push({ type: "good", text: <><b>{goalHits} days hit goal</b> this week. You&apos;re in great stride — push for one more tomorrow!</> });
-  } else if (goalHits > 0) {
-    insights.push({ type: "warn", text: <><b>Step goal hit {goalHits}×.</b> Aim for at least 3 days this week — even a 15-min walk counts.</> });
-  }
-  if (proteinAvg > 0 && proteinPct < 70) {
-    insights.push({ type: "warn", text: <><b>Protein below target.</b> Averaging {proteinAvg.toFixed(0)}g vs 50g daily goal. Add eggs, dal, or nuts!</> });
-  } else if (proteinAvg >= 50) {
-    insights.push({ type: "good", text: <><b>Great protein intake!</b> {proteinAvg.toFixed(0)}g/day avg supports muscle recovery and energy.</> });
-  }
-  if (insights.length === 0) {
-    insights.push({ type: "good", text: <><b>Dashboard is live!</b> Keep logging on WhatsApp and your trends will grow here.</> });
-  }
 
   return (
     <div className="db-page">
       <Sidebar />
 
       <div className="db-main">
-        {/* ── Topbar ── */}
         <div className="db-topbar">
           <div>
             <h1 className="db-greeting">{getGreeting()}, {displayName}! 👋</h1>
@@ -433,63 +496,7 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* ── KPI Row ── */}
-        <div className="db-kpi-row">
-          <div className="db-kpi k-coral">
-            <div className="db-kpi-top">
-              <div className="db-kpi-ic" style={{ background: "#FFD5D5" }}><FEShoe size={20} /></div>
-              <span className="db-kpi-label">Steps Today</span>
-            </div>
-            <div className="db-kpi-val">
-              {todaySteps ? todaySteps.toLocaleString() : "—"}
-            </div>
-            <div className="db-bar-track">
-              <div className="db-bar-fill" style={{ width: `${todayStepPct}%`, background: "#FF6B6B" }} />
-            </div>
-          </div>
-
-          <div className="db-kpi k-blue">
-            <div className="db-kpi-top">
-              <div className="db-kpi-ic" style={{ background: "#EAF4FF" }}><FEMeat size={20} /></div>
-              <span className="db-kpi-label">Protein</span>
-            </div>
-            <div className="db-kpi-val">
-              {proteinAvg ? <>{proteinAvg.toFixed(0)}<span className="unit">g</span></> : "—"}
-            </div>
-            <div className="db-bar-track">
-              <div className="db-bar-fill" style={{ width: `${proteinPct}%`, background: "#4F9BF5" }} />
-            </div>
-          </div>
-
-          <div className="db-kpi k-orange">
-            <div className="db-kpi-top">
-              <div className="db-kpi-ic" style={{ background: "#FFE9D2" }}><FEWheat size={20} /></div>
-              <span className="db-kpi-label">Calories</span>
-            </div>
-            <div className="db-kpi-val">
-              {todayLog?.calories != null ? <>{todayLog.calories}<span className="unit">kcal</span></> : "—"}
-            </div>
-            <div className="db-bar-track">
-              <div className="db-bar-fill" style={{ width: `${todayCaloriesPct}%`, background: "#FF9F45" }} />
-            </div>
-          </div>
-
-          <div className="db-kpi k-green">
-            <div className="db-kpi-top">
-              <div className="db-kpi-ic" style={{ background: "#FFE9D2" }}><FEFlame size={20} /></div>
-              <span className="db-kpi-label">Streak</span>
-            </div>
-            <div className="db-kpi-val">
-              {streak}<span className="unit">{streak === 1 ? " day" : " days"}</span>
-            </div>
-            <div className="db-bar-track">
-              <div className="db-bar-fill" style={{ width: `${Math.min((streak / 7) * 100, 100)}%`, background: "#FF7A33" }} />
-            </div>
-          </div>
-        </div>
-
-        {/* ── Family card ── */}
-        {showFamilyCard && familyMembers.length === 0 && (
+        {showFamilyCard && memberRows.length === 0 && (
           <div className="db-family-banner" style={{
             position: "relative",
             background: "linear-gradient(135deg, #EEF0FF 0%, #F5F0FF 60%, #FFF0FA 100%)",
@@ -501,37 +508,24 @@ export default function DashboardPage() {
             gap: 28,
             overflow: "hidden",
           }}>
-            {/* "Start here!" bubble */}
             <div className="db-family-banner-badge" style={{
-              position: "absolute",
-              top: 18,
-              right: 24,
-              background: "#7C6FF7",
-              color: "#fff",
-              fontSize: 12,
-              fontWeight: 800,
-              padding: "5px 14px",
-              borderRadius: 20,
-              display: "flex",
-              alignItems: "center",
-              gap: 5,
+              position: "absolute", top: 18, right: 24,
+              background: "#7C6FF7", color: "#fff", fontSize: 12, fontWeight: 800,
+              padding: "5px 14px", borderRadius: 20,
+              display: "flex", alignItems: "center", gap: 5,
               boxShadow: "0 3px 12px rgba(124,111,247,0.35)",
             }}>
               ✨ Start here!
             </div>
 
-            {/* Illustration */}
             <div className="db-family-banner-emoji" style={{
-              fontSize: 68,
-              lineHeight: 1,
-              flexShrink: 0,
+              fontSize: 68, lineHeight: 1, flexShrink: 0,
               filter: "drop-shadow(0 4px 12px rgba(0,0,0,0.08))",
               userSelect: "none",
             }}>
               👨‍👩‍👦
             </div>
 
-            {/* Text + actions */}
             <div style={{ flex: 1, minWidth: 0 }}>
               <h2 style={{ fontSize: 20, fontWeight: 800, color: "#2C2F3A", margin: "0 0 6px", fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
                 Health is better together!
@@ -540,25 +534,15 @@ export default function DashboardPage() {
                 Add your family members to track everyone&apos;s health, set goals together and keep each other motivated.
               </p>
               <div className="db-family-banner-actions" style={{ display: "flex", alignItems: "center", gap: 16 }}>
-                <button style={{
-                  background: "#7C6FF7",
-                  color: "#fff",
-                  border: "none",
-                  borderRadius: 14,
-                  padding: "11px 22px",
-                  fontSize: 14,
-                  fontWeight: 700,
-                  cursor: "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 7,
+                <Link href="/dashboard/family-overview" style={{
+                  background: "#7C6FF7", color: "#fff", border: "none", borderRadius: 14,
+                  padding: "11px 22px", fontSize: 14, fontWeight: 700, cursor: "pointer",
+                  display: "flex", alignItems: "center", gap: 7,
                   boxShadow: "0 4px 14px rgba(124,111,247,0.35)",
-                  fontFamily: "'Plus Jakarta Sans', sans-serif",
-                }}
-                  onClick={() => setShowAddFamily(true)}
-                >
+                  fontFamily: "'Plus Jakarta Sans', sans-serif", textDecoration: "none",
+                }}>
                   <span style={{ fontSize: 16 }}>+</span> Add Family Member
-                </button>
+                </Link>
                 <button
                   onClick={dismissFamilyCard}
                   style={{ background: "none", border: "none", cursor: "pointer", fontSize: 13.5, color: "#9AA0AD", fontWeight: 600, fontFamily: "'Plus Jakarta Sans', sans-serif" }}
@@ -568,239 +552,424 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            {/* Decorative blobs */}
             <div style={{
-              position: "absolute",
-              bottom: -30,
-              right: -30,
-              width: 140,
-              height: 140,
-              borderRadius: "50%",
-              background: "rgba(124,111,247,0.08)",
-              pointerEvents: "none",
+              position: "absolute", bottom: -30, right: -30, width: 140, height: 140,
+              borderRadius: "50%", background: "rgba(124,111,247,0.08)", pointerEvents: "none",
             }} />
             <div style={{
-              position: "absolute",
-              top: -20,
-              left: 160,
-              width: 80,
-              height: 80,
-              borderRadius: "50%",
-              background: "rgba(124,111,247,0.06)",
-              pointerEvents: "none",
+              position: "absolute", top: -20, left: 160, width: 80, height: 80,
+              borderRadius: "50%", background: "rgba(124,111,247,0.06)", pointerEvents: "none",
             }} />
           </div>
         )}
 
-        {/* ── 3-column grid ── */}
-        <div className="db-grid">
-
-          {/* Col 1 — Steps chart + WhatsApp CTA */}
-          <div className="db-col">
-            <div className="db-card db-card-pad">
-              <div className="db-card-h">
-                <div className="db-card-title"><ChartBar size={16} weight="bold" /> Steps Overview</div>
-                <div className="db-mini-sel">This Week</div>
-              </div>
-              <div className="db-steps-big">
-                {avgSteps ? avgSteps.toLocaleString() : "—"}
-              </div>
-              <div className="db-steps-avg">7-day average steps</div>
-              {goalHits > 0 && (
-                <div className="db-chip-up">
-                  🎯 {goalHits} day{goalHits !== 1 ? "s" : ""} hit goal
-                </div>
-              )}
-              <div style={{ position: "relative", height: 164, marginTop: 16 }}>
-                <StepsChart data={weeklySteps} />
-              </div>
-            </div>
-          </div>
-
-          {/* Col 2 — Today's log + Recent logs */}
-          <div className="db-col">
-            <div className="db-card db-card-pad">
-              <div className="db-card-h" style={{ marginBottom: 4 }}>
-                <div className="db-card-title"><ClipboardText size={16} weight="bold" /> Today&apos;s Log</div>
-              </div>
-
-              <div className="db-sum-row">
-                <div className="db-sum-ic" style={{ background: "#FFE7E6" }}><FEShoe size={22} /></div>
-                <span className="db-sum-label">Steps</span>
-                <div className="db-sum-val">
-                  {todaySteps ? todaySteps.toLocaleString() : "—"}
-                  {todayStepPct >= 100 && (
-                    <div className="db-check"><CheckMark /></div>
-                  )}
-                </div>
-              </div>
-
-              <div className="db-sum-row">
-                <div className="db-sum-ic" style={{ background: "#EAF4FF" }}><FEMeat size={22} /></div>
-                <span className="db-sum-label">Protein</span>
-                <div className="db-sum-val">
-                  {todayLog?.protein_g != null ? `${todayLog.protein_g.toFixed(0)}g` : "—"}
-                  {todayLog?.protein_g != null && todayLog.protein_g >= 50 && (
-                    <div className="db-check"><CheckMark /></div>
-                  )}
-                </div>
-              </div>
-
-              <div className="db-sum-row">
-                <div className="db-sum-ic" style={{ background: "#FFF4E8" }}><FEWheat size={22} /></div>
-                <span className="db-sum-label">Calories</span>
-                <div className="db-sum-val">
-                  {todayLog?.calories != null ? `${todayLog.calories} kcal` : "—"}
-                </div>
-              </div>
-
-              {todayLog?.raw_message && (
-                <div style={{ marginTop: 12, padding: "10px 12px", background: "#F7F6F8", borderRadius: 12, fontSize: 12.5, color: "#5A5F6E", lineHeight: 1.45 }}>
-                  💬 &ldquo;{todayLog.raw_message}&rdquo;
-                </div>
-              )}
-            </div>
-
-            <div className="db-card db-card-pad">
-              <div className="db-card-h" style={{ marginBottom: 12 }}>
-                <div className="db-card-title"><Scroll size={16} weight="bold" /> Recent Logs</div>
-                <span style={{ fontSize: 11.5, fontWeight: 700, color: "#FF6B6B", background: "#FFF3F2", padding: "3px 9px", borderRadius: 20 }}>7 days</span>
-              </div>
-              {logs.slice(0, 4).map((log) => (
-                <div key={log.id} className="db-log-row">
-                  <div className="db-log-ic" style={{ background: "#FFF3F2", display: "flex", alignItems: "center", justifyContent: "center" }}><ClipboardText size={17} weight="bold" color="#FF8A7A" /></div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 12.5, fontWeight: 700, color: "#2C2F3A" }}>
-                      {log.steps != null ? `${log.steps.toLocaleString()} steps` : "No steps logged"}
-                    </div>
-                    <div style={{ fontSize: 11, color: "#9AA0AD", marginTop: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                      {log.raw_message ?? (
-                        [
-                          log.protein_g != null ? `protein ${log.protein_g.toFixed(0)}g` : null,
-                          log.calories != null ? `${log.calories} kcal` : null,
-                        ].filter(Boolean).join(" · ") || "No details"
-                      )}
-                    </div>
-                  </div>
-                  <div style={{ textAlign: "right", flexShrink: 0 }}>
-                    <div style={{ fontSize: 11, color: "#9AA0AD" }}>
-                      {new Date(log.logged_at).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
-                    </div>
-                    <div style={{ marginTop: 3, padding: "2px 8px", borderRadius: 20, fontSize: 10, fontWeight: 700, background: "#EAFBF0", color: "#20A865", display: "inline-block" }}>
-                      Logged
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Col 3 — Activity donut + AI insights */}
-          <div className="db-col">
-            <div className="db-card db-card-pad">
-              <div className="db-card-h" style={{ marginBottom: 8 }}>
-                <div className="db-card-title"><Target size={16} weight="bold" /> Activity</div>
-              </div>
-              <div style={{ display: "flex", justifyContent: "center", marginTop: 4 }}>
-                <TripleDonut stepPct={stepGoalPct} proteinPct={proteinPct} caloriesPct={caloriesPct} />
-              </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 9, marginTop: 14 }}>
-                {([
-                  { color: "#FF6B6B", label: "Steps",    val: `${avgSteps ? avgSteps.toLocaleString() : "—"} / 10k` },
-                  { color: "#2FBE76", label: "Protein",  val: `${proteinAvg ? proteinAvg.toFixed(0) : "—"}g / 50g` },
-                  { color: "#FF9F45", label: "Calories", val: `${caloriesAvg ? caloriesAvg.toFixed(0) : "—"} / 2000 kcal` },
-                ] as const).map((row) => (
-                  <div key={row.label} style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 12.5, color: "#5A5F6E" }}>
-                      <div style={{ width: 8, height: 8, borderRadius: "50%", background: row.color }} />
-                      {row.label}
-                    </div>
-                    <div style={{ fontSize: 12.5, fontWeight: 700, color: "#2C2F3A" }}>{row.val}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="db-card db-card-pad">
-              <div className="db-card-h" style={{ marginBottom: 12 }}>
-                <div className="db-card-title"><Sparkle size={16} weight="bold" /> AI Insights</div>
-              </div>
-              {insights.slice(0, 2).map((ins, i) => (
-                <div key={i} className={`db-ai-card ${ins.type}`}>
-                  <div className="db-ai-dot">
-                    {ins.type === "good"
-                      ? <CheckCircle size={14} weight="bold" color="white" />
-                      : <Warning size={14} weight="bold" color="white" />}
-                  </div>
-                  <p>{ins.text}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* ── Family members ── */}
-        {familyMembers.length > 0 && (
+        {memberRows.length > 0 && (
           <div>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
-              <h2 style={{ fontSize: 15, fontWeight: 800, color: "#2C2F3A", margin: 0, fontFamily: "'Plus Jakarta Sans', sans-serif", display: "flex", alignItems: "center", gap: 7 }}>
-                <Users size={17} weight="bold" color="#7C6FF7" /> Family &amp; Friends
+              <h2 style={{ fontSize: 15, fontWeight: 800, color: "#2C2F3A", margin: 0, fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+                Family
               </h2>
-              <button
-                onClick={() => setShowAddFamily(true)}
-                style={{ background: "#F0EEFF", border: "none", borderRadius: 20, padding: "6px 14px", fontSize: 12.5, fontWeight: 700, color: "#7C6FF7", cursor: "pointer", fontFamily: "'Plus Jakarta Sans', sans-serif" }}
-              >
-                + Add
-              </button>
+              <Link href="/dashboard/family-overview" style={{
+                display: "flex", alignItems: "center", gap: 3, fontSize: 12.5, fontWeight: 700,
+                color: "#7C6FF7", textDecoration: "none",
+              }}>
+                Manage <CaretRight size={11} weight="bold" />
+              </Link>
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 12 }}>
-              {familyMembers.map(member => {
-                const isPending = member.status === "pending";
-                const accentColor = member.type === "family" ? "#7C6FF7" : "#FF9F45";
-                const accentBg    = member.type === "family" ? "#F0EEFF"  : "#FFF4E8";
+            <div style={{ display: "flex", alignItems: "stretch", gap: 16, overflowX: "auto", padding: "10px 4px 12px" }}>
+              {memberRows.map(({ member, summary: memberSummary }) => {
+                const score = computeScore(memberSummary);
+                const tier = scoreTier(score);
+                const avatarLetter = (member.name ?? member.label).charAt(0).toUpperCase();
                 return (
-                  <button
+                  <div
                     key={member.id}
-                    onClick={() => !isPending && setSelectedMember(member)}
+                    className="fo-member-card"
                     style={{
-                      background: isPending ? "#FAFAFA" : "#fff",
-                      border: `1.5px solid ${isPending ? "#E8E4F5" : "#EDE8FF"}`,
-                      borderRadius: 16, padding: "16px 14px",
-                      cursor: isPending ? "default" : "pointer",
-                      textAlign: "left", opacity: isPending ? 0.8 : 1,
-                      transition: "box-shadow .2s, border-color .2s",
-                      fontFamily: "'Plus Jakarta Sans', sans-serif",
+                      flex: "0 0 300px", minWidth: 300,
+                      background:
+                        `linear-gradient(165deg, ${tier.bg} 0%, #fff 55%) padding-box, linear-gradient(135deg, ${tier.border}, ${tier.ring}) border-box`,
+                      borderRadius: 24, border: "1.5px solid transparent",
+                      boxShadow: "0 4px 16px rgba(26,20,20,.05)", padding: "22px 22px 20px",
                     }}
-                    onMouseEnter={e => { if (!isPending) { (e.currentTarget as HTMLButtonElement).style.boxShadow = "0 4px 16px rgba(124,111,247,0.15)"; (e.currentTarget as HTMLButtonElement).style.borderColor = "#C4B8FF"; } }}
-                    onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.boxShadow = "none"; (e.currentTarget as HTMLButtonElement).style.borderColor = isPending ? "#E8E4F5" : "#EDE8FF"; }}
                   >
                     <div style={{
-                      width: 40, height: 40, borderRadius: 12,
-                      background: accentBg, color: accentColor,
-                      display: "flex", alignItems: "center", justifyContent: "center",
-                      fontSize: 17, fontWeight: 800, marginBottom: 10,
-                      filter: isPending ? "grayscale(0.4)" : "none",
-                    }}>
-                      {(member.name ?? member.label).charAt(0).toUpperCase()}
+                      position: "absolute", width: 130, height: 130, borderRadius: "50%",
+                      top: -54, right: -42, background: tier.ring, opacity: 0.1,
+                      filter: "blur(18px)", pointerEvents: "none",
+                    }} />
+                    <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, position: "relative" }}>
+                      <div style={{ display: "flex", gap: 11 }}>
+                        <div style={{
+                          width: 42, height: 42, borderRadius: "50%",
+                          background: `linear-gradient(150deg, ${tier.ring}, ${tier.textColor})`,
+                          color: "#fff", display: "flex", alignItems: "center", justifyContent: "center",
+                          fontWeight: 800, fontSize: 16, flexShrink: 0,
+                          boxShadow: `0 4px 10px ${tier.ring}55`,
+                        }}>
+                          {avatarLetter}
+                        </div>
+                        <div>
+                          <p style={{ margin: 0, fontWeight: 800, fontSize: 15, color: "#1A2744" }}>{member.name ?? member.label}</p>
+                          <p style={{ margin: 0, fontSize: 11.5, color: "#9AA0AD" }}>{member.label}</p>
+                          <span style={{ display: "inline-flex", alignItems: "center", gap: 5, marginTop: 6, background: tier.bg, color: tier.textColor, fontSize: 10.5, fontWeight: 700, padding: "3px 10px", borderRadius: 99 }}>
+                            {score !== null && (
+                              score >= 40
+                                ? <CheckCircle size={13} weight="fill" color={tier.ring} />
+                                : <Warning size={13} weight="fill" color={tier.ring} />
+                            )}
+                            {tier.label}
+                          </span>
+                        </div>
+                      </div>
+                      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", flexShrink: 0 }}>
+                        <ScoreRing score={score} tier={tier} size={68} />
+                        <span style={{ marginTop: 4, fontSize: 10.5, fontWeight: 700, color: tier.textColor }}>Score</span>
+                      </div>
                     </div>
-                    <div style={{ fontSize: 13.5, fontWeight: 800, color: "#2C2F3A", marginBottom: 2 }}>
-                      {member.name ?? member.label}
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 6, marginTop: 20, textAlign: "center" }}>
+                      <div>
+                        <div style={{ display: "flex", justifyContent: "center" }}><Flame size={20} color="#FF9F45" /></div>
+                        <p style={{ margin: "6px 0 0", fontSize: 14, fontWeight: 800, color: "#1A2744" }}>{memberSummary?.avg_calories != null ? memberSummary.avg_calories.toFixed(0) : "—"}</p>
+                        <p style={{ margin: 0, fontSize: 10, fontWeight: 600, color: "#7C84A8" }}>Cal</p>
+                      </div>
+                      <div>
+                        <div style={{ display: "flex", justifyContent: "center" }}><Dumbbell size={20} color="#4F9BF5" /></div>
+                        <p style={{ margin: "6px 0 0", fontSize: 14, fontWeight: 800, color: "#1A2744" }}>{memberSummary?.avg_protein_g != null ? `${memberSummary.avg_protein_g.toFixed(0)}g` : "—"}</p>
+                        <p style={{ margin: 0, fontSize: 10, fontWeight: 600, color: "#7C84A8" }}>Protein</p>
+                      </div>
+                      <div>
+                        <div style={{ display: "flex", justifyContent: "center" }}><Footprints size={20} color="#20A865" /></div>
+                        <p style={{ margin: "6px 0 0", fontSize: 14, fontWeight: 800, color: "#1A2744" }}>{memberSummary?.avg_steps != null ? Math.round(memberSummary.avg_steps).toLocaleString() : "—"}</p>
+                        <p style={{ margin: 0, fontSize: 10, fontWeight: 600, color: "#7C84A8" }}>Steps</p>
+                      </div>
                     </div>
-                    <div style={{ fontSize: 11, color: "#9AA0AD" }}>{member.label}</div>
-                    <div style={{ marginTop: 8, fontSize: 10.5, fontWeight: 700, padding: "2px 8px", borderRadius: 20, display: "inline-block",
-                      color: isPending ? "#9AA0AD" : accentColor,
-                      background: isPending ? "#F0EEF5" : accentBg,
-                    }}>
-                      {isPending ? "⏳ Awaiting YES" : member.type}
+                    <button
+                      onClick={() => setSelectedMember(member)}
+                      style={{
+                        width: "100%", marginTop: 18, padding: "10px 0", border: `1.5px solid ${tier.border}`, borderRadius: 14,
+                        background: tier.bg, color: tier.textColor, fontSize: 13, fontWeight: 700,
+                        cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+                        fontFamily: "'Plus Jakarta Sans', sans-serif",
+                      }}
+                    >
+                      View Details <CaretRight size={13} weight="bold" />
+                    </button>
+                  </div>
+                );
+              })}
+              <button
+                onClick={() => setShowAddFamily(true)}
+                className="fo-add-card"
+                style={{
+                  flex: "0 0 300px", minWidth: 300, alignSelf: "stretch",
+                  border: "2px dashed var(--he-coral)", borderRadius: 24,
+                  background: "linear-gradient(165deg, var(--he-coral-bg) 0%, #fff 75%)",
+                  boxShadow: "0 8px 22px rgba(232,92,92,.14)",
+                  display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+                  gap: 10, padding: "22px 18px", cursor: "pointer", position: "relative", overflow: "hidden",
+                  fontFamily: "'Plus Jakarta Sans', sans-serif",
+                }}
+              >
+                <Sparkle size={13} weight="fill" color="var(--he-coral)" style={{ position: "absolute", top: 16, left: 22, opacity: 0.5 }} />
+                <Sparkle size={9} weight="fill" color="var(--he-coral)" style={{ position: "absolute", bottom: 22, right: 26, opacity: 0.4 }} />
+                <div className="fo-add-pulse-ring">
+                  <div style={{
+                    width: 48, height: 48, borderRadius: "50%", background: "var(--he-coral)",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    boxShadow: "0 8px 20px rgba(232,92,92,.4)", position: "relative", zIndex: 1,
+                  }}>
+                    <UserPlus size={22} weight="bold" color="#fff" />
+                  </div>
+                </div>
+                <div style={{ textAlign: "center" }}>
+                  <p style={{ margin: 0, fontSize: 14, fontWeight: 800, color: "#1A2744" }}>Add a family member</p>
+                  <p style={{ margin: "3px 0 0", fontSize: 11, color: "#9AA0AD", fontWeight: 500 }}>Track their health too</p>
+                </div>
+                <span style={{
+                  display: "inline-flex", alignItems: "center", gap: 5, marginTop: 2,
+                  background: "var(--he-coral)", color: "#fff", fontSize: 11, fontWeight: 700,
+                  padding: "5px 14px", borderRadius: 99,
+                }}>
+                  Invite now <CaretRight size={11} weight="bold" />
+                </span>
+              </button>
+            </div>
+          </div>
+        )}
+
+        <div style={{ display: "flex", gap: 16, alignItems: "flex-start", flexWrap: "wrap" }}>
+          <div className="db-card" style={{ flex: "1.3 1 520px", minWidth: 380, padding: "24px 26px 22px", position: "relative", overflow: "hidden" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 22 }}>
+              <span style={{ fontSize: 17, fontWeight: 800, color: "#1A2744", fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Your Weekly Score</span>
+              <Info size={15} weight="bold" color="#BFC4CE" />
+            </div>
+
+            <div style={{ display: "flex", gap: 28, flexWrap: "wrap" }}>
+              <div style={{
+                display: "flex", flexDirection: "column", alignItems: "center",
+                flex: "0 0 200px", paddingRight: 24, borderRight: "1px solid var(--he-hairline)",
+              }}>
+                <ScoreRing score={personalScore} tier={personalTier} size={140} />
+                <span className="db-chip-up" style={{ marginTop: 14, background: personalTier.bg, color: personalTier.textColor }}>
+                  {personalTier.label}
+                </span>
+                {scoreDelta !== null && (
+                  <p style={{
+                    margin: "10px 0 0", fontSize: 12.5, fontWeight: 700,
+                    color: scoreDelta >= 0 ? "var(--he-green-deep)" : "var(--he-coral-deep)",
+                    display: "flex", alignItems: "center", gap: 4,
+                  }}>
+                    <TrendUp size={13} weight="bold" style={scoreDelta < 0 ? { transform: "rotate(180deg)" } : undefined} />
+                    {Math.abs(scoreDelta)} points vs last week
+                  </p>
+                )}
+              </div>
+
+              <div style={{ flex: "1 1 280px", minWidth: 240 }}>
+                <p style={{ margin: "0 0 14px", fontSize: 13.5, fontWeight: 800, color: "#1A2744" }}>Score Breakdown</p>
+                <div style={{ display: "flex", flexDirection: "column", gap: 13 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <FEShoe size={20} />
+                    <span style={{ width: 60, fontSize: 12.5, fontWeight: 700, color: "#2C2F3A" }}>Steps</span>
+                    <div className="db-bar-track" style={{ flex: 1, margin: 0 }}><div className="db-bar-fill" style={{ width: `${(stepsPts / 40) * 100}%`, background: "var(--he-green)" }} /></div>
+                    <span style={{ width: 44, textAlign: "right", fontSize: 12, fontWeight: 700, color: "#9AA0AD" }}>{stepsPts}/40</span>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <FEMeat size={20} />
+                    <span style={{ width: 60, fontSize: 12.5, fontWeight: 700, color: "#2C2F3A" }}>Protein</span>
+                    <div className="db-bar-track" style={{ flex: 1, margin: 0 }}><div className="db-bar-fill" style={{ width: `${(proteinPts / 30) * 100}%`, background: "var(--he-coral)" }} /></div>
+                    <span style={{ width: 44, textAlign: "right", fontSize: 12, fontWeight: 700, color: "#9AA0AD" }}>{proteinPts}/30</span>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <FEWheat size={20} />
+                    <span style={{ width: 60, fontSize: 12.5, fontWeight: 700, color: "#2C2F3A" }}>Calories</span>
+                    <div className="db-bar-track" style={{ flex: 1, margin: 0 }}><div className="db-bar-fill" style={{ width: `${(caloriesPts / 30) * 100}%`, background: "#FFB877" }} /></div>
+                    <span style={{ width: 44, textAlign: "right", fontSize: 12, fontWeight: 700, color: "#9AA0AD" }}>{caloriesPts}/30</span>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <FEDroplet size={20} />
+                    <span style={{ width: 60, fontSize: 12.5, fontWeight: 700, color: "#2C2F3A" }}>Water</span>
+                    <div className="db-bar-track" style={{ flex: 1, margin: 0 }}><div className="db-bar-fill" style={{ width: "30%", background: "#D8E4F0" }} /></div>
+                    <span style={{ fontSize: 10, fontWeight: 700, color: "#9AA0AD", background: "#F5F3F8", padding: "2px 8px", borderRadius: 99, whiteSpace: "nowrap" }}>Soon</span>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <FEMoon size={20} />
+                    <span style={{ width: 60, fontSize: 12.5, fontWeight: 700, color: "#2C2F3A" }}>Sleep</span>
+                    <div className="db-bar-track" style={{ flex: 1, margin: 0 }}><div className="db-bar-fill" style={{ width: "30%", background: "#DCD7F2" }} /></div>
+                    <span style={{ fontSize: 10, fontWeight: 700, color: "#9AA0AD", background: "#F5F3F8", padding: "2px 8px", borderRadius: 99, whiteSpace: "nowrap" }}>Soon</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div style={{ height: 1, background: "var(--he-hairline)", margin: "22px 0" }} />
+
+            <div style={{ display: "flex", gap: 28, flexWrap: "wrap" }}>
+              <div style={{ flex: "1 1 260px" }}>
+                <p style={{ margin: "0 0 14px", fontSize: 13.5, fontWeight: 800, color: "#1A2744" }}>7-Day Activity</p>
+                <div style={{ display: "flex", gap: 10 }}>
+                  {weeklySteps.map((d, i) => {
+                    const status = d.value === 0 ? "missed" : d.value >= 10000 ? "met" : "partial";
+                    const color = status === "met" ? "var(--he-green)" : status === "partial" ? "var(--he-blue)" : "var(--he-coral)";
+                    return (
+                      <div key={i} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 7 }}>
+                        <span style={{ fontSize: 10.5, fontWeight: 700, color: "#9AA0AD" }}>{d.label}</span>
+                        <div style={{ width: 28, height: 28, borderRadius: "50%", background: color, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                          {status === "met" && <CheckCircle size={14} weight="fill" color="#fff" />}
+                          {status === "partial" && <Minus size={13} weight="bold" color="#fff" />}
+                          {status === "missed" && <X size={12} weight="bold" color="#fff" />}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                <div style={{ display: "flex", gap: 14, marginTop: 16, fontSize: 11, color: "#9AA0AD", fontWeight: 600, flexWrap: "wrap" }}>
+                  <span style={{ display: "flex", alignItems: "center", gap: 5 }}><CheckCircle size={13} weight="fill" color="var(--he-green)" /> Goal met</span>
+                  <span style={{ display: "flex", alignItems: "center", gap: 5 }}><Minus size={13} weight="bold" color="var(--he-blue)" /> Partial</span>
+                  <span style={{ display: "flex", alignItems: "center", gap: 5 }}><X size={13} weight="bold" color="var(--he-coral)" /> Missed</span>
+                </div>
+              </div>
+
+              <div style={{ flex: "1 1 280px", minWidth: 240 }}>
+                <p style={{ margin: "0 0 14px", fontSize: 13.5, fontWeight: 800, color: "#1A2744" }}>Weekly Insights</p>
+                <div style={{ display: "flex", flexDirection: "column", gap: 11 }}>
+                  {weeklyInsights.map((ins, i) => (
+                    <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 9, fontSize: 12.5 }}>
+                      <span style={{ flexShrink: 0, marginTop: 1 }}>{ins.icon}</span>
+                      <span style={{ color: "#2C2F3A" }}>{ins.text}</span>
                     </div>
-                  </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div style={{
+              marginTop: 22, background: "var(--he-green-bg)", borderRadius: 14, padding: "12px 18px",
+              display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap",
+              fontSize: 12.5, fontWeight: 700, color: "var(--he-green-deep)",
+            }}>
+              <span>🏆 Best day: {bestDay.label}</span>
+              <span style={{ opacity: 0.4 }}>•</span>
+              <span>👟 Most steps: {bestDay.value.toLocaleString()}</span>
+              <span style={{ opacity: 0.4 }}>•</span>
+              <span>🔥 Logging streak: {streak} {streak === 1 ? "day" : "days"}</span>
+            </div>
+          </div>
+
+          <div style={{ flex: "0 0 360px", minWidth: 300 }}>
+            <div className="db-card db-card-pad" style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 4 }}>
+                <div style={{
+                  width: 44, height: 44, borderRadius: 13, background: "var(--he-orange-bg)",
+                  display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+                }}>
+                  <Trophy size={22} weight="fill" color="var(--he-orange)" />
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <p style={{ margin: 0, fontSize: 16, fontWeight: 800, color: "#1A2744" }}>Family Ranking</p>
+                  <p style={{ margin: "1px 0 0", fontSize: 12, color: "#9AA0AD", fontWeight: 500 }}>Based on weekly health score</p>
+                </div>
+                <Link href="/dashboard/family-overview" style={{
+                  display: "flex", alignItems: "center", gap: 3, fontSize: 12, fontWeight: 700,
+                  color: "#7C6FF7", textDecoration: "none", flexShrink: 0,
+                }}>
+                  Manage <CaretRight size={11} weight="bold" />
+                </Link>
+              </div>
+
+              {rankedFamily.map((row, i) => {
+                const palette = RANK_PALETTE[i % RANK_PALETTE.length];
+                const medal = ["🥇", "🥈", "🥉"][i];
+                return (
+                  <div
+                    key={row.id}
+                    style={{
+                      display: "flex", flexDirection: "column", gap: 8,
+                      background: palette.bg, borderRadius: 14, padding: "12px 14px",
+                    }}
+                  >
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <span style={{
+                        width: i === 0 ? 36 : i === 1 ? 32 : 26, height: i === 0 ? 36 : i === 1 ? 32 : 26,
+                        borderRadius: "50%", flexShrink: 0,
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        fontSize: i === 0 ? 24 : i === 1 ? 21 : medal ? 14 : 11, fontWeight: 800,
+                        background: medal ? "transparent" : "#fff", color: "#9AA0AD",
+                      }}>
+                        {medal ?? i + 1}
+                      </span>
+                      <div style={{
+                        width: 32, height: 32, borderRadius: "50%", flexShrink: 0,
+                        background: palette.accent, color: "#fff",
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        fontWeight: 800, fontSize: 13,
+                      }}>
+                        {row.name.charAt(0).toUpperCase()}
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <p style={{
+                          margin: 0, fontSize: 13.5, fontWeight: 800, color: "#1A2744",
+                          whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+                        }}>
+                          {row.name}{row.isYou ? " (You)" : ""}
+                        </p>
+                        <p style={{ margin: 0, fontSize: 11.5, fontWeight: 700, color: palette.text }}>{palette.caption}</p>
+                      </div>
+                      <span style={{ fontSize: 14, fontWeight: 800, color: "#1A2744", flexShrink: 0 }}>
+                        {row.score ?? "—"}<span style={{ fontSize: 11, fontWeight: 600, color: "#9AA0AD" }}>/100</span>
+                      </span>
+                    </div>
+                    <div className="db-bar-track" style={{ margin: 0, height: 5 }}>
+                      <div className="db-bar-fill" style={{ width: `${row.score ?? 0}%`, background: palette.accent }} />
+                    </div>
+                  </div>
                 );
               })}
             </div>
           </div>
-        )}
+        </div>
 
-        {/* ── Bottom banner ── */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 10 }}>
+          <MetricTile
+            icon={<FEMeat size={16} />} label="Protein"
+            color="var(--he-coral)" deepColor="var(--he-coral-deep)" chipBg="var(--he-coral-bg-2)" stripBg="var(--he-coral-bg)"
+            value={proteinAvg ? proteinAvg.toFixed(0) : "—"} unit="g" goalText="of 50 g goal" pct={proteinPct}
+            deltaDown={proteinDeltaPct !== null && proteinDeltaPct < 0}
+            deltaText={proteinDeltaPct !== null ? `${Math.abs(proteinDeltaPct)}% vs last week` : "No data yet"}
+            sparkline={proteinSeries}
+          />
+          <MetricTile
+            icon={<FEWheat size={16} />} label="Calories"
+            color="var(--he-orange)" deepColor="var(--he-orange-deep)" chipBg="var(--he-orange-bg-2)" stripBg="var(--he-orange-bg)"
+            value={caloriesAvg ? caloriesAvg.toFixed(0) : "—"} unit="kcal" goalText="of 2,000 kcal goal" pct={caloriesPct}
+            deltaDown={caloriesDeltaAbs !== null && caloriesDeltaAbs < 0}
+            deltaText={caloriesDeltaAbs !== null ? `${Math.abs(caloriesDeltaAbs)} kcal vs last week` : "No data yet"}
+            sparkline={caloriesSeries}
+          />
+          <MetricTile
+            icon={<FEShoe size={16} />} label="Steps today"
+            color="var(--he-green)" deepColor="var(--he-green-deep)" chipBg="var(--he-green-bg-2)" stripBg="var(--he-green-bg)"
+            value={todaySteps ? todaySteps.toLocaleString() : "—"} goalText="of 10,000 steps goal" pct={stepsTodayPct}
+            deltaDown={stepsVsYesterday < 0}
+            deltaText={`${Math.abs(stepsVsYesterday).toLocaleString()} vs yesterday`}
+            sparkline={stepsSeries}
+          />
+          <MetricTile
+            icon={<FEMoon size={16} />} label="Sleep"
+            color="#8B7FE8" deepColor="#6A5BD0" chipBg="#E4E0FB" stripBg="var(--he-violet-bg)"
+            value="6.5" unit="hrs" goalText="of 7–8 hrs goal · Coming soon" pct={81}
+            deltaDown={false}
+            deltaText="20 mins vs last week"
+            sparkline={[5.8, 6.1, 6.4, 5.9, 6.7, 7.0, 6.5]}
+          />
+          <MetricTile
+            icon={<FEDroplet size={16} />} label="Water"
+            color="var(--he-blue)" deepColor="var(--he-blue-deep)" chipBg="var(--he-blue-bg-2)" stripBg="var(--he-blue-bg)"
+            value="1.8" unit="L" goalText="of 2.5 L goal · Coming soon" pct={72}
+            deltaDown={true}
+            deltaText="0.2 L vs last week"
+            sparkline={[2.1, 1.9, 2.0, 1.7, 1.6, 1.9, 1.8]}
+          />
+          <div className="db-card" style={{
+            display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+            textAlign: "center", gap: 6, position: "relative", overflow: "hidden", padding: "13px 14px",
+            background: "linear-gradient(165deg, var(--he-green-bg) 0%, #fff 65%)",
+          }}>
+            <Sparkle size={11} weight="fill" color="var(--he-green)" style={{ position: "absolute", top: 14, left: 18, opacity: 0.6 }} />
+            <Sparkle size={8} weight="fill" color="var(--he-green)" style={{ position: "absolute", top: 27, left: 30, opacity: 0.4 }} />
+            <div style={{
+              width: 42, height: 42, borderRadius: "50%", background: "var(--he-green)",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              boxShadow: "0 8px 18px rgba(47,190,118,.35)",
+            }}>
+              <Star size={19} weight="fill" color="#fff" />
+            </div>
+            <p style={{ margin: 0, fontWeight: 800, fontSize: 13, color: "var(--he-green-deep)" }}>{motivCopy.title}</p>
+            <p style={{ margin: 0, fontSize: 11, color: "#5A5F6E", lineHeight: 1.4, maxWidth: 200 }}>{motivCopy.message}</p>
+          </div>
+        </div>
+
+        <div style={{
+          background: "var(--he-blue-bg)", borderRadius: 16, padding: "14px 20px",
+          display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14, flexWrap: "wrap",
+        }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <div style={{
+              width: 38, height: 38, borderRadius: 11, background: "#fff",
+              display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+            }}>
+              <CalendarCheck size={19} weight="bold" color="var(--he-blue-deep)" />
+            </div>
+            <div>
+              <p style={{ margin: 0, fontSize: 13.5, fontWeight: 800, color: "#1A2744" }}>
+                You logged {daysLoggedThisWeek} of 7 days this week
+              </p>
+              <p style={{ margin: "1px 0 0", fontSize: 12, color: "#5A5F6E", fontWeight: 500 }}>{consistencyMessage}</p>
+            </div>
+          </div>
+        </div>
+
         <div className="db-banner">
           <div className="db-banner-ic" style={{ display: "grid", placeItems: "center" }}><FEChat size={30} /></div>
           <div>
@@ -820,18 +989,14 @@ export default function DashboardPage() {
         </div>
       </div>
 
+      {selectedMember && (
+        <FamilyMemberModal member={selectedMember} onClose={() => setSelectedMember(null)} />
+      )}
+
       {showAddFamily && (
         <AddFamilyModal
           onClose={() => setShowAddFamily(false)}
-          onAdded={handleFamilyMemberAdded}
-          onActivated={refreshAfterActivation}
-        />
-      )}
-
-      {selectedMember && (
-        <FamilyMemberModal
-          member={selectedMember}
-          onClose={() => setSelectedMember(null)}
+          onAdded={(member) => setMemberRows((rows) => [...rows, { member, summary: null }])}
         />
       )}
     </div>

@@ -265,15 +265,16 @@ export async function getMemberLogs(memberId: number, token: string, days = 7): 
 
 // ─── Derived helpers used by the dashboard ───────────────────────────────────
 
-/** Pull the last 7 logs and bucket them into Mon–Sun arrays for charts. */
-export function logsToWeeklySteps(
-  logs: HealthLog[]
+/** Pull the last 7 logs and bucket a given metric into Mon–Sun arrays for charts. */
+export function logsToWeeklyMetric(
+  logs: HealthLog[],
+  metric: "steps" | "protein_g" | "calories"
 ): { label: string; value: number }[] {
   const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-  // Build a map: YYYY-MM-DD → steps
+  // Build a map: YYYY-MM-DD → metric total
   const byDate: Record<string, number> = {};
   for (const l of logs) {
-    byDate[l.logged_at] = (byDate[l.logged_at] ?? 0) + (l.steps ?? 0);
+    byDate[l.logged_at] = (byDate[l.logged_at] ?? 0) + (l[metric] ?? 0);
   }
 
   // Walk the last 7 days
@@ -288,6 +289,13 @@ export function logsToWeeklySteps(
     });
   }
   return result;
+}
+
+/** Pull the last 7 logs and bucket steps into Mon–Sun arrays for charts. */
+export function logsToWeeklySteps(
+  logs: HealthLog[]
+): { label: string; value: number }[] {
+  return logsToWeeklyMetric(logs, "steps");
 }
 
 /** Counts consecutive days (ending today or yesterday) the user has a logged entry. */
