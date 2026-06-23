@@ -563,6 +563,8 @@ export default function DashboardPage() {
           </div>
         )}
 
+        <div style={{ display: "flex", gap: 16, alignItems: "flex-start", flexWrap: "wrap" }}>
+        <div style={{ flex: "1 1 480px", minWidth: 320 }}>
         {memberRows.length > 0 && (
           <div>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
@@ -697,9 +699,83 @@ export default function DashboardPage() {
             </div>
           </div>
         )}
+        </div>
+
+        <div style={{ flex: "0 0 360px", minWidth: 300 }}>
+            <div className="db-card db-card-pad" style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 4 }}>
+                <div style={{
+                  width: 44, height: 44, borderRadius: 13, background: "var(--he-orange-bg)",
+                  display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+                }}>
+                  <Trophy size={22} weight="fill" color="var(--he-orange)" />
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <p style={{ margin: 0, fontSize: 16, fontWeight: 800, color: "#1A2744" }}>Family Ranking</p>
+                  <p style={{ margin: "1px 0 0", fontSize: 12, color: "#9AA0AD", fontWeight: 500 }}>Based on weekly health score</p>
+                </div>
+                <Link href="/dashboard/family-overview" style={{
+                  display: "flex", alignItems: "center", gap: 3, fontSize: 12, fontWeight: 700,
+                  color: "#7C6FF7", textDecoration: "none", flexShrink: 0,
+                }}>
+                  Manage <CaretRight size={11} weight="bold" />
+                </Link>
+              </div>
+
+              {rankedFamily.map((row, i) => {
+                const palette = RANK_PALETTE[i % RANK_PALETTE.length];
+                const medal = ["🥇", "🥈", "🥉"][i];
+                return (
+                  <div
+                    key={row.id}
+                    style={{
+                      display: "flex", flexDirection: "column", gap: 8,
+                      background: palette.bg, borderRadius: 14, padding: "12px 14px",
+                    }}
+                  >
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <span style={{
+                        width: i === 0 ? 36 : i === 1 ? 32 : 26, height: i === 0 ? 36 : i === 1 ? 32 : 26,
+                        borderRadius: "50%", flexShrink: 0,
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        fontSize: i === 0 ? 24 : i === 1 ? 21 : medal ? 14 : 11, fontWeight: 800,
+                        background: medal ? "transparent" : "#fff", color: "#9AA0AD",
+                      }}>
+                        {medal ?? i + 1}
+                      </span>
+                      <div style={{
+                        width: 32, height: 32, borderRadius: "50%", flexShrink: 0,
+                        background: palette.accent, color: "#fff",
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        fontWeight: 800, fontSize: 13,
+                      }}>
+                        {row.name.charAt(0).toUpperCase()}
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <p style={{
+                          margin: 0, fontSize: 13.5, fontWeight: 800, color: "#1A2744",
+                          whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+                        }}>
+                          {row.name}{row.isYou ? " (You)" : ""}
+                        </p>
+                        <p style={{ margin: 0, fontSize: 11.5, fontWeight: 700, color: palette.text }}>{palette.caption}</p>
+                      </div>
+                      <span style={{ fontSize: 14, fontWeight: 800, color: "#1A2744", flexShrink: 0 }}>
+                        {row.score ?? "—"}<span style={{ fontSize: 11, fontWeight: 600, color: "#9AA0AD" }}>/100</span>
+                      </span>
+                    </div>
+                    <div className="db-bar-track" style={{ margin: 0, height: 5 }}>
+                      <div className="db-bar-fill" style={{ width: `${row.score ?? 0}%`, background: palette.accent }} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+        </div>
+        </div>
 
         <div style={{ display: "flex", gap: 16, alignItems: "flex-start", flexWrap: "wrap" }}>
-          <div className="db-card" style={{ flex: "1.3 1 520px", minWidth: 380, padding: "24px 26px 22px", position: "relative", overflow: "hidden" }}>
+          <div className="db-card" style={{ flex: "1 1 0", minWidth: 380, padding: "24px 26px 22px", position: "relative", overflow: "hidden" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 22 }}>
               <span style={{ fontSize: 17, fontWeight: 800, color: "#1A2744", fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Your Weekly Score</span>
               <Info size={15} weight="bold" color="#BFC4CE" />
@@ -817,136 +893,66 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          <div style={{ flex: "0 0 360px", minWidth: 300 }}>
-            <div className="db-card db-card-pad" style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 4 }}>
+          <div style={{ flex: "1 1 0", minWidth: 300 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 10 }}>
+              <MetricTile
+                icon={<FEMeat size={16} />} label="Protein"
+                color="var(--he-coral)" deepColor="var(--he-coral-deep)" chipBg="var(--he-coral-bg-2)" stripBg="var(--he-coral-bg)"
+                value={proteinAvg ? proteinAvg.toFixed(0) : "—"} unit="g" goalText="of 50 g goal" pct={proteinPct}
+                deltaDown={proteinDeltaPct !== null && proteinDeltaPct < 0}
+                deltaText={proteinDeltaPct !== null ? `${Math.abs(proteinDeltaPct)}% vs last week` : "No data yet"}
+                sparkline={proteinSeries}
+              />
+              <MetricTile
+                icon={<FEWheat size={16} />} label="Calories"
+                color="var(--he-orange)" deepColor="var(--he-orange-deep)" chipBg="var(--he-orange-bg-2)" stripBg="var(--he-orange-bg)"
+                value={caloriesAvg ? caloriesAvg.toFixed(0) : "—"} unit="kcal" goalText="of 2,000 kcal goal" pct={caloriesPct}
+                deltaDown={caloriesDeltaAbs !== null && caloriesDeltaAbs < 0}
+                deltaText={caloriesDeltaAbs !== null ? `${Math.abs(caloriesDeltaAbs)} kcal vs last week` : "No data yet"}
+                sparkline={caloriesSeries}
+              />
+              <MetricTile
+                icon={<FEShoe size={16} />} label="Steps today"
+                color="var(--he-green)" deepColor="var(--he-green-deep)" chipBg="var(--he-green-bg-2)" stripBg="var(--he-green-bg)"
+                value={todaySteps ? todaySteps.toLocaleString() : "—"} goalText="of 10,000 steps goal" pct={stepsTodayPct}
+                deltaDown={stepsVsYesterday < 0}
+                deltaText={`${Math.abs(stepsVsYesterday).toLocaleString()} vs yesterday`}
+                sparkline={stepsSeries}
+              />
+              <MetricTile
+                icon={<FEMoon size={16} />} label="Sleep"
+                color="#8B7FE8" deepColor="#6A5BD0" chipBg="#E4E0FB" stripBg="var(--he-violet-bg)"
+                value="6.5" unit="hrs" goalText="of 7–8 hrs goal · Coming soon" pct={81}
+                deltaDown={false}
+                deltaText="20 mins vs last week"
+                sparkline={[5.8, 6.1, 6.4, 5.9, 6.7, 7.0, 6.5]}
+              />
+              <MetricTile
+                icon={<FEDroplet size={16} />} label="Water"
+                color="var(--he-blue)" deepColor="var(--he-blue-deep)" chipBg="var(--he-blue-bg-2)" stripBg="var(--he-blue-bg)"
+                value="1.8" unit="L" goalText="of 2.5 L goal · Coming soon" pct={72}
+                deltaDown={true}
+                deltaText="0.2 L vs last week"
+                sparkline={[2.1, 1.9, 2.0, 1.7, 1.6, 1.9, 1.8]}
+              />
+              <div className="db-card" style={{
+                display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+                textAlign: "center", gap: 6, position: "relative", overflow: "hidden", padding: "13px 14px",
+                background: "linear-gradient(165deg, var(--he-green-bg) 0%, #fff 65%)",
+              }}>
+                <Sparkle size={11} weight="fill" color="var(--he-green)" style={{ position: "absolute", top: 14, left: 18, opacity: 0.6 }} />
+                <Sparkle size={8} weight="fill" color="var(--he-green)" style={{ position: "absolute", top: 27, left: 30, opacity: 0.4 }} />
                 <div style={{
-                  width: 44, height: 44, borderRadius: 13, background: "var(--he-orange-bg)",
-                  display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+                  width: 42, height: 42, borderRadius: "50%", background: "var(--he-green)",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  boxShadow: "0 8px 18px rgba(47,190,118,.35)",
                 }}>
-                  <Trophy size={22} weight="fill" color="var(--he-orange)" />
+                  <Star size={19} weight="fill" color="#fff" />
                 </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <p style={{ margin: 0, fontSize: 16, fontWeight: 800, color: "#1A2744" }}>Family Ranking</p>
-                  <p style={{ margin: "1px 0 0", fontSize: 12, color: "#9AA0AD", fontWeight: 500 }}>Based on weekly health score</p>
-                </div>
-                <Link href="/dashboard/family-overview" style={{
-                  display: "flex", alignItems: "center", gap: 3, fontSize: 12, fontWeight: 700,
-                  color: "#7C6FF7", textDecoration: "none", flexShrink: 0,
-                }}>
-                  Manage <CaretRight size={11} weight="bold" />
-                </Link>
+                <p style={{ margin: 0, fontWeight: 800, fontSize: 13, color: "var(--he-green-deep)" }}>{motivCopy.title}</p>
+                <p style={{ margin: 0, fontSize: 11, color: "#5A5F6E", lineHeight: 1.4, maxWidth: 200 }}>{motivCopy.message}</p>
               </div>
-
-              {rankedFamily.map((row, i) => {
-                const palette = RANK_PALETTE[i % RANK_PALETTE.length];
-                const medal = ["🥇", "🥈", "🥉"][i];
-                return (
-                  <div
-                    key={row.id}
-                    style={{
-                      display: "flex", flexDirection: "column", gap: 8,
-                      background: palette.bg, borderRadius: 14, padding: "12px 14px",
-                    }}
-                  >
-                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                      <span style={{
-                        width: i === 0 ? 36 : i === 1 ? 32 : 26, height: i === 0 ? 36 : i === 1 ? 32 : 26,
-                        borderRadius: "50%", flexShrink: 0,
-                        display: "flex", alignItems: "center", justifyContent: "center",
-                        fontSize: i === 0 ? 24 : i === 1 ? 21 : medal ? 14 : 11, fontWeight: 800,
-                        background: medal ? "transparent" : "#fff", color: "#9AA0AD",
-                      }}>
-                        {medal ?? i + 1}
-                      </span>
-                      <div style={{
-                        width: 32, height: 32, borderRadius: "50%", flexShrink: 0,
-                        background: palette.accent, color: "#fff",
-                        display: "flex", alignItems: "center", justifyContent: "center",
-                        fontWeight: 800, fontSize: 13,
-                      }}>
-                        {row.name.charAt(0).toUpperCase()}
-                      </div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <p style={{
-                          margin: 0, fontSize: 13.5, fontWeight: 800, color: "#1A2744",
-                          whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
-                        }}>
-                          {row.name}{row.isYou ? " (You)" : ""}
-                        </p>
-                        <p style={{ margin: 0, fontSize: 11.5, fontWeight: 700, color: palette.text }}>{palette.caption}</p>
-                      </div>
-                      <span style={{ fontSize: 14, fontWeight: 800, color: "#1A2744", flexShrink: 0 }}>
-                        {row.score ?? "—"}<span style={{ fontSize: 11, fontWeight: 600, color: "#9AA0AD" }}>/100</span>
-                      </span>
-                    </div>
-                    <div className="db-bar-track" style={{ margin: 0, height: 5 }}>
-                      <div className="db-bar-fill" style={{ width: `${row.score ?? 0}%`, background: palette.accent }} />
-                    </div>
-                  </div>
-                );
-              })}
             </div>
-          </div>
-        </div>
-
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 10 }}>
-          <MetricTile
-            icon={<FEMeat size={16} />} label="Protein"
-            color="var(--he-coral)" deepColor="var(--he-coral-deep)" chipBg="var(--he-coral-bg-2)" stripBg="var(--he-coral-bg)"
-            value={proteinAvg ? proteinAvg.toFixed(0) : "—"} unit="g" goalText="of 50 g goal" pct={proteinPct}
-            deltaDown={proteinDeltaPct !== null && proteinDeltaPct < 0}
-            deltaText={proteinDeltaPct !== null ? `${Math.abs(proteinDeltaPct)}% vs last week` : "No data yet"}
-            sparkline={proteinSeries}
-          />
-          <MetricTile
-            icon={<FEWheat size={16} />} label="Calories"
-            color="var(--he-orange)" deepColor="var(--he-orange-deep)" chipBg="var(--he-orange-bg-2)" stripBg="var(--he-orange-bg)"
-            value={caloriesAvg ? caloriesAvg.toFixed(0) : "—"} unit="kcal" goalText="of 2,000 kcal goal" pct={caloriesPct}
-            deltaDown={caloriesDeltaAbs !== null && caloriesDeltaAbs < 0}
-            deltaText={caloriesDeltaAbs !== null ? `${Math.abs(caloriesDeltaAbs)} kcal vs last week` : "No data yet"}
-            sparkline={caloriesSeries}
-          />
-          <MetricTile
-            icon={<FEShoe size={16} />} label="Steps today"
-            color="var(--he-green)" deepColor="var(--he-green-deep)" chipBg="var(--he-green-bg-2)" stripBg="var(--he-green-bg)"
-            value={todaySteps ? todaySteps.toLocaleString() : "—"} goalText="of 10,000 steps goal" pct={stepsTodayPct}
-            deltaDown={stepsVsYesterday < 0}
-            deltaText={`${Math.abs(stepsVsYesterday).toLocaleString()} vs yesterday`}
-            sparkline={stepsSeries}
-          />
-          <MetricTile
-            icon={<FEMoon size={16} />} label="Sleep"
-            color="#8B7FE8" deepColor="#6A5BD0" chipBg="#E4E0FB" stripBg="var(--he-violet-bg)"
-            value="6.5" unit="hrs" goalText="of 7–8 hrs goal · Coming soon" pct={81}
-            deltaDown={false}
-            deltaText="20 mins vs last week"
-            sparkline={[5.8, 6.1, 6.4, 5.9, 6.7, 7.0, 6.5]}
-          />
-          <MetricTile
-            icon={<FEDroplet size={16} />} label="Water"
-            color="var(--he-blue)" deepColor="var(--he-blue-deep)" chipBg="var(--he-blue-bg-2)" stripBg="var(--he-blue-bg)"
-            value="1.8" unit="L" goalText="of 2.5 L goal · Coming soon" pct={72}
-            deltaDown={true}
-            deltaText="0.2 L vs last week"
-            sparkline={[2.1, 1.9, 2.0, 1.7, 1.6, 1.9, 1.8]}
-          />
-          <div className="db-card" style={{
-            display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-            textAlign: "center", gap: 6, position: "relative", overflow: "hidden", padding: "13px 14px",
-            background: "linear-gradient(165deg, var(--he-green-bg) 0%, #fff 65%)",
-          }}>
-            <Sparkle size={11} weight="fill" color="var(--he-green)" style={{ position: "absolute", top: 14, left: 18, opacity: 0.6 }} />
-            <Sparkle size={8} weight="fill" color="var(--he-green)" style={{ position: "absolute", top: 27, left: 30, opacity: 0.4 }} />
-            <div style={{
-              width: 42, height: 42, borderRadius: "50%", background: "var(--he-green)",
-              display: "flex", alignItems: "center", justifyContent: "center",
-              boxShadow: "0 8px 18px rgba(47,190,118,.35)",
-            }}>
-              <Star size={19} weight="fill" color="#fff" />
-            </div>
-            <p style={{ margin: 0, fontWeight: 800, fontSize: 13, color: "var(--he-green-deep)" }}>{motivCopy.title}</p>
-            <p style={{ margin: 0, fontSize: 11, color: "#5A5F6E", lineHeight: 1.4, maxWidth: 200 }}>{motivCopy.message}</p>
           </div>
         </div>
 
