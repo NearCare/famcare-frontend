@@ -6,22 +6,36 @@
  *          so it doesn't clash with the Next.js dev server on 3000).
  */
 
-const BASE_URL =
-  (typeof process !== "undefined" && process.env.NEXT_PUBLIC_API_URL) ||
-  "http://localhost:8080";
+const configuredApiUrl =
+  typeof process !== "undefined" ? process.env.NEXT_PUBLIC_API_URL : undefined;
+const isProductionBuild =
+  typeof process !== "undefined" && process.env.NODE_ENV === "production";
+
+if (!configuredApiUrl && isProductionBuild) {
+  console.error(
+    "[nearcare] NEXT_PUBLIC_API_URL is not set in a production build — falling back to " +
+    "http://localhost:8080, which will not reach the real backend. Set NEXT_PUBLIC_API_URL " +
+    "in the deployment environment."
+  );
+}
+
+const BASE_URL = configuredApiUrl || "http://localhost:8080";
 
 /**
  * Set NEXT_PUBLIC_MOCK_API=true in .env.local to bypass the backend
  * entirely and use canned data — useful for UI-only iteration on the
  * dashboard without running the Ktor server / Supabase / Twilio.
+ * Disabled outright in production builds so a misconfigured env var
+ * can never serve fake data to real users.
  */
 const MOCK_API =
+  !isProductionBuild &&
   typeof process !== "undefined" && process.env.NEXT_PUBLIC_MOCK_API === "true";
 
 const MOCK_USER: User = {
   id: 1,
-  phone: "+919876543210",
-  name: "Samarth",
+  phone: "+910000000000",
+  name: "Test User",
   created_at: new Date().toISOString(),
 };
 
@@ -49,8 +63,8 @@ const MOCK_SUMMARY: Summary = {
 };
 
 const MOCK_MEMBERS: FamilyMember[] = [
-  { id: 2, phone: "+919876500001", name: "Dad", label: "Dad", type: "family", status: "active", created_at: new Date().toISOString() },
-  { id: 3, phone: "+919876500002", name: null, label: "Mom", type: "family", status: "active", created_at: new Date().toISOString() },
+  { id: 2, phone: "+910000000001", name: "Member One", label: "Member 1", type: "family", status: "active", created_at: new Date().toISOString() },
+  { id: 3, phone: "+910000000002", name: null, label: "Member 2", type: "family", status: "active", created_at: new Date().toISOString() },
 ];
 
 // ─── Types (mirror the Kotlin data classes) ──────────────────────────────────
@@ -121,14 +135,22 @@ export type AuthResponse = {
  */
 export async function sendOtp(phone: string): Promise<void> {
   if (MOCK_API) return;
-  const res = await fetch(`${BASE_URL}/auth/send-otp`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ phone }),
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${BASE_URL}/auth/send-otp`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ phone }),
+    });
+  } catch {
+    throw new Error("Network error. Please check your connection and try again.");
+  }
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    throw new Error((err as { error?: string }).error ?? "Failed to send OTP");
+    const message = (err as { error?: string }).error;
+    if (res.status === 429) throw new Error(message ?? "Too many OTP requests today. Please try again tomorrow.");
+    if (res.status === 400) throw new Error(message ?? "That doesn't look like a valid phone number.");
+    throw new Error(message ?? "Couldn't send the OTP right now. Please try again in a moment.");
   }
 }
 
@@ -141,14 +163,22 @@ export async function verifyOtp(
   code: string
 ): Promise<AuthResponse> {
   if (MOCK_API) return { token: "mock-token", user: MOCK_USER };
-  const res = await fetch(`${BASE_URL}/auth/verify-otp`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ phone, code }),
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${BASE_URL}/auth/verify-otp`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ phone, code }),
+    });
+  } catch {
+    throw new Error("Network error. Please check your connection and try again.");
+  }
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    throw new Error((err as { error?: string }).error ?? "Invalid OTP");
+    const message = (err as { error?: string }).error;
+    if (res.status === 401) throw new Error(message ?? "That code is incorrect or has expired. Request a new one.");
+    if (res.status === 400) throw new Error(message ?? "Please enter the 6-digit code sent to your WhatsApp.");
+    throw new Error(message ?? "Couldn't verify your code right now. Please try again.");
   }
   return res.json() as Promise<AuthResponse>;
 }
