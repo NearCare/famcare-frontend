@@ -368,7 +368,7 @@ export default function LandingPage() {
         {/* Center — WhatsApp circle */}
         <div className="lp-hero-circle" style={{ display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/whats_app_circle.png" alt="Log health via WhatsApp" style={{ width: 280, height: 280, objectFit: "contain" }} />
+          <img src="/whats_app_circle.webp" alt="Log health via WhatsApp" style={{ width: 280, height: 280, objectFit: "contain" }} />
         </div>
 
         {/* Right — mockup */}
@@ -467,7 +467,7 @@ export default function LandingPage() {
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               className="lp-family-img"
-              src="/family_walking.png"
+              src="/family_walking.webp"
               alt="Family health"
               style={{
                 width: 480, borderRadius: 20,

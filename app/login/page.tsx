@@ -132,7 +132,7 @@ export default function LoginPage() {
         <div className="login-hero-image" style={{ flex: 1, position: "relative", zIndex: 1, marginTop: 16, borderRadius: "16px 16px 0 0", overflow: "hidden", minHeight: 0 }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src="/family-whatsapp.png"
+            src="/family-whatsapp.webp"
             alt="Family using WhatsApp"
             style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "top center", display: "block", borderRadius: "16px 16px 0 0" }}
           />
