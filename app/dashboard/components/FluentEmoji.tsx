@@ -17,20 +17,6 @@ export const FEMoon = ({ size = 28 }: { size?: number }) => (
   </svg>
 );
 
-export const FESmile = ({ size = 28 }: { size?: number }) => (
-  <svg width={size} height={size} viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <circle cx="16" cy="16" r="13" fill="#FFD93D"/>
-    <circle cx="16" cy="17" r="11" fill="#FFE566"/>
-    <circle cx="11.5" cy="13.5" r="2.2" fill="#3D2B00"/>
-    <circle cx="20.5" cy="13.5" r="2.2" fill="#3D2B00"/>
-    <circle cx="12" cy="12.8" r=".8" fill="white" opacity=".65"/>
-    <circle cx="21" cy="12.8" r=".8" fill="white" opacity=".65"/>
-    <path d="M11 19.5C12.5 22.5 19.5 22.5 21 19.5" stroke="#3D2B00" strokeWidth="2" strokeLinecap="round" fill="none"/>
-    <ellipse cx="8.5" cy="18" rx="2.2" ry="1.6" fill="#FFB347" opacity=".55"/>
-    <ellipse cx="23.5" cy="18" rx="2.2" ry="1.6" fill="#FFB347" opacity=".55"/>
-  </svg>
-);
-
 export const FEShoe = ({ size = 28 }: { size?: number }) => (
   <svg width={size} height={size} viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
     <path d="M4 22C4 19 9 15 15 15H16L25 17.5C27 18 28.5 19.5 28.5 21C28.5 22.8 27 24 25 24H5C4.4 24 4 23.6 4 23V22Z" fill="#4A7DE0"/>

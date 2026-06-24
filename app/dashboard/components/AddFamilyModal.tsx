@@ -1,17 +1,21 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { X, Users, UserCheck, WarningCircle, DeviceMobile } from "@phosphor-icons/react";
 import { FESmartphone } from "./FluentEmoji";
-import { inviteFamilyMember, type FamilyMember } from "@/lib/api";
+import { inviteFamilyMember, getFamilyMembers, type FamilyMember } from "@/lib/api";
 
-type Step = "details" | "sent";
+type Step = "details" | "sent" | "success";
+
+const POLL_INTERVAL_MS = 4000;
+const POLL_TIMEOUT_MS = 5 * 60 * 1000;
 
 interface Props {
   onClose: () => void;
   onAdded: (member: FamilyMember) => void;
+  onActivated?: () => void;
 }
 
-export default function AddFamilyModal({ onClose, onAdded }: Props) {
+export default function AddFamilyModal({ onClose, onAdded, onActivated }: Props) {
   const [step, setStep] = useState<Step>("details");
   const [type, setType] = useState<"family" | "friend">("family");
   const [label, setLabel] = useState("");
@@ -19,6 +23,7 @@ export default function AddFamilyModal({ onClose, onAdded }: Props) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [sentMember, setSentMember] = useState<FamilyMember | null>(null);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const phone = `+91${rawPhone}`;
 
@@ -42,18 +47,53 @@ export default function AddFamilyModal({ onClose, onAdded }: Props) {
     }
   }
 
+  // Poll for the family member replying YES, then animate to success and refresh the dashboard.
+  useEffect(() => {
+    if (step !== "sent" || !sentMember) return;
+
+    const token = localStorage.getItem("auth_token") ?? "";
+    const startedAt = Date.now();
+
+    pollRef.current = setInterval(async () => {
+      if (Date.now() - startedAt > POLL_TIMEOUT_MS) {
+        if (pollRef.current) clearInterval(pollRef.current);
+        return;
+      }
+      try {
+        const members = await getFamilyMembers(token);
+        const updated = members.find(m => m.id === sentMember.id);
+        if (updated?.status === "active") {
+          if (pollRef.current) clearInterval(pollRef.current);
+          setSentMember(updated);
+          onAdded(updated);
+          setStep("success");
+          onActivated?.();
+        }
+      } catch {
+        // ignore transient polling errors, keep retrying
+      }
+    }, POLL_INTERVAL_MS);
+
+    return () => {
+      if (pollRef.current) clearInterval(pollRef.current);
+    };
+  }, [step, sentMember?.id, onAdded, onActivated]);
+
+  // Auto-close shortly after the success animation plays.
+  useEffect(() => {
+    if (step !== "success") return;
+    const t = setTimeout(onClose, 1800);
+    return () => clearTimeout(t);
+  }, [step, onClose]);
+
   return (
     <div
       onClick={onClose}
-      style={{
-        position: "fixed", inset: 0, zIndex: 1000,
-        background: "rgba(0,0,0,0.45)", backdropFilter: "blur(3px)",
-        display: "flex", alignItems: "center", justifyContent: "center",
-        padding: 20,
-      }}
+      className="db-modal-overlay"
     >
       <div
         onClick={e => e.stopPropagation()}
+        className="db-modal-sheet"
         style={{
           background: "#fff", borderRadius: 22,
           width: "100%", maxWidth: 440,
@@ -67,10 +107,10 @@ export default function AddFamilyModal({ onClose, onAdded }: Props) {
 
         {/* Progress */}
         <div style={{ display: "flex", gap: 5, marginBottom: 28 }}>
-          {[0, 1].map(i => (
+          {[0, 1, 2].map(i => (
             <div key={i} style={{
               flex: 1, height: 4, borderRadius: 4,
-              background: i <= (step === "sent" ? 1 : 0) ? "#7C6FF7" : "#EDE8FF",
+              background: i <= (step === "details" ? 0 : step === "sent" ? 1 : 2) ? "#7C6FF7" : "#EDE8FF",
               transition: "background .3s",
             }} />
           ))}
@@ -95,10 +135,11 @@ export default function AddFamilyModal({ onClose, onAdded }: Props) {
                   fontWeight: 700, fontSize: 13.5,
                   fontFamily: "'Plus Jakarta Sans', sans-serif",
                   transition: "all .2s",
+                  display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
                 }}>
                   {t === "family"
-                    ? <><Users size={15} weight="bold" style={{ verticalAlign: "middle", marginRight: 5 }} />Family</>
-                    : <><UserCheck size={15} weight="bold" style={{ verticalAlign: "middle", marginRight: 5 }} />Friend</>}
+                    ? <><Users size={15} weight="bold" /><span>Family</span></>
+                    : <><UserCheck size={15} weight="bold" /><span>Friend</span></>}
                 </button>
               ))}
             </div>
@@ -175,7 +216,47 @@ export default function AddFamilyModal({ onClose, onAdded }: Props) {
               </p>
             </div>
 
+            {/* Waiting state — polling for the YES reply */}
+            <div style={{
+              display: "flex", alignItems: "center", justifyContent: "center", gap: 9,
+              marginBottom: 18, color: "#7C6FF7", fontSize: 12.5, fontWeight: 700,
+            }}>
+              <span style={{
+                width: 8, height: 8, borderRadius: "50%", background: "#7C6FF7",
+                display: "inline-block", animation: "dbWaitPulse 1.1s ease-in-out infinite",
+              }} />
+              Waiting for {sentMember?.label} to reply…
+            </div>
+
             <button onClick={onClose} style={primaryBtnStyle(false)}>Done</button>
+          </div>
+        )}
+
+        {/* ── Step 3: activated ── */}
+        {step === "success" && (
+          <div style={{ textAlign: "center", padding: "20px 0 8px" }}>
+            <div style={{
+              display: "flex", justifyContent: "center", marginBottom: 18,
+              animation: "dbSuccessPop .5s cubic-bezier(.34,1.56,.64,1)",
+            }}>
+              <div style={{
+                width: 76, height: 76, borderRadius: "50%",
+                background: "#E9F9EF", display: "grid", placeItems: "center",
+              }}>
+                <svg width="38" height="38" viewBox="0 0 24 24" fill="none">
+                  <path d="M5 13l4 4 10-10" stroke="#2FBE76" strokeWidth="3"
+                    strokeLinecap="round" strokeLinejoin="round"
+                    strokeDasharray="24" strokeDashoffset="24"
+                    style={{ animation: "dbCheckDraw .45s .15s ease-out forwards" }} />
+                </svg>
+              </div>
+            </div>
+            <h2 style={{ ...headingStyle, marginBottom: 8 }}>
+              {sentMember?.label} is in! 🎉
+            </h2>
+            <p style={{ fontSize: 13.5, color: "#7A8099", lineHeight: 1.65, margin: "0 0 4px" }}>
+              They replied <strong style={{ color: "#2FBE76" }}>YES</strong> and are now active on your dashboard.
+            </p>
           </div>
         )}
       </div>

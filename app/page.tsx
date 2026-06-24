@@ -257,7 +257,7 @@ export default function LandingPage() {
   return (
     <div className="flex flex-col min-h-screen bg-white">
       {/* Nav */}
-      <nav style={{
+      <nav className="lp-nav" style={{
         display: "flex", alignItems: "center", justifyContent: "space-between",
         padding: "0 56px", height: 64, borderBottom: "1px solid #F5EEEE",
         background: "#fff", position: "sticky", top: 0, zIndex: 100,
@@ -286,12 +286,12 @@ export default function LandingPage() {
       </nav>
 
       {/* Hero */}
-      <section style={{
+      <section className="lp-hero" style={{
         display: "flex", alignItems: "center", padding: "48px 60px",
         gap: 28, overflow: "hidden", flex: 1,
       }}>
         {/* Left */}
-        <div style={{ flex: "0 0 480px", position: "relative" }}>
+        <div className="lp-hero-left" style={{ flex: "0 0 480px", position: "relative" }}>
           <svg style={{ position: "absolute", top: 100, right: -10, pointerEvents: "none", opacity: 0.09 }}
             width="200" height="180" viewBox="0 0 200 180" fill="none">
             <path d="M100 160C100 160 10 108 10 52C10 26 30 6 56 6C73 6 88 16 100 32C112 16 127 6 144 6C170 6 190 26 190 52C190 108 100 160 100 160Z" stroke="#E85C5C" strokeWidth="2.5" />
@@ -308,7 +308,7 @@ export default function LandingPage() {
             Trusted by 10,000+ families
           </div>
 
-          <h1 style={{ fontSize: 54, fontWeight: 700, lineHeight: 1.08, letterSpacing: "-1.5px" }}>
+          <h1 className="lp-hero-title" style={{ fontSize: 54, fontWeight: 700, lineHeight: 1.08, letterSpacing: "-1.5px" }}>
             <span style={{ color: "#1A2744" }}>Simple. Smart.</span><br />
             <span style={{ color: "#E85C5C" }}>Better Health,<br />Every Day.</span>
           </h1>
@@ -317,7 +317,7 @@ export default function LandingPage() {
             Track appointments, steps and daily wellness habits. See your progress in beautiful charts and stay motivated together as a family.
           </p>
 
-          <div style={{ display: "flex", alignItems: "center", gap: 18, marginTop: 30 }}>
+          <div className="lp-hero-cta" style={{ display: "flex", alignItems: "center", gap: 18, marginTop: 30 }}>
             <Link href="/login" style={{
               padding: "14px 30px", background: "#E85C5C", color: "#fff", border: "none",
               borderRadius: 8, fontSize: 15, fontWeight: 700,
@@ -342,7 +342,7 @@ export default function LandingPage() {
             </button>
           </div>
 
-          <div style={{ display: "flex", gap: 20, marginTop: 32 }}>
+          <div className="lp-hero-badges" style={{ display: "flex", gap: 20, marginTop: 32 }}>
             {[
               { bg: "#EBF3FF", icon: <Lock size={13} weight="bold" color="#4A8FE2" />, title: "Private & Secure", desc: "Your data is always\nsafe with us" },
               { bg: "#E8F8EE", icon: <MapPin size={13} weight="bold" color="#3EB86A" />, title: "Nearby Providers", desc: "Find clinics and\ndoctors near you" },
@@ -366,19 +366,19 @@ export default function LandingPage() {
         </div>
 
         {/* Center — WhatsApp circle */}
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+        <div className="lp-hero-circle" style={{ display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/whats_app_circle.png" alt="Log health via WhatsApp" style={{ width: 280, height: 280, objectFit: "contain" }} />
+          <img src="/whats_app_circle.webp" alt="Log health via WhatsApp" style={{ width: 280, height: 280, objectFit: "contain" }} />
         </div>
 
         {/* Right — mockup */}
-        <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div className="lp-hero-mockup" style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
           <DashboardMockup />
         </div>
       </section>
 
       {/* Features */}
-      <section id="features" style={{ background: "#FFF8F7", padding: "52px 60px 60px" }}>
+      <section id="features" className="lp-features-section" style={{ background: "#FFF8F7", padding: "52px 60px 60px" }}>
         <div style={{
           fontSize: 22, fontWeight: 700, textAlign: "center", color: "#1A2744",
           marginBottom: 32, display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
@@ -391,7 +391,7 @@ export default function LandingPage() {
             <path d="M10 17s-7-4.5-7-9a5 5 0 0 1 7-4.58A5 5 0 0 1 17 8c0 4.5-7 9-7 9z" />
           </svg>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(5,1fr)", gap: 12 }}>
+        <div className="lp-features-grid" style={{ display: "grid", gridTemplateColumns: "repeat(5,1fr)", gap: 12 }}>
           {[
             { bg: "#E6F9EE", icon: <ChatDots size={22} weight="bold" color="#3EB86A" />, title: "Track Health", desc: "Log vitals, steps and appointments easily from anywhere, anytime." },
             { bg: "#FFEDEC", icon: <ChartBar size={22} weight="bold" color="#E85C5C" />, title: "Beautiful Insights", desc: "Visualize your progress with easy-to-understand charts and summaries." },
@@ -416,8 +416,8 @@ export default function LandingPage() {
       </section>
 
       {/* Family section */}
-      <section style={{ padding: "60px 60px", background: "#fff" }}>
-        <div style={{
+      <section className="lp-family-section" style={{ padding: "60px 60px", background: "#fff" }}>
+        <div className="lp-family-box" style={{
           display: "flex", alignItems: "center", gap: 56,
           background: "linear-gradient(135deg,#FFF5F3 0%,#FFE8E4 100%)",
           borderRadius: 24, padding: "48px 52px", overflow: "hidden", position: "relative",
@@ -466,7 +466,8 @@ export default function LandingPage() {
           <div style={{ flex: 1, display: "flex", justifyContent: "flex-end", position: "relative", zIndex: 1 }}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src="/family_walking.png"
+              className="lp-family-img"
+              src="/family_walking.webp"
               alt="Family health"
               style={{
                 width: 480, borderRadius: 20,
@@ -478,7 +479,7 @@ export default function LandingPage() {
       </section>
 
       {/* CTA bar */}
-      <div style={{
+      <div className="lp-cta-bar" style={{
         background: "linear-gradient(135deg,#FFF0EE,#FFE4DE)",
         margin: "0 56px 56px", borderRadius: 16, padding: "22px 32px",
         display: "flex", alignItems: "center", justifyContent: "space-between",
@@ -507,7 +508,7 @@ export default function LandingPage() {
       </div>
 
       {/* Footer */}
-      <div style={{
+      <div className="lp-footer" style={{
         borderTop: "1px solid #F5EEEE", padding: "20px 56px",
         display: "flex", alignItems: "center", justifyContent: "space-between",
         background: "#fff",

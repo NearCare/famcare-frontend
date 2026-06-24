@@ -109,7 +109,7 @@ Open [http://localhost:3000](http://localhost:3000).
 ### Dashboard
 - **KPI cards** — steps, protein, carbs with animated progress bars; lift on hover
 - **Weekly steps chart** — `LineChart` with dot markers; light tooltip with white background
-- **Wellness widgets** — hydration, sleep, mood with Fluent Emoji SVG icons
+- **Wellness widgets** — hydration, sleep with Fluent Emoji SVG icons
 - **Family section** — member cards showing active/pending status; tap opens detail modal
 - **AI insights panel** — recent log entries with smart summaries
 - **WhatsApp banner** — dismissible onboarding prompt for first-time users
@@ -133,7 +133,7 @@ Open [http://localhost:3000](http://localhost:3000).
 |----------|------------|
 | Nav, close, card titles, badges | `@phosphor-icons/react` — `weight="bold"`, size 15–22 |
 | KPI slots (steps, protein, carbs) | `FEShoe`, `FEMeat`, `FEWheat` from `FluentEmoji.tsx` |
-| Wellness widgets (hydration, sleep, mood) | `FEDroplet`, `FEMoon`, `FESmile` |
+| Wellness widgets (hydration, sleep) | `FEDroplet`, `FEMoon` |
 | WhatsApp banner | `FEChat` |
 | Invite sent confirmation | `FESmartphone` |
 

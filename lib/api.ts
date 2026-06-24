@@ -6,9 +6,66 @@
  *          so it doesn't clash with the Next.js dev server on 3000).
  */
 
-const BASE_URL =
-  (typeof process !== "undefined" && process.env.NEXT_PUBLIC_API_URL) ||
-  "http://localhost:8080";
+const configuredApiUrl =
+  typeof process !== "undefined" ? process.env.NEXT_PUBLIC_API_URL : undefined;
+const isProductionBuild =
+  typeof process !== "undefined" && process.env.NODE_ENV === "production";
+
+if (!configuredApiUrl && isProductionBuild) {
+  console.error(
+    "[nearcare] NEXT_PUBLIC_API_URL is not set in a production build — falling back to " +
+    "http://localhost:8080, which will not reach the real backend. Set NEXT_PUBLIC_API_URL " +
+    "in the deployment environment."
+  );
+}
+
+const BASE_URL = configuredApiUrl || "http://localhost:8080";
+
+/**
+ * Set NEXT_PUBLIC_MOCK_API=true in .env.local to bypass the backend
+ * entirely and use canned data — useful for UI-only iteration on the
+ * dashboard without running the Ktor server / Supabase / Twilio.
+ * Disabled outright in production builds so a misconfigured env var
+ * can never serve fake data to real users.
+ */
+const MOCK_API =
+  !isProductionBuild &&
+  typeof process !== "undefined" && process.env.NEXT_PUBLIC_MOCK_API === "true";
+
+const MOCK_USER: User = {
+  id: 1,
+  phone: "+910000000000",
+  name: "Test User",
+  created_at: new Date().toISOString(),
+};
+
+const MOCK_LOGS: HealthLog[] = Array.from({ length: 14 }, (_, i) => {
+  const d = new Date();
+  d.setDate(d.getDate() - i);
+  return {
+    id: i + 1,
+    user_id: 1,
+    logged_at: d.toLocaleDateString("en-CA"),
+    steps: 4000 + Math.round(Math.random() * 6000),
+    protein_g: 40 + Math.round(Math.random() * 40),
+    calories: 1600 + Math.round(Math.random() * 900),
+    raw_message: i === 0 ? "8200 steps, chicken breast for lunch" : null,
+  };
+}).filter((_, i) => i !== 4);
+
+const MOCK_SUMMARY: Summary = {
+  period_days: 7,
+  avg_steps: 6800,
+  avg_protein_g: 58,
+  avg_calories: 2050,
+  step_goal_hits: 4,
+  last_logged: MOCK_LOGS[0]?.logged_at ?? null,
+};
+
+const MOCK_MEMBERS: FamilyMember[] = [
+  { id: 2, phone: "+910000000001", name: "Member One", label: "Member 1", type: "family", status: "active", created_at: new Date().toISOString() },
+  { id: 3, phone: "+910000000002", name: null, label: "Member 2", type: "family", status: "active", created_at: new Date().toISOString() },
+];
 
 // ─── Types (mirror the Kotlin data classes) ──────────────────────────────────
 
@@ -77,14 +134,23 @@ export type AuthResponse = {
  * Phone must include country code, e.g. "+919876543210"
  */
 export async function sendOtp(phone: string): Promise<void> {
-  const res = await fetch(`${BASE_URL}/auth/send-otp`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ phone }),
-  });
+  if (MOCK_API) return;
+  let res: Response;
+  try {
+    res = await fetch(`${BASE_URL}/auth/send-otp`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ phone }),
+    });
+  } catch {
+    throw new Error("Network error. Please check your connection and try again.");
+  }
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    throw new Error((err as { error?: string }).error ?? "Failed to send OTP");
+    const message = (err as { error?: string }).error;
+    if (res.status === 429) throw new Error(message ?? "Too many OTP requests today. Please try again tomorrow.");
+    if (res.status === 400) throw new Error(message ?? "That doesn't look like a valid phone number.");
+    throw new Error(message ?? "Couldn't send the OTP right now. Please try again in a moment.");
   }
 }
 
@@ -96,20 +162,30 @@ export async function verifyOtp(
   phone: string,
   code: string
 ): Promise<AuthResponse> {
-  const res = await fetch(`${BASE_URL}/auth/verify-otp`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ phone, code }),
-  });
+  if (MOCK_API) return { token: "mock-token", user: MOCK_USER };
+  let res: Response;
+  try {
+    res = await fetch(`${BASE_URL}/auth/verify-otp`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ phone, code }),
+    });
+  } catch {
+    throw new Error("Network error. Please check your connection and try again.");
+  }
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    throw new Error((err as { error?: string }).error ?? "Invalid OTP");
+    const message = (err as { error?: string }).error;
+    if (res.status === 401) throw new Error(message ?? "That code is incorrect or has expired. Request a new one.");
+    if (res.status === 400) throw new Error(message ?? "Please enter the 6-digit code sent to your WhatsApp.");
+    throw new Error(message ?? "Couldn't verify your code right now. Please try again.");
   }
   return res.json() as Promise<AuthResponse>;
 }
 
 /** Sets the caller's display name. Used by the first-login onboarding step. */
 export async function updateUserName(userId: number, name: string, token: string): Promise<User> {
+  if (MOCK_API) return { ...MOCK_USER, name };
   const res = await fetch(`${BASE_URL}/api/users/${userId}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
@@ -132,6 +208,7 @@ export async function getUserLogs(
   userId: number,
   days = 30
 ): Promise<HealthLog[]> {
+  if (MOCK_API) return MOCK_LOGS;
   const data = await apiFetch<{ logs: HealthLog[] }>(
     `/api/users/${userId}/logs?days=${days}`
   );
@@ -143,6 +220,7 @@ export async function getUserLogs(
  * Returns null when the backend reports "No data given yet".
  */
 export async function getUserSummary(userId: number): Promise<Summary | null> {
+  if (MOCK_API) return MOCK_SUMMARY;
   // Backend returns { message: "No data given yet" } when logs are empty —
   // we catch that and normalise to null. Any real network/server error
   // is re-thrown so the dashboard can surface it.
@@ -193,11 +271,13 @@ export async function inviteFamilyMember(
 }
 
 export async function getFamilyMembers(token: string): Promise<FamilyMember[]> {
+  if (MOCK_API) return MOCK_MEMBERS;
   const data = await authedFetch<{ members: FamilyMember[] }>("/family/members", token);
   return data.members;
 }
 
 export async function getMemberSummary(memberId: number, token: string): Promise<Summary | null> {
+  if (MOCK_API) return MOCK_SUMMARY;
   const data = await authedFetch<Summary | { message: string }>(
     `/family/members/${memberId}/summary`, token
   );
@@ -206,6 +286,7 @@ export async function getMemberSummary(memberId: number, token: string): Promise
 }
 
 export async function getMemberLogs(memberId: number, token: string, days = 7): Promise<HealthLog[]> {
+  if (MOCK_API) return MOCK_LOGS;
   const data = await authedFetch<{ logs: HealthLog[] }>(
     `/family/members/${memberId}/logs?days=${days}`, token
   );
@@ -214,15 +295,16 @@ export async function getMemberLogs(memberId: number, token: string, days = 7): 
 
 // ─── Derived helpers used by the dashboard ───────────────────────────────────
 
-/** Pull the last 7 logs and bucket them into Mon–Sun arrays for charts. */
-export function logsToWeeklySteps(
-  logs: HealthLog[]
+/** Pull the last 7 logs and bucket a given metric into Mon–Sun arrays for charts. */
+export function logsToWeeklyMetric(
+  logs: HealthLog[],
+  metric: "steps" | "protein_g" | "calories"
 ): { label: string; value: number }[] {
   const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-  // Build a map: YYYY-MM-DD → steps
+  // Build a map: YYYY-MM-DD → metric total
   const byDate: Record<string, number> = {};
   for (const l of logs) {
-    byDate[l.logged_at] = (byDate[l.logged_at] ?? 0) + (l.steps ?? 0);
+    byDate[l.logged_at] = (byDate[l.logged_at] ?? 0) + (l[metric] ?? 0);
   }
 
   // Walk the last 7 days
@@ -237,6 +319,13 @@ export function logsToWeeklySteps(
     });
   }
   return result;
+}
+
+/** Pull the last 7 logs and bucket steps into Mon–Sun arrays for charts. */
+export function logsToWeeklySteps(
+  logs: HealthLog[]
+): { label: string; value: number }[] {
+  return logsToWeeklyMetric(logs, "steps");
 }
 
 /** Counts consecutive days (ending today or yesterday) the user has a logged entry. */

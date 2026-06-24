@@ -15,6 +15,11 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [resendTimer, setResendTimer] = useState(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const otpInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (step === "otp") otpInputRef.current?.focus();
+  }, [step]);
 
   function startResendTimer() {
     setResendTimer(30);
@@ -72,10 +77,10 @@ export default function LoginPage() {
   }
 
   return (
-    <div style={{ display: "flex", height: "100vh", padding: 20, gap: 20, alignItems: "stretch", overflow: "hidden" }}>
+    <div className="login-page" style={{ display: "flex", height: "100vh", padding: 20, gap: 20, alignItems: "stretch", overflow: "hidden" }}>
 
       {/* Left hero */}
-      <div style={{
+      <div className="login-hero" style={{
         flex: 1.25,
         background: "linear-gradient(145deg,#FFF5F3 0%,#FFE8E4 55%,#FFD8D0 100%)",
         borderRadius: 20, padding: "28px 36px 0",
@@ -124,10 +129,10 @@ export default function LoginPage() {
         </div>
 
         {/* Hero image — fills remaining space */}
-        <div style={{ flex: 1, position: "relative", zIndex: 1, marginTop: 16, borderRadius: "16px 16px 0 0", overflow: "hidden", minHeight: 0 }}>
+        <div className="login-hero-image" style={{ flex: 1, position: "relative", zIndex: 1, marginTop: 16, borderRadius: "16px 16px 0 0", overflow: "hidden", minHeight: 0 }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src="/family-whatsapp.png"
+            src="/family-whatsapp.webp"
             alt="Family using WhatsApp"
             style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "top center", display: "block", borderRadius: "16px 16px 0 0" }}
           />
@@ -135,7 +140,7 @@ export default function LoginPage() {
       </div>
 
       {/* Right form */}
-      <div style={{
+      <div className="login-form" style={{
         flex: 1, background: "#fff", borderRadius: 20, padding: "52px 44px",
         display: "flex", flexDirection: "column", justifyContent: "center",
         boxShadow: "0 6px 28px rgba(26,20,20,.10)",
@@ -234,6 +239,7 @@ export default function LoginPage() {
                   </svg>
                 </div>
                 <input
+                  ref={otpInputRef}
                   type="text"
                   inputMode="numeric"
                   maxLength={6}
