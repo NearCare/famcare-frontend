@@ -49,6 +49,7 @@ const MOCK_LOGS: HealthLog[] = Array.from({ length: 14 }, (_, i) => {
     steps: 4000 + Math.round(Math.random() * 6000),
     protein_g: 40 + Math.round(Math.random() * 40),
     calories: 1600 + Math.round(Math.random() * 900),
+    sleep_hours: 5.5 + Math.round(Math.random() * 30) / 10,
     raw_message: i === 0 ? "8200 steps, chicken breast for lunch" : null,
   };
 }).filter((_, i) => i !== 4);
@@ -58,6 +59,7 @@ const MOCK_SUMMARY: Summary = {
   avg_steps: 6800,
   avg_protein_g: 58,
   avg_calories: 2050,
+  avg_sleep_hours: 6.8,
   step_goal_hits: 4,
   last_logged: MOCK_LOGS[0]?.logged_at ?? null,
 };
@@ -83,6 +85,7 @@ export type HealthLog = {
   steps: number | null;
   protein_g: number | null;
   calories: number | null;
+  sleep_hours: number | null;
   raw_message: string | null;
 };
 
@@ -91,6 +94,7 @@ export type Summary = {
   avg_steps: number | null;
   avg_protein_g: number | null;
   avg_calories: number | null;
+  avg_sleep_hours: number | null;
   step_goal_hits: number;
   last_logged: string | null;
 };
@@ -298,13 +302,18 @@ export async function getMemberLogs(memberId: number, token: string, days = 7): 
 /** Pull the last 7 logs and bucket a given metric into Mon–Sun arrays for charts. */
 export function logsToWeeklyMetric(
   logs: HealthLog[],
-  metric: "steps" | "protein_g" | "calories"
+  metric: "steps" | "protein_g" | "calories" | "sleep_hours"
 ): { label: string; value: number }[] {
   const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-  // Build a map: YYYY-MM-DD → metric total
+  // Build a map: YYYY-MM-DD → metric value (sleep replaces, others accumulate)
   const byDate: Record<string, number> = {};
   for (const l of logs) {
-    byDate[l.logged_at] = (byDate[l.logged_at] ?? 0) + (l[metric] ?? 0);
+    const v = l[metric] ?? 0;
+    if (metric === "sleep_hours") {
+      byDate[l.logged_at] = v; // last write wins
+    } else {
+      byDate[l.logged_at] = (byDate[l.logged_at] ?? 0) + v;
+    }
   }
 
   // Walk the last 7 days

@@ -422,14 +422,17 @@ export default function DashboardPage() {
   const weeklySteps = useMemo(() => logsToWeeklyMetric(logs, "steps"), [logs]);
   const weeklyProtein = useMemo(() => logsToWeeklyMetric(logs, "protein_g"), [logs]);
   const weeklyCalories = useMemo(() => logsToWeeklyMetric(logs, "calories"), [logs]);
+  const weeklySleep = useMemo(() => logsToWeeklyMetric(logs, "sleep_hours"), [logs]);
   const streak = useMemo(() => calculateStreak(logs), [logs]);
   const proteinSeries = useMemo(() => weeklyProtein.map((d) => d.value), [weeklyProtein]);
   const caloriesSeries = useMemo(() => weeklyCalories.map((d) => d.value), [weeklyCalories]);
   const stepsSeries = useMemo(() => weeklySteps.map((d) => d.value), [weeklySteps]);
+  const sleepSeries = useMemo(() => weeklySleep.map((d) => d.value), [weeklySleep]);
   const hasData = !!summary?.last_logged;
   const proteinAvg = summary?.avg_protein_g ?? 0;
   const caloriesAvg = summary?.avg_calories ?? 0;
   const stepsAvg = summary?.avg_steps ?? 0;
+  const sleepAvg = summary?.avg_sleep_hours ?? 0;
   const proteinPct = Math.min(Math.round((proteinAvg / 50) * 100), 100);
   const caloriesPct = Math.min(Math.round((caloriesAvg / 2000) * 100), 100);
   const stepsAvgPct = Math.min(Math.round((stepsAvg / 10000) * 100), 100);
@@ -997,8 +1000,8 @@ export default function DashboardPage() {
                   <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                     <FEMoon size={20} />
                     <span style={{ width: 60, fontSize: 12.5, fontWeight: 700, color: "#2C2F3A" }}>Sleep</span>
-                    <div className="db-bar-track" style={{ flex: 1, margin: 0 }}><div className="db-bar-fill" style={{ width: "30%", background: "#DCD7F2" }} /></div>
-                    <span style={{ fontSize: 10, fontWeight: 700, color: "#9AA0AD", background: "#F5F3F8", padding: "2px 8px", borderRadius: 99, whiteSpace: "nowrap" }}>Soon</span>
+                    <div className="db-bar-track" style={{ flex: 1, margin: 0 }}><div className="db-bar-fill" style={{ width: `${Math.min(Math.round((sleepAvg / 8) * 100), 100)}%`, background: "#8B7FE8" }} /></div>
+                    <span style={{ width: 44, textAlign: "right", fontSize: 12, fontWeight: 700, color: "#9AA0AD" }}>{sleepAvg ? `${sleepAvg.toFixed(1)}h` : "—"}</span>
                   </div>
                 </div>
               </div>
@@ -1090,10 +1093,12 @@ export default function DashboardPage() {
               <MetricTile
                 icon={<FEMoon size={16} />} label="Sleep"
                 color="#8B7FE8" deepColor="#6A5BD0" chipBg="#E4E0FB" stripBg="var(--he-violet-bg)"
-                value="6.5" unit="hrs" goalText="of 7–8 hrs goal · Coming soon" pct={81}
+                value={sleepAvg ? sleepAvg.toFixed(1) : "—"} unit="hrs" goalText="of 8 hrs goal"
+                pct={Math.min(Math.round((sleepAvg / 8) * 100), 100)}
                 deltaDown={false}
-                deltaText="20 mins vs last week"
-                sparkline={[5.8, 6.1, 6.4, 5.9, 6.7, 7.0, 6.5]}
+                deltaText={sleepAvg ? `avg last 7 days` : "No data yet"}
+                sparkline={sleepSeries}
+                onClick={sleepAvg ? () => setMetricDetail({ label: "Sleep", data: weeklySleep, color: "#8B7FE8", unit: "hrs", goal: 8, decimals: 1 }) : undefined}
               />
               <div className="db-card" style={{
                 display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
