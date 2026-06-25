@@ -14,7 +14,9 @@ import {
 } from "@phosphor-icons/react";
 import Sidebar from "../components/Sidebar";
 import {
+  calculateStreak,
   getFamilyMembers,
+  getUserLogs,
   type FamilyMember,
   type User,
 } from "@/lib/api";
@@ -405,6 +407,7 @@ export default function MedicationsPage() {
   const [selectedPersonId, setSelectedPersonId] = useState("self");
   const [medicines, setMedicines] = useState<Medicine[]>([]);
   const [showAddDrawer, setShowAddDrawer] = useState(false);
+  const [streak, setStreak] = useState(0);
 
   useEffect(() => {
     (async () => {
@@ -414,7 +417,11 @@ export default function MedicationsPage() {
       setUser(authUser);
 
       const token = localStorage.getItem("auth_token") ?? "";
-      const members = await getFamilyMembers(token).catch(() => [] as FamilyMember[]);
+      const [members, logs] = await Promise.all([
+        getFamilyMembers(token).catch(() => [] as FamilyMember[]),
+        getUserLogs(authUser.id, 30).catch(() => []),
+      ]);
+      setStreak(calculateStreak(logs));
       const options: PersonOption[] = [
         { id: "self", name: authUser.name ?? "You", label: "You" },
         ...members
@@ -475,8 +482,14 @@ export default function MedicationsPage() {
               <CalendarBlank size={15} weight="bold" />
               {new Date().toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
             </div>
-            <div className="db-pill" style={{ background: "#FFF3E8", border: "1.5px solid #FFD0A0", color: "#CC6A00", fontWeight: 800, cursor: "default" }}>
-              🔥 4 days
+            <div className="db-pill" style={{
+              background: streak > 0 ? "#FFF3E8" : "#F5F3F8",
+              border: `1.5px solid ${streak > 0 ? "#FFD0A0" : "#EDE6E6"}`,
+              color: streak > 0 ? "#CC6A00" : "#9AA0AD",
+              fontWeight: 800,
+              cursor: "default",
+            }}>
+              🔥 {streak} {streak === 1 ? "day" : "days"}
             </div>
             <a href={WA_LINK} target="_blank" rel="noopener noreferrer" className="db-pill cta">
               Log via WhatsApp
