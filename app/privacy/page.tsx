@@ -31,11 +31,11 @@ export default function PrivacyPolicy() {
         {[
           {
             title: "1. Who We Are",
-            body: `NearCare is a family health tracking platform that allows you to log health data (steps, meals, vitals) by sending casual messages on WhatsApp — in Hindi or English. We are operated by the NearCare team.`,
+            body: `FamCare is a family health tracking platform that allows you to log health data (steps, meals, vitals) by sending casual messages on WhatsApp — in Hindi or English. We are operated by the FamCare team.`,
           },
           {
             title: "2. What Data We Collect",
-            body: `We collect the following information when you use NearCare:
+            body: `We collect the following information when you use FamCare:
 
 • Phone number — used to identify your account and send you OTPs and health summaries via WhatsApp.
 • Name — optionally provided via your WhatsApp profile.
@@ -50,7 +50,7 @@ We do not collect payment information, location data, or any data beyond what yo
             body: `Your data is used solely to:
 
 • Parse and store your daily health logs.
-• Display your health history and summaries on the NearCare dashboard.
+• Display your health history and summaries on the FamCare dashboard.
 • Allow family members you invite to view your health data (only with your explicit consent via the invite flow).
 • Send you WhatsApp replies confirming your logged data.
 
@@ -96,11 +96,11 @@ To exercise any of these rights, contact us via WhatsApp.`,
           },
           {
             title: "10. Children's Privacy",
-            body: `NearCare is not directed at children under 18. We do not knowingly collect personal data from children. If you believe a child has provided us with their data, please contact us and we will delete it promptly.`,
+            body: `FamCare is not directed at children under 18. We do not knowingly collect personal data from children. If you believe a child has provided us with their data, please contact us and we will delete it promptly.`,
           },
           {
             title: "11. Changes to This Policy",
-            body: `We may update this privacy policy from time to time. When we do, we will update the "Last updated" date at the top of this page. Continued use of NearCare after changes constitutes acceptance of the updated policy.`,
+            body: `We may update this privacy policy from time to time. When we do, we will update the "Last updated" date at the top of this page. Continued use of FamCare after changes constitutes acceptance of the updated policy.`,
           },
           {
             title: "12. Contact Us",
@@ -134,7 +134,7 @@ To exercise any of these rights, contact us via WhatsApp.`,
         borderTop: "1px solid #F5EEEE", background: "#fff",
         padding: "20px 56px", display: "flex", alignItems: "center", justifyContent: "space-between",
       }}>
-        <span style={{ fontSize: 13, color: "#6B7A9A" }}>© 2026 NearCare. All rights reserved.</span>
+        <span style={{ fontSize: 13, color: "#6B7A9A" }}>© 2026 FamCare. All rights reserved.</span>
         <Link href="/" style={{ fontSize: 13, color: "#E85C5C", textDecoration: "none", fontWeight: 600 }}>
           ← Back to Home
         </Link>

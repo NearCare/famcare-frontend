@@ -55,7 +55,7 @@ export default function OnboardingNamePage() {
         <div style={{ fontSize: 40, marginBottom: 10 }}>👋</div>
         <h2 style={{ fontSize: 26, fontWeight: 700, letterSpacing: "-.3px", margin: 0 }}>What should we call you?</h2>
         <p style={{ marginTop: 6, fontSize: 14, color: "#6B7A9A" }}>
-          This helps your family recognize you on NearCare.
+          This helps your family recognize you on FamCare.
         </p>
 
         <form onSubmit={handleSubmit} style={{ marginTop: 28, display: "flex", flexDirection: "column", gap: 16 }}>

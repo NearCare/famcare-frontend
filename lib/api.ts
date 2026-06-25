@@ -1,5 +1,5 @@
 /**
- * Typed API client for the GharSehat / NearCare backend.
+ * Typed API client for the FamCare backend.
  *
  * Set NEXT_PUBLIC_API_URL in .env.local to point at the Ktor server.
  * Default: http://localhost:8080  (backend should run on 8080 in dev
@@ -13,7 +13,7 @@ const isProductionBuild =
 
 if (!configuredApiUrl && isProductionBuild) {
   console.error(
-    "[nearcare] NEXT_PUBLIC_API_URL is not set in a production build — falling back to " +
+    "[famcare] NEXT_PUBLIC_API_URL is not set in a production build — falling back to " +
     "http://localhost:8080, which will not reach the real backend. Set NEXT_PUBLIC_API_URL " +
     "in the deployment environment."
   );

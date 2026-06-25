@@ -106,7 +106,7 @@ export default function LoginPage() {
         <div style={{ marginTop: 24, position: "relative", zIndex: 1 }}>
           <h1 style={{ fontSize: 34, fontWeight: 700, lineHeight: 1.15, letterSpacing: "-.5px" }}>
             Welcome to<br />
-            <em style={{ color: "#E85C5C", fontStyle: "normal" }}>HealthEase</em>
+            <em style={{ color: "#E85C5C", fontStyle: "normal" }}>FamCare</em>
           </h1>
           <p style={{ marginTop: 10, fontSize: 13, color: "#6B7A9A", lineHeight: 1.65, maxWidth: 340 }}>
             Track appointments, monitor your health journey, and find nearby providers — your complete health companion. ❤️

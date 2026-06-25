@@ -513,7 +513,7 @@ export default function LandingPage() {
         display: "flex", alignItems: "center", justifyContent: "space-between",
         background: "#fff",
       }}>
-        <span style={{ fontSize: 13, color: "#6B7A9A" }}>© 2026 NearCare. All rights reserved.</span>
+        <span style={{ fontSize: 13, color: "#6B7A9A" }}>© 2026 FamCare. All rights reserved.</span>
         <div style={{ display: "flex", gap: 24 }}>
           <Link href="/privacy" style={{ fontSize: 13, color: "#6B7A9A", textDecoration: "none" }}>Privacy Policy</Link>
           <a href="https://wa.me/14155238886" target="_blank" rel="noopener noreferrer" style={{ fontSize: 13, color: "#6B7A9A", textDecoration: "none" }}>Contact</a>
