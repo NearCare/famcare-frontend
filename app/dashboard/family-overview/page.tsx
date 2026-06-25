@@ -1,15 +1,23 @@
 "use client";
-import { useEffect, useState } from "react";
-import { CheckCircle, Warning, Sparkle, CaretRight, UserPlus } from "@phosphor-icons/react";
+import { useEffect, useMemo, useState } from "react";
+import { CheckCircle, Warning, Sparkle, CaretRight, UserPlus, Trophy } from "@phosphor-icons/react";
 import { Flame, Dumbbell, Footprints } from "lucide-react";
 import {
   getFamilyMembers,
   getMemberSummary,
+  getUserSummary,
   type User,
   type Summary,
   type FamilyMember,
 } from "@/lib/api";
 import { scoreTier, computeScore, ScoreRing } from "../components/Score";
+
+const RANK_PALETTE = [
+  { bg: "#FFF8E7", accent: "#F5A623", text: "#A06400", caption: "Top of the family!" },
+  { bg: "#F3F3F3", accent: "#9AA0AD", text: "#5A6170", caption: "Strong effort" },
+  { bg: "#FFF1EC", accent: "#E8855C", text: "#A04830", caption: "Keep going!" },
+  { bg: "#F0F4FF", accent: "#6B8FE8", text: "#3050A0", caption: "Building momentum" },
+];
 import Sidebar from "../components/Sidebar";
 import FamilyMemberModal from "../components/FamilyMemberModal";
 import AddFamilyModal from "../components/AddFamilyModal";
@@ -18,6 +26,7 @@ type MemberRow = { member: FamilyMember; summary: Summary | null };
 
 export default function FamilyOverviewPage() {
   const [user, setUser] = useState<User | null>(null);
+  const [personalSummary, setPersonalSummary] = useState<Summary | null>(null);
   const [memberRows, setMemberRows] = useState<MemberRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -33,7 +42,12 @@ export default function FamilyOverviewPage() {
         setUser(authUser);
         const token = localStorage.getItem("auth_token") ?? "";
 
-        const members = await getFamilyMembers(token).catch(() => [] as FamilyMember[]);
+        const [members, mySummary] = await Promise.all([
+          getFamilyMembers(token).catch(() => [] as FamilyMember[]),
+          getUserSummary(authUser.id).catch(() => null),
+        ]);
+        setPersonalSummary(mySummary);
+
         const activeMembers = members.filter((m) => m.status === "active");
         const rows = await Promise.all(
           activeMembers.map(async (member) => ({
@@ -49,6 +63,19 @@ export default function FamilyOverviewPage() {
       }
     })();
   }, []);
+
+  const rankedFamily = useMemo(() => {
+    const rows = [
+      { id: user?.id ?? 0, name: user?.name ?? "You", score: computeScore(personalSummary), isYou: true },
+      ...memberRows.map(({ member, summary }) => ({
+        id: member.id,
+        name: member.name ?? member.label,
+        score: computeScore(summary),
+        isYou: false,
+      })),
+    ];
+    return rows.sort((a, b) => (b.score ?? -1) - (a.score ?? -1));
+  }, [user, personalSummary, memberRows]);
 
   if (loading) {
     return (
@@ -212,6 +239,71 @@ export default function FamilyOverviewPage() {
                 Invite now <CaretRight size={11} weight="bold" />
               </span>
             </button>
+          </div>
+        )}
+
+        {rankedFamily.length > 1 && (
+          <div className="db-card db-card-pad" style={{ marginTop: 24 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
+              <Trophy size={20} weight="fill" color="var(--he-orange)" />
+              <div>
+                <p style={{ margin: 0, fontSize: 15, fontWeight: 800, color: "#1A2744" }}>Family Ranking</p>
+                <p style={{ margin: "1px 0 0", fontSize: 11.5, color: "#9AA0AD", fontWeight: 500 }}>Based on weekly health score</p>
+              </div>
+            </div>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {rankedFamily.map((row, i) => {
+                const palette = RANK_PALETTE[i % RANK_PALETTE.length];
+                const medal = ["🥇", "🥈", "🥉"][i];
+                return (
+                  <div
+                    key={row.id}
+                    style={{
+                      display: "flex", flexDirection: "column", gap: 8,
+                      background: palette.bg, borderRadius: 14, padding: "12px 16px",
+                    }}
+                  >
+                    <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                      <span style={{
+                        width: i === 0 ? 36 : i === 1 ? 30 : 24,
+                        height: i === 0 ? 36 : i === 1 ? 30 : 24,
+                        borderRadius: "50%", flexShrink: 0,
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        fontSize: i === 0 ? 24 : i === 1 ? 20 : medal ? 14 : 11,
+                        background: medal ? "transparent" : "#fff", color: "#9AA0AD", fontWeight: 800,
+                      }}>
+                        {medal ?? i + 1}
+                      </span>
+                      <div style={{
+                        width: 34, height: 34, borderRadius: "50%", flexShrink: 0,
+                        background: palette.accent, color: "#fff",
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        fontWeight: 800, fontSize: 14,
+                      }}>
+                        {row.name.charAt(0).toUpperCase()}
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <p style={{
+                          margin: 0, fontSize: 14, fontWeight: 800, color: "#1A2744",
+                          whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+                        }}>
+                          {row.name}{row.isYou ? " (You)" : ""}
+                        </p>
+                        <p style={{ margin: 0, fontSize: 11.5, fontWeight: 700, color: palette.text }}>{palette.caption}</p>
+                      </div>
+                      <span style={{ fontSize: 15, fontWeight: 800, color: "#1A2744", flexShrink: 0 }}>
+                        {row.score ?? "—"}
+                        <span style={{ fontSize: 11, fontWeight: 600, color: "#9AA0AD" }}>/100</span>
+                      </span>
+                    </div>
+                    <div className="db-bar-track" style={{ margin: 0, height: 5 }}>
+                      <div className="db-bar-fill" style={{ width: `${row.score ?? 0}%`, background: palette.accent }} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         )}
       </div>

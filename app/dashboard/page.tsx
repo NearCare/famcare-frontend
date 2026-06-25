@@ -878,7 +878,8 @@ export default function DashboardPage() {
           </div>
         )}
 
-        <div>
+        <div style={{ display: "flex", gap: 16, alignItems: "flex-start", flexWrap: "wrap" }}>
+        <div style={{ flex: "1 1 480px", minWidth: 320 }}>
           <div>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
               <h2 style={{ fontSize: 15, fontWeight: 800, color: "#2C2F3A", margin: 0, fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
@@ -1012,69 +1013,80 @@ export default function DashboardPage() {
                 </span>
               </button>
             </div>
-
-            {rankedFamily.length > 0 && (
-              <div className="db-card db-card-pad" style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 10 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
-                  <Trophy size={18} weight="fill" color="var(--he-orange)" />
-                  <p style={{ margin: 0, fontSize: 14, fontWeight: 800, color: "#1A2744" }}>Family Ranking</p>
-                  <p style={{ margin: "0 0 0 2px", fontSize: 11.5, color: "#9AA0AD", fontWeight: 500 }}>· based on weekly score</p>
-                </div>
-
-                <div style={{ display: "grid", gridTemplateColumns: `repeat(${rankedFamily.length}, 1fr)`, gap: 10 }}>
-                  {rankedFamily.map((row, i) => {
-                    const palette = RANK_PALETTE[i % RANK_PALETTE.length];
-                    const medal = ["🥇", "🥈", "🥉"][i];
-                    return (
-                      <div
-                        key={row.id}
-                        style={{
-                          display: "flex", flexDirection: "column", gap: 8,
-                          background: palette.bg, borderRadius: 14, padding: "12px 14px",
-                        }}
-                      >
-                        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                          <span style={{
-                            width: i === 0 ? 32 : i === 1 ? 28 : 22,
-                            height: i === 0 ? 32 : i === 1 ? 28 : 22,
-                            borderRadius: "50%", flexShrink: 0,
-                            display: "flex", alignItems: "center", justifyContent: "center",
-                            fontSize: i === 0 ? 22 : i === 1 ? 18 : medal ? 13 : 11, fontWeight: 800,
-                            background: medal ? "transparent" : "#fff", color: "#9AA0AD",
-                          }}>
-                            {medal ?? i + 1}
-                          </span>
-                          <div style={{
-                            width: 30, height: 30, borderRadius: "50%", flexShrink: 0,
-                            background: palette.accent, color: "#fff",
-                            display: "flex", alignItems: "center", justifyContent: "center",
-                            fontWeight: 800, fontSize: 12,
-                          }}>
-                            {row.name.charAt(0).toUpperCase()}
-                          </div>
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <p style={{
-                              margin: 0, fontSize: 13, fontWeight: 800, color: "#1A2744",
-                              whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
-                            }}>
-                              {row.name}{row.isYou ? " (You)" : ""}
-                            </p>
-                            <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: palette.text }}>{palette.caption}</p>
-                          </div>
-                          <span style={{ fontSize: 14, fontWeight: 800, color: "#1A2744", flexShrink: 0 }}>
-                            {row.score ?? "—"}<span style={{ fontSize: 10, fontWeight: 600, color: "#9AA0AD" }}>/100</span>
-                          </span>
-                        </div>
-                        <div className="db-bar-track" style={{ margin: 0, height: 5 }}>
-                          <div className="db-bar-fill" style={{ width: `${row.score ?? 0}%`, background: palette.accent }} />
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
           </div>
+        </div>
+
+        <div style={{ flex: "0 0 360px", minWidth: 300 }}>
+            <div className="db-card db-card-pad" style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 4 }}>
+                <div style={{
+                  width: 44, height: 44, borderRadius: 13, background: "var(--he-orange-bg)",
+                  display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+                }}>
+                  <Trophy size={22} weight="fill" color="var(--he-orange)" />
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <p style={{ margin: 0, fontSize: 16, fontWeight: 800, color: "#1A2744" }}>Family Ranking</p>
+                  <p style={{ margin: "1px 0 0", fontSize: 12, color: "#9AA0AD", fontWeight: 500 }}>Based on weekly health score</p>
+                </div>
+                <Link href="/dashboard/family-overview" style={{
+                  display: "flex", alignItems: "center", gap: 3, fontSize: 12, fontWeight: 700,
+                  color: "#7C6FF7", textDecoration: "none", flexShrink: 0,
+                }}>
+                  Manage <CaretRight size={11} weight="bold" />
+                </Link>
+              </div>
+
+              {rankedFamily.map((row, i) => {
+                const palette = RANK_PALETTE[i % RANK_PALETTE.length];
+                const medal = ["🥇", "🥈", "🥉"][i];
+                return (
+                  <div
+                    key={row.id}
+                    style={{
+                      display: "flex", flexDirection: "column", gap: 8,
+                      background: palette.bg, borderRadius: 14, padding: "12px 14px",
+                    }}
+                  >
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <span style={{
+                        width: i === 0 ? 36 : i === 1 ? 32 : 26, height: i === 0 ? 36 : i === 1 ? 32 : 26,
+                        borderRadius: "50%", flexShrink: 0,
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        fontSize: i === 0 ? 24 : i === 1 ? 21 : medal ? 14 : 11, fontWeight: 800,
+                        background: medal ? "transparent" : "#fff", color: "#9AA0AD",
+                      }}>
+                        {medal ?? i + 1}
+                      </span>
+                      <div style={{
+                        width: 32, height: 32, borderRadius: "50%", flexShrink: 0,
+                        background: palette.accent, color: "#fff",
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        fontWeight: 800, fontSize: 13,
+                      }}>
+                        {row.name.charAt(0).toUpperCase()}
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <p style={{
+                          margin: 0, fontSize: 13.5, fontWeight: 800, color: "#1A2744",
+                          whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+                        }}>
+                          {row.name}{row.isYou ? " (You)" : ""}
+                        </p>
+                        <p style={{ margin: 0, fontSize: 11.5, fontWeight: 700, color: palette.text }}>{palette.caption}</p>
+                      </div>
+                      <span style={{ fontSize: 14, fontWeight: 800, color: "#1A2744", flexShrink: 0 }}>
+                        {row.score ?? "—"}<span style={{ fontSize: 11, fontWeight: 600, color: "#9AA0AD" }}>/100</span>
+                      </span>
+                    </div>
+                    <div className="db-bar-track" style={{ margin: 0, height: 5 }}>
+                      <div className="db-bar-fill" style={{ width: `${row.score ?? 0}%`, background: palette.accent }} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+        </div>
         </div>
 
         <div style={{ display: "flex", gap: 16, alignItems: "stretch", flexWrap: "wrap" }}>
