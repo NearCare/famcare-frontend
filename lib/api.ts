@@ -1,5 +1,5 @@
 /**
- * Typed API client for the GharSehat / NearCare backend.
+ * Typed API client for the FamCare backend.
  *
  * Set NEXT_PUBLIC_API_URL in .env.local to point at the Ktor server.
  * Default: http://localhost:8080  (backend should run on 8080 in dev
@@ -13,7 +13,7 @@ const isProductionBuild =
 
 if (!configuredApiUrl && isProductionBuild) {
   console.error(
-    "[nearcare] NEXT_PUBLIC_API_URL is not set in a production build — falling back to " +
+    "[famcare] NEXT_PUBLIC_API_URL is not set in a production build — falling back to " +
     "http://localhost:8080, which will not reach the real backend. Set NEXT_PUBLIC_API_URL " +
     "in the deployment environment."
   );
@@ -36,6 +36,10 @@ const MOCK_USER: User = {
   id: 1,
   phone: "+910000000000",
   name: "Test User",
+  goal_steps: null,
+  goal_protein_g: null,
+  goal_calories: null,
+  goal_sleep_hours: null,
   created_at: new Date().toISOString(),
 };
 
@@ -49,6 +53,7 @@ const MOCK_LOGS: HealthLog[] = Array.from({ length: 14 }, (_, i) => {
     steps: 4000 + Math.round(Math.random() * 6000),
     protein_g: 40 + Math.round(Math.random() * 40),
     calories: 1600 + Math.round(Math.random() * 900),
+    sleep_hours: 5.5 + Math.round(Math.random() * 30) / 10,
     raw_message: i === 0 ? "8200 steps, chicken breast for lunch" : null,
   };
 }).filter((_, i) => i !== 4);
@@ -58,6 +63,7 @@ const MOCK_SUMMARY: Summary = {
   avg_steps: 6800,
   avg_protein_g: 58,
   avg_calories: 2050,
+  avg_sleep_hours: 6.8,
   step_goal_hits: 4,
   last_logged: MOCK_LOGS[0]?.logged_at ?? null,
 };
@@ -73,6 +79,10 @@ export type User = {
   id: number;
   phone: string;
   name: string | null;
+  goal_steps: number | null;
+  goal_protein_g: number | null;
+  goal_calories: number | null;
+  goal_sleep_hours: number | null;
   created_at: string;
 };
 
@@ -83,6 +93,7 @@ export type HealthLog = {
   steps: number | null;
   protein_g: number | null;
   calories: number | null;
+  sleep_hours: number | null;
   raw_message: string | null;
 };
 
@@ -91,6 +102,7 @@ export type Summary = {
   avg_steps: number | null;
   avg_protein_g: number | null;
   avg_calories: number | null;
+  avg_sleep_hours: number | null;
   step_goal_hits: number;
   last_logged: string | null;
 };
@@ -181,6 +193,25 @@ export async function verifyOtp(
     throw new Error(message ?? "Couldn't verify your code right now. Please try again.");
   }
   return res.json() as Promise<AuthResponse>;
+}
+
+/** Updates the user's personal health goals. Pass null to clear a goal. */
+export async function updateUserGoals(
+  userId: number,
+  goals: { goal_steps: number | null; goal_protein_g: number | null; goal_calories: number | null; goal_sleep_hours: number | null },
+  token: string,
+): Promise<User> {
+  if (MOCK_API) return { ...MOCK_USER, ...goals };
+  const res = await fetch(`${BASE_URL}/api/users/${userId}/goals`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify(goals),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error((err as { error?: string }).error ?? "Failed to update goals");
+  }
+  return res.json() as Promise<User>;
 }
 
 /** Sets the caller's display name. Used by the first-login onboarding step. */
@@ -298,13 +329,18 @@ export async function getMemberLogs(memberId: number, token: string, days = 7): 
 /** Pull the last 7 logs and bucket a given metric into Mon–Sun arrays for charts. */
 export function logsToWeeklyMetric(
   logs: HealthLog[],
-  metric: "steps" | "protein_g" | "calories"
+  metric: "steps" | "protein_g" | "calories" | "sleep_hours"
 ): { label: string; value: number }[] {
   const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-  // Build a map: YYYY-MM-DD → metric total
+  // Build a map: YYYY-MM-DD → metric value (sleep replaces, others accumulate)
   const byDate: Record<string, number> = {};
   for (const l of logs) {
-    byDate[l.logged_at] = (byDate[l.logged_at] ?? 0) + (l[metric] ?? 0);
+    const v = l[metric] ?? 0;
+    if (metric === "sleep_hours") {
+      byDate[l.logged_at] = v; // last write wins
+    } else {
+      byDate[l.logged_at] = (byDate[l.logged_at] ?? 0) + v;
+    }
   }
 
   // Walk the last 7 days

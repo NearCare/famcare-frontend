@@ -6,12 +6,14 @@ import {
   Star, CalendarBlank, CalendarCheck, Trophy, SignOut, UserPlus,
 } from "@phosphor-icons/react";
 import { Flame, Dumbbell, Footprints } from "lucide-react";
+import { BarChart, Bar, XAxis, YAxis, Tooltip as ReTooltip, ResponsiveContainer, ReferenceLine, Cell } from "recharts";
 import { FEShoe, FEMeat, FEWheat, FEDroplet, FEMoon, FEFlame, FEChat } from "./components/FluentEmoji";
 import {
   getUserLogs,
   getUserSummary,
   getFamilyMembers,
   getMemberSummary,
+  updateUserGoals,
   logsToWeeklyMetric,
   calculateStreak,
   type User,
@@ -55,8 +57,248 @@ function Sparkline({ data, color }: { data: number[]; color: string }) {
   );
 }
 
+type MetricDetail = {
+  label: string;
+  data: { label: string; value: number }[];
+  color: string;
+  unit: string;
+  goal?: number;
+  decimals?: number;
+};
+
+function MetricDetailFloater({ detail, onClose, onSetGoal }: { detail: MetricDetail; onClose: () => void; onSetGoal: () => void }) {
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [onClose]);
+
+  const todayIdx = detail.data.length - 1;
+  const maxVal = Math.max(...detail.data.map(d => d.value), detail.goal ? detail.goal * 0.5 : 1);
+  const fmt = (v: number) => detail.decimals ? v.toFixed(detail.decimals) : Math.round(v).toLocaleString();
+
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: "fixed", inset: 0, background: "rgba(26,20,20,.45)", zIndex: 300,
+        display: "flex", alignItems: "center", justifyContent: "center", padding: 20,
+        backdropFilter: "blur(2px)",
+      }}
+    >
+      <div
+        onClick={e => e.stopPropagation()}
+        style={{
+          background: "#fff", borderRadius: 24, padding: "26px 26px 22px",
+          width: "100%", maxWidth: 460, boxShadow: "0 24px 60px rgba(26,20,20,.18)",
+          fontFamily: "'Plus Jakarta Sans', sans-serif",
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
+          <div>
+            <p style={{ margin: 0, fontSize: 17, fontWeight: 800, color: "#1A2744" }}>{detail.label}</p>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 3 }}>
+              <p style={{ margin: 0, fontSize: 12, color: "#9AA0AD", fontWeight: 500 }}>
+                Last 7 days{detail.goal ? ` · Goal: ${detail.goal.toLocaleString()} ${detail.unit}/day` : ""}
+              </p>
+              <button
+                onClick={(e) => { e.stopPropagation(); onClose(); onSetGoal(); }}
+                style={{
+                  padding: "2px 8px", border: "1.5px solid #E0DCF0", borderRadius: 20,
+                  background: "none", cursor: "pointer", fontSize: 10.5, fontWeight: 700,
+                  color: "#7C6FF7", fontFamily: "inherit", lineHeight: 1.5,
+                }}
+              >
+                {detail.goal ? "Edit goal" : "Set goal"}
+              </button>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            style={{
+              width: 32, height: 32, borderRadius: "50%", border: "none",
+              background: "#F5F3F8", display: "flex", alignItems: "center", justifyContent: "center",
+              cursor: "pointer", flexShrink: 0,
+            }}
+          >
+            <X size={15} weight="bold" color="#9AA0AD" />
+          </button>
+        </div>
+
+        <ResponsiveContainer width="100%" height={180}>
+          <BarChart data={detail.data} barSize={32} margin={{ top: 10, right: 4, left: 0, bottom: 0 }}>
+            <XAxis
+              dataKey="label"
+              axisLine={false} tickLine={false}
+              tick={{ fontSize: 11, fontWeight: 700, fill: "#9AA0AD", fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+            />
+            <YAxis hide domain={[0, maxVal * 1.25]} />
+            <ReTooltip
+              cursor={{ fill: "rgba(0,0,0,.04)", radius: 8 }}
+              contentStyle={{ background: "#fff", border: "1px solid #F2F1F3", borderRadius: 10, fontSize: 12, fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+              labelStyle={{ color: "#9AA0AD", fontSize: 11, fontWeight: 700 }}
+              itemStyle={{ fontWeight: 700 }}
+              formatter={(v) => [`${fmt(Number(v))} ${detail.unit}`, detail.label]}
+            />
+            {detail.goal && (
+              <ReferenceLine
+                y={detail.goal}
+                stroke="#E0DCF0" strokeDasharray="5 4" strokeWidth={1.5}
+                label={{ value: "Goal", position: "right", fontSize: 10, fill: "#BFC4CE", fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+              />
+            )}
+            <Bar dataKey="value" radius={[7, 7, 3, 3]}>
+              {detail.data.map((entry, i) => (
+                <Cell
+                  key={i}
+                  fill={i === todayIdx
+                    ? detail.color
+                    : detail.goal
+                      ? (entry.value >= detail.goal ? detail.color + "CC" : detail.color + "44")
+                      : detail.color + "88"
+                  }
+                />
+              ))}
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+
+        <div style={{ display: "flex", gap: 12, marginTop: 14, flexWrap: "wrap" }}>
+          {(detail.goal ? [
+            { dot: detail.color, label: "Today" },
+            { dot: detail.color + "CC", label: "Goal met" },
+            { dot: detail.color + "44", label: "Below goal" },
+          ] : [
+            { dot: detail.color, label: "Today" },
+            { dot: detail.color + "88", label: "Other days" },
+          ]).map(({ dot, label }) => (
+            <span key={label} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, fontWeight: 600, color: "#9AA0AD" }}>
+              <span style={{ width: 8, height: 8, borderRadius: 2, background: dot, display: "inline-block" }} />
+              {label}
+            </span>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function GoalsModal({
+  user,
+  token,
+  onSave,
+  onClose,
+}: {
+  user: User;
+  token: string;
+  onSave: (updated: User) => void;
+  onClose: () => void;
+}) {
+  const [steps, setSteps] = useState(user.goal_steps?.toString() ?? "");
+  const [protein, setProtein] = useState(user.goal_protein_g?.toString() ?? "");
+  const [calories, setCalories] = useState(user.goal_calories?.toString() ?? "");
+  const [sleep, setSleep] = useState(user.goal_sleep_hours?.toString() ?? "");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [onClose]);
+
+  async function handleSave() {
+    setSaving(true);
+    setError(null);
+    try {
+      const updated = await updateUserGoals(user.id, {
+        goal_steps: steps ? parseInt(steps, 10) : null,
+        goal_protein_g: protein ? parseFloat(protein) : null,
+        goal_calories: calories ? parseInt(calories, 10) : null,
+        goal_sleep_hours: sleep ? parseFloat(sleep) : null,
+      }, token);
+      localStorage.setItem("auth_user", JSON.stringify(updated));
+      onSave(updated);
+      onClose();
+    } catch (e) {
+      setError((e as Error).message ?? "Failed to save goals");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const inputStyle: React.CSSProperties = {
+    width: "100%", padding: "10px 12px", border: "1.5px solid #E8E6EC",
+    borderRadius: 10, fontSize: 14, fontFamily: "inherit", color: "#2C2F3A",
+    outline: "none", boxSizing: "border-box", background: "#FAFAFA",
+  };
+  const labelStyle: React.CSSProperties = { fontSize: 12, fontWeight: 700, color: "#9AA0AD", marginBottom: 5, display: "block" };
+
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        zIndex: 1000, padding: 16,
+      }}
+    >
+      <div
+        onClick={e => e.stopPropagation()}
+        style={{
+          background: "#fff", borderRadius: 20, padding: 28, width: "100%", maxWidth: 380,
+          boxShadow: "0 20px 60px rgba(0,0,0,0.18)",
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 22 }}>
+          <div>
+            <div style={{ fontSize: 17, fontWeight: 800, color: "#2C2F3A" }}>Set Your Goals</div>
+            <div style={{ fontSize: 12.5, color: "#9AA0AD", marginTop: 2 }}>Leave blank to hide goal from tiles</div>
+          </div>
+          <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: "#9AA0AD", padding: 4 }}>
+            <X size={18} weight="bold" />
+          </button>
+        </div>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          <div>
+            <label style={labelStyle}>Daily Steps</label>
+            <input type="number" placeholder="e.g. 10000" value={steps} onChange={e => setSteps(e.target.value)} style={inputStyle} min={0} />
+          </div>
+          <div>
+            <label style={labelStyle}>Protein (g)</label>
+            <input type="number" placeholder="e.g. 50" value={protein} onChange={e => setProtein(e.target.value)} style={inputStyle} min={0} />
+          </div>
+          <div>
+            <label style={labelStyle}>Calories (kcal)</label>
+            <input type="number" placeholder="e.g. 2000" value={calories} onChange={e => setCalories(e.target.value)} style={inputStyle} min={0} />
+          </div>
+          <div>
+            <label style={labelStyle}>Sleep (hours)</label>
+            <input type="number" placeholder="e.g. 8" value={sleep} onChange={e => setSleep(e.target.value)} style={inputStyle} min={0} max={24} step={0.5} />
+          </div>
+        </div>
+
+        {error && <div style={{ fontSize: 12.5, color: "#E85C5C", marginTop: 12 }}>{error}</div>}
+
+        <button
+          onClick={handleSave}
+          disabled={saving}
+          style={{
+            marginTop: 22, width: "100%", padding: "13px 0", borderRadius: 12,
+            background: saving ? "#C5B9F8" : "#7C6FF7", border: "none", cursor: saving ? "not-allowed" : "pointer",
+            fontSize: 14.5, fontWeight: 800, color: "#fff", fontFamily: "inherit",
+          }}
+        >
+          {saving ? "Saving…" : "Save Goals"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function MetricTile({
-  icon, label, color, deepColor, chipBg, stripBg, value, unit, goalText, pct, deltaDown, deltaText, sparkline,
+  icon, label, color, deepColor, chipBg, stripBg, value, unit, goalText, pct, deltaDown, deltaText, sparkline, onClick, onSetGoal,
 }: {
   icon: React.ReactNode;
   label: string;
@@ -66,14 +308,16 @@ function MetricTile({
   stripBg: string;
   value: React.ReactNode;
   unit?: string;
-  goalText: string;
-  pct: number;
+  goalText?: string;
+  pct?: number;
   deltaDown: boolean;
   deltaText: string;
   sparkline: number[];
+  onClick?: () => void;
+  onSetGoal?: () => void;
 }) {
   return (
-    <div className="db-card fo-metric-tile" style={{ display: "flex", flexDirection: "column", padding: "13px 14px" }}>
+    <div className="db-card fo-metric-tile" onClick={onClick} style={{ display: "flex", flexDirection: "column", padding: "13px 14px", cursor: onClick ? "pointer" : "default" }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
           <div style={{ width: 26, height: 26, borderRadius: 8, background: chipBg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
@@ -88,14 +332,33 @@ function MetricTile({
         <span style={{ fontSize: 20, fontWeight: 800, color: "#1A2744", letterSpacing: "-.5px" }}>{value}</span>
         {unit && <span style={{ fontSize: 11.5, fontWeight: 700, color: "#9AA0AD", marginLeft: 3 }}>{unit}</span>}
       </div>
-      <p style={{ margin: "1px 0 0", fontSize: 10.5, color: "#9AA0AD", fontWeight: 500 }}>{goalText}</p>
 
-      <div style={{ display: "flex", alignItems: "center", gap: 7, marginTop: 7 }}>
-        <div className="db-bar-track" style={{ flex: 1, margin: 0, height: 5 }}>
-          <div className="db-bar-fill" style={{ width: `${pct}%`, background: color }} />
+      {goalText ? (
+        <p style={{ margin: "1px 0 0", fontSize: 10.5, color: "#9AA0AD", fontWeight: 500 }}>{goalText}</p>
+      ) : (
+        <button
+          onClick={(e) => { e.stopPropagation(); onSetGoal?.(); }}
+          style={{
+            marginTop: 2, padding: "1px 7px", border: "1.5px dashed #D8D4F0",
+            borderRadius: 20, background: "none", cursor: "pointer",
+            fontSize: 10.5, fontWeight: 700, color: "#9B93E0", fontFamily: "inherit",
+            alignSelf: "flex-start",
+          }}
+        >
+          + Set goal
+        </button>
+      )}
+
+      {pct !== undefined ? (
+        <div style={{ display: "flex", alignItems: "center", gap: 7, marginTop: 7 }}>
+          <div className="db-bar-track" style={{ flex: 1, margin: 0, height: 5 }}>
+            <div className="db-bar-fill" style={{ width: `${pct}%`, background: color }} />
+          </div>
+          <span style={{ fontSize: 11, fontWeight: 800, color }}>{pct}%</span>
         </div>
-        <span style={{ fontSize: 11, fontWeight: 800, color }}>{pct}%</span>
-      </div>
+      ) : (
+        <div style={{ marginTop: 4, height: 5 }} />
+      )}
 
       <div style={{
         marginTop: 8, background: stripBg, borderRadius: 10, padding: "6px 10px",
@@ -227,7 +490,11 @@ export default function DashboardPage() {
   const [showAccountMenu, setShowAccountMenu] = useState(false);
   const [selectedMember, setSelectedMember] = useState<FamilyMember | null>(null);
   const [showAddFamily, setShowAddFamily] = useState(false);
+  const [showScoreInfo, setShowScoreInfo] = useState(false);
+  const [metricDetail, setMetricDetail] = useState<MetricDetail | null>(null);
+  const [showGoals, setShowGoals] = useState(false);
   const accountMenuRef = useRef<HTMLDivElement>(null);
+  const scoreInfoRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const dismissed = localStorage.getItem("family_card_dismissed");
@@ -244,6 +511,17 @@ export default function DashboardPage() {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [showAccountMenu]);
+
+  useEffect(() => {
+    if (!showScoreInfo) return;
+    function handleClickOutside(e: MouseEvent) {
+      if (scoreInfoRef.current && !scoreInfoRef.current.contains(e.target as Node)) {
+        setShowScoreInfo(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [showScoreInfo]);
 
   const dismissFamilyCard = () => {
     localStorage.setItem("family_card_dismissed", "1");
@@ -297,29 +575,43 @@ export default function DashboardPage() {
   }, [loadDashboard]);
 
   const weeklySteps = useMemo(() => logsToWeeklyMetric(logs, "steps"), [logs]);
+  const weeklyProtein = useMemo(() => logsToWeeklyMetric(logs, "protein_g"), [logs]);
+  const weeklyCalories = useMemo(() => logsToWeeklyMetric(logs, "calories"), [logs]);
+  const weeklySleep = useMemo(() => logsToWeeklyMetric(logs, "sleep_hours"), [logs]);
   const streak = useMemo(() => calculateStreak(logs), [logs]);
-  const proteinSeries = useMemo(() => logsToWeeklyMetric(logs, "protein_g").map((d) => d.value), [logs]);
-  const caloriesSeries = useMemo(() => logsToWeeklyMetric(logs, "calories").map((d) => d.value), [logs]);
+  const proteinSeries = useMemo(() => weeklyProtein.map((d) => d.value), [weeklyProtein]);
+  const caloriesSeries = useMemo(() => weeklyCalories.map((d) => d.value), [weeklyCalories]);
   const stepsSeries = useMemo(() => weeklySteps.map((d) => d.value), [weeklySteps]);
+  const sleepSeries = useMemo(() => weeklySleep.map((d) => d.value), [weeklySleep]);
   const hasData = !!summary?.last_logged;
   const proteinAvg = summary?.avg_protein_g ?? 0;
   const caloriesAvg = summary?.avg_calories ?? 0;
   const stepsAvg = summary?.avg_steps ?? 0;
-  const proteinPct = Math.min(Math.round((proteinAvg / 50) * 100), 100);
-  const caloriesPct = Math.min(Math.round((caloriesAvg / 2000) * 100), 100);
-  const stepsAvgPct = Math.min(Math.round((stepsAvg / 10000) * 100), 100);
+  const sleepAvg = summary?.avg_sleep_hours ?? 0;
+
+  const goalProtein = user?.goal_protein_g ?? null;
+  const goalCalories = user?.goal_calories ?? null;
+  const goalSteps = user?.goal_steps ?? null;
+  const goalSleep = user?.goal_sleep_hours ?? null;
+
+  const proteinPct = goalProtein ? Math.min(Math.round((proteinAvg / goalProtein) * 100), 100) : undefined;
+  const caloriesPct = goalCalories ? Math.min(Math.round((caloriesAvg / goalCalories) * 100), 100) : undefined;
+  const stepsAvgPct = goalSteps ? Math.min(Math.round((stepsAvg / goalSteps) * 100), 100) : undefined;
 
   const todayIST = new Date().toLocaleDateString("en-CA");
   const yesterdayDate = new Date(); yesterdayDate.setDate(yesterdayDate.getDate() - 1);
   const yesterdayIST = yesterdayDate.toLocaleDateString("en-CA");
   const todaySteps = logs.find((l) => l.logged_at === todayIST)?.steps ?? 0;
   const yesterdaySteps = logs.find((l) => l.logged_at === yesterdayIST)?.steps ?? 0;
-  const stepsTodayPct = Math.min(Math.round((todaySteps / 10000) * 100), 100);
+  const stepsTodayPct = goalSteps ? Math.min(Math.round((todaySteps / goalSteps) * 100), 100) : undefined;
   const stepsVsYesterday = todaySteps - yesterdaySteps;
 
-  const stepsPts = hasData ? Math.round(stepsAvgPct * 0.4) : 0;
-  const proteinPts = hasData ? Math.round(proteinPct * 0.3) : 0;
-  const caloriesPts = hasData ? Math.round(caloriesPct * 0.3) : 0;
+  const stepsAvgPctForScore = Math.min(Math.round((stepsAvg / (goalSteps ?? 10000)) * 100), 100);
+  const proteinPctForScore = Math.min(Math.round((proteinAvg / (goalProtein ?? 50)) * 100), 100);
+  const caloriesPctForScore = Math.min(Math.round((caloriesAvg / (goalCalories ?? 2000)) * 100), 100);
+  const stepsPts = hasData ? Math.round(stepsAvgPctForScore * 0.4) : 0;
+  const proteinPts = hasData ? Math.round(proteinPctForScore * 0.3) : 0;
+  const caloriesPts = hasData ? Math.round(caloriesPctForScore * 0.3) : 0;
   const personalScore = hasData ? stepsPts + proteinPts + caloriesPts : null;
   const personalTier = scoreTier(personalScore);
 
@@ -360,7 +652,7 @@ export default function DashboardPage() {
     ? "Keep logging to build your streak."
     : "Start logging today to see your trends.";
 
-  const daysGoalMet = weeklySteps.filter((d) => d.value >= 10000).length;
+  const daysGoalMet = goalSteps ? weeklySteps.filter((d) => d.value >= goalSteps).length : 0;
   const bestDay = weeklySteps.reduce((best, d) => (d.value > best.value ? d : best), weeklySteps[0] ?? { label: "—", value: 0 });
   const weeklyCalorieTotal = Math.round(caloriesAvg * 7);
 
@@ -374,7 +666,7 @@ export default function DashboardPage() {
   if (weeklyCalorieTotal > 0) {
     weeklyInsights.push({ icon: <FEFlame size={15} />, text: `You logged ~${weeklyCalorieTotal.toLocaleString()} kcal this week.` });
   }
-  weeklyInsights.push({ icon: <FEDroplet size={15} />, text: "Water & sleep tracking is coming soon." });
+  weeklyInsights.push({ icon: <FEMoon size={15} />, text: "Sleep tracking is coming soon." });
   if (weeklyInsights.length === 1) {
     weeklyInsights.unshift({ icon: <Warning size={15} weight="bold" color="var(--he-orange-deep)" />, text: "No health data logged yet this week." });
   }
@@ -450,6 +742,14 @@ export default function DashboardPage() {
               <CalendarBlank size={15} weight="bold" />
               {new Date().toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
             </div>
+            <div className="db-pill" style={{
+              background: streak > 0 ? "#FFF3E8" : "#F5F3F8",
+              border: `1.5px solid ${streak > 0 ? "#FFD0A0" : "#EDE6E6"}`,
+              color: streak > 0 ? "#CC6A00" : "#9AA0AD",
+              fontWeight: 700, gap: 5,
+            }}>
+              🔥 {streak} {streak === 1 ? "day" : "days"}
+            </div>
             <a href={WA_LINK} target="_blank" rel="noopener noreferrer" className="db-pill cta">
               <WaIcon size={15} />
               Log via WhatsApp
@@ -476,6 +776,21 @@ export default function DashboardPage() {
                     </div>
                     <div style={{ fontSize: 11.5, color: "#9AA0AD", marginTop: 2 }}>{user.phone}</div>
                   </div>
+                  <button
+                    onClick={() => { setShowGoals(true); setShowAccountMenu(false); }}
+                    style={{
+                      width: "100%", display: "flex", alignItems: "center", gap: 9,
+                      padding: "11px 16px", background: "none", border: "none",
+                      borderBottom: "1px solid #F2EFEF",
+                      fontSize: 13.5, fontWeight: 700, color: "#2C2F3A", cursor: "pointer",
+                      fontFamily: "inherit", textAlign: "left",
+                    }}
+                    onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = "#F9F8FA"; }}
+                    onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = "none"; }}
+                  >
+                    <Star size={16} weight="bold" />
+                    Set Goals
+                  </button>
                   <button
                     onClick={handleLogout}
                     style={{
@@ -565,18 +880,19 @@ export default function DashboardPage() {
 
         <div style={{ display: "flex", gap: 16, alignItems: "flex-start", flexWrap: "wrap" }}>
         <div style={{ flex: "1 1 480px", minWidth: 320 }}>
-        {memberRows.length > 0 && (
           <div>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
               <h2 style={{ fontSize: 15, fontWeight: 800, color: "#2C2F3A", margin: 0, fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
                 Family
               </h2>
-              <Link href="/dashboard/family-overview" style={{
-                display: "flex", alignItems: "center", gap: 3, fontSize: 12.5, fontWeight: 700,
-                color: "#7C6FF7", textDecoration: "none",
-              }}>
-                Manage <CaretRight size={11} weight="bold" />
-              </Link>
+              {memberRows.length > 0 && (
+                <Link href="/dashboard/family-overview" style={{
+                  display: "flex", alignItems: "center", gap: 3, fontSize: 12.5, fontWeight: 700,
+                  color: "#7C6FF7", textDecoration: "none",
+                }}>
+                  Manage <CaretRight size={11} weight="bold" />
+                </Link>
+              )}
             </div>
             <div style={{ display: "flex", alignItems: "stretch", gap: 16, overflowX: "auto", padding: "10px 4px 12px" }}>
               {memberRows.map(({ member, summary: memberSummary }) => {
@@ -698,7 +1014,6 @@ export default function DashboardPage() {
               </button>
             </div>
           </div>
-        )}
         </div>
 
         <div style={{ flex: "0 0 360px", minWidth: 300 }}>
@@ -774,11 +1089,49 @@ export default function DashboardPage() {
         </div>
         </div>
 
-        <div style={{ display: "flex", gap: 16, alignItems: "flex-start", flexWrap: "wrap" }}>
+        <div style={{ display: "flex", gap: 16, alignItems: "stretch", flexWrap: "wrap" }}>
           <div className="db-card" style={{ flex: "1 1 0", minWidth: 380, padding: "24px 26px 22px", position: "relative", overflow: "hidden" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 22 }}>
               <span style={{ fontSize: 17, fontWeight: 800, color: "#1A2744", fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Your Weekly Score</span>
-              <Info size={15} weight="bold" color="#BFC4CE" />
+              <div ref={scoreInfoRef} style={{ position: "relative", display: "flex" }}>
+                <button
+                  onClick={() => setShowScoreInfo(v => !v)}
+                  style={{ background: "none", border: "none", cursor: "pointer", padding: 0, display: "flex", lineHeight: 1 }}
+                >
+                  <Info size={15} weight="bold" color={showScoreInfo ? "#7C6FF7" : "#BFC4CE"} />
+                </button>
+                {showScoreInfo && (
+                  <div style={{
+                    position: "absolute", top: "calc(100% + 8px)", left: "50%", transform: "translateX(-50%)",
+                    background: "#1A2744", color: "#fff", borderRadius: 14, padding: "14px 16px",
+                    width: 260, zIndex: 50, boxShadow: "0 8px 28px rgba(26,20,20,.22)",
+                    fontFamily: "'Plus Jakarta Sans', sans-serif",
+                  }}>
+                    <div style={{ position: "absolute", top: -6, left: "50%", transform: "translateX(-50%)", width: 12, height: 6, overflow: "hidden" }}>
+                      <div style={{ width: 10, height: 10, background: "#1A2744", transform: "rotate(45deg)", margin: "3px auto 0" }} />
+                    </div>
+                    <p style={{ margin: "0 0 10px", fontSize: 12, fontWeight: 800, color: "#fff" }}>How your score is calculated</p>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
+                      {[
+                        { label: "Steps", detail: "avg vs 10,000/day goal", weight: "40 pts" },
+                        { label: "Protein", detail: "avg vs 50 g/day goal", weight: "30 pts" },
+                        { label: "Calories", detail: "avg vs 2,000 kcal/day goal", weight: "30 pts" },
+                      ].map(({ label, detail, weight }) => (
+                        <div key={label} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+                          <div>
+                            <span style={{ fontSize: 12, fontWeight: 700, color: "#fff" }}>{label}</span>
+                            <span style={{ fontSize: 11, color: "#9AA0AD", marginLeft: 5 }}>{detail}</span>
+                          </div>
+                          <span style={{ fontSize: 11, fontWeight: 800, color: "#7C6FF7", flexShrink: 0 }}>{weight}</span>
+                        </div>
+                      ))}
+                    </div>
+                    <p style={{ margin: "10px 0 0", fontSize: 10.5, color: "#9AA0AD", lineHeight: 1.5 }}>
+                      Each metric is scored as a % of goal, then weighted. Averages are taken over the last 7 days.
+                    </p>
+                  </div>
+                )}
+              </div>
             </div>
 
             <div style={{ display: "flex", gap: 28, flexWrap: "wrap" }}>
@@ -824,16 +1177,10 @@ export default function DashboardPage() {
                     <span style={{ width: 44, textAlign: "right", fontSize: 12, fontWeight: 700, color: "#9AA0AD" }}>{caloriesPts}/30</span>
                   </div>
                   <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    <FEDroplet size={20} />
-                    <span style={{ width: 60, fontSize: 12.5, fontWeight: 700, color: "#2C2F3A" }}>Water</span>
-                    <div className="db-bar-track" style={{ flex: 1, margin: 0 }}><div className="db-bar-fill" style={{ width: "30%", background: "#D8E4F0" }} /></div>
-                    <span style={{ fontSize: 10, fontWeight: 700, color: "#9AA0AD", background: "#F5F3F8", padding: "2px 8px", borderRadius: 99, whiteSpace: "nowrap" }}>Soon</span>
-                  </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                     <FEMoon size={20} />
                     <span style={{ width: 60, fontSize: 12.5, fontWeight: 700, color: "#2C2F3A" }}>Sleep</span>
-                    <div className="db-bar-track" style={{ flex: 1, margin: 0 }}><div className="db-bar-fill" style={{ width: "30%", background: "#DCD7F2" }} /></div>
-                    <span style={{ fontSize: 10, fontWeight: 700, color: "#9AA0AD", background: "#F5F3F8", padding: "2px 8px", borderRadius: 99, whiteSpace: "nowrap" }}>Soon</span>
+                    <div className="db-bar-track" style={{ flex: 1, margin: 0 }}><div className="db-bar-fill" style={{ width: `${Math.min(Math.round((sleepAvg / 8) * 100), 100)}%`, background: "#8B7FE8" }} /></div>
+                    <span style={{ width: 44, textAlign: "right", fontSize: 12, fontWeight: 700, color: "#9AA0AD" }}>{sleepAvg ? `${sleepAvg.toFixed(1)}h` : "—"}</span>
                   </div>
                 </div>
               </div>
@@ -846,7 +1193,7 @@ export default function DashboardPage() {
                 <p style={{ margin: "0 0 14px", fontSize: 13.5, fontWeight: 800, color: "#1A2744" }}>7-Day Activity</p>
                 <div style={{ display: "flex", gap: 10 }}>
                   {weeklySteps.map((d, i) => {
-                    const status = d.value === 0 ? "missed" : d.value >= 10000 ? "met" : "partial";
+                    const status = d.value === 0 ? "missed" : goalSteps && d.value >= goalSteps ? "met" : d.value > 0 ? "partial" : "missed";
                     const color = status === "met" ? "var(--he-green)" : status === "partial" ? "var(--he-blue)" : "var(--he-coral)";
                     return (
                       <div key={i} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 7 }}>
@@ -893,49 +1240,57 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          <div style={{ flex: "1 1 0", minWidth: 300 }}>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 10 }}>
+          <div style={{ flex: "1 1 0", minWidth: 300, display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 10, alignContent: "start" }}>
               <MetricTile
                 icon={<FEMeat size={16} />} label="Protein"
                 color="var(--he-coral)" deepColor="var(--he-coral-deep)" chipBg="var(--he-coral-bg-2)" stripBg="var(--he-coral-bg)"
-                value={proteinAvg ? proteinAvg.toFixed(0) : "—"} unit="g" goalText="of 50 g goal" pct={proteinPct}
+                value={proteinAvg ? proteinAvg.toFixed(0) : "—"} unit="g"
+                goalText={goalProtein ? `of ${goalProtein}g goal` : undefined}
+                pct={proteinPct}
                 deltaDown={proteinDeltaPct !== null && proteinDeltaPct < 0}
                 deltaText={proteinDeltaPct !== null ? `${Math.abs(proteinDeltaPct)}% vs last week` : "No data yet"}
                 sparkline={proteinSeries}
+                onClick={() => setMetricDetail({ label: "Protein", data: weeklyProtein, color: "#FF6B6B", unit: "g", goal: goalProtein ?? undefined, decimals: 0 })}
+                onSetGoal={() => setShowGoals(true)}
               />
               <MetricTile
                 icon={<FEWheat size={16} />} label="Calories"
                 color="var(--he-orange)" deepColor="var(--he-orange-deep)" chipBg="var(--he-orange-bg-2)" stripBg="var(--he-orange-bg)"
-                value={caloriesAvg ? caloriesAvg.toFixed(0) : "—"} unit="kcal" goalText="of 2,000 kcal goal" pct={caloriesPct}
+                value={caloriesAvg ? caloriesAvg.toFixed(0) : "—"} unit="kcal"
+                goalText={goalCalories ? `of ${goalCalories.toLocaleString()} kcal goal` : undefined}
+                pct={caloriesPct}
                 deltaDown={caloriesDeltaAbs !== null && caloriesDeltaAbs < 0}
                 deltaText={caloriesDeltaAbs !== null ? `${Math.abs(caloriesDeltaAbs)} kcal vs last week` : "No data yet"}
                 sparkline={caloriesSeries}
+                onClick={() => setMetricDetail({ label: "Calories", data: weeklyCalories, color: "#FF9F45", unit: "kcal", goal: goalCalories ?? undefined })}
+                onSetGoal={() => setShowGoals(true)}
               />
               <MetricTile
                 icon={<FEShoe size={16} />} label="Steps today"
                 color="var(--he-green)" deepColor="var(--he-green-deep)" chipBg="var(--he-green-bg-2)" stripBg="var(--he-green-bg)"
-                value={todaySteps ? todaySteps.toLocaleString() : "—"} goalText="of 10,000 steps goal" pct={stepsTodayPct}
+                value={todaySteps ? todaySteps.toLocaleString() : "—"}
+                goalText={goalSteps ? `of ${goalSteps.toLocaleString()} steps goal` : undefined}
+                pct={stepsTodayPct}
                 deltaDown={stepsVsYesterday < 0}
                 deltaText={`${Math.abs(stepsVsYesterday).toLocaleString()} vs yesterday`}
                 sparkline={stepsSeries}
+                onClick={() => setMetricDetail({ label: "Steps", data: weeklySteps, color: "#2FBE76", unit: "steps", goal: goalSteps ?? undefined })}
+                onSetGoal={() => setShowGoals(true)}
               />
               <MetricTile
                 icon={<FEMoon size={16} />} label="Sleep"
                 color="#8B7FE8" deepColor="#6A5BD0" chipBg="#E4E0FB" stripBg="var(--he-violet-bg)"
-                value="6.5" unit="hrs" goalText="of 7–8 hrs goal · Coming soon" pct={81}
+                value={sleepAvg ? sleepAvg.toFixed(1) : "—"} unit="hrs"
+                goalText={goalSleep ? `of ${goalSleep}h goal` : undefined}
+                pct={goalSleep ? Math.min(Math.round((sleepAvg / goalSleep) * 100), 100) : undefined}
                 deltaDown={false}
-                deltaText="20 mins vs last week"
-                sparkline={[5.8, 6.1, 6.4, 5.9, 6.7, 7.0, 6.5]}
-              />
-              <MetricTile
-                icon={<FEDroplet size={16} />} label="Water"
-                color="var(--he-blue)" deepColor="var(--he-blue-deep)" chipBg="var(--he-blue-bg-2)" stripBg="var(--he-blue-bg)"
-                value="1.8" unit="L" goalText="of 2.5 L goal · Coming soon" pct={72}
-                deltaDown={true}
-                deltaText="0.2 L vs last week"
-                sparkline={[2.1, 1.9, 2.0, 1.7, 1.6, 1.9, 1.8]}
+                deltaText={sleepAvg ? `avg last 7 days` : "No data yet"}
+                sparkline={sleepSeries}
+                onClick={sleepAvg ? () => setMetricDetail({ label: "Sleep", data: weeklySleep, color: "#8B7FE8", unit: "hrs", goal: goalSleep ?? undefined, decimals: 1 }) : undefined}
+                onSetGoal={() => setShowGoals(true)}
               />
               <div className="db-card" style={{
+                gridColumn: "1 / -1",
                 display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
                 textAlign: "center", gap: 6, position: "relative", overflow: "hidden", padding: "13px 14px",
                 background: "linear-gradient(165deg, var(--he-green-bg) 0%, #fff 65%)",
@@ -952,7 +1307,6 @@ export default function DashboardPage() {
                 <p style={{ margin: 0, fontWeight: 800, fontSize: 13, color: "var(--he-green-deep)" }}>{motivCopy.title}</p>
                 <p style={{ margin: 0, fontSize: 11, color: "#5A5F6E", lineHeight: 1.4, maxWidth: 200 }}>{motivCopy.message}</p>
               </div>
-            </div>
           </div>
         </div>
 
@@ -1003,6 +1357,23 @@ export default function DashboardPage() {
         <AddFamilyModal
           onClose={() => setShowAddFamily(false)}
           onAdded={(member) => setMemberRows((rows) => [...rows, { member, summary: null }])}
+        />
+      )}
+
+      {metricDetail && (
+        <MetricDetailFloater
+          detail={metricDetail}
+          onClose={() => setMetricDetail(null)}
+          onSetGoal={() => setShowGoals(true)}
+        />
+      )}
+
+      {showGoals && user && (
+        <GoalsModal
+          user={user}
+          token={localStorage.getItem("auth_token") ?? ""}
+          onSave={(updated) => setUser(updated)}
+          onClose={() => setShowGoals(false)}
         />
       )}
     </div>

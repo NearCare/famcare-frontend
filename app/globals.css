@@ -83,7 +83,7 @@ a {
   100% { stroke-dashoffset: 0; }
 }
 
-/* ── NearCare Dashboard — HealthEase design system ── */
+/* ── FamCare Dashboard — design system ── */
 :root {
   --he-page-bg: #FBFAF9;
   --he-card: #FFFFFF;
@@ -515,6 +515,104 @@ a {
   .db-family-banner-emoji { font-size: 46px !important; }
   .db-family-banner-actions { width: 100%; flex-wrap: wrap; }
   .db-family-banner-actions button:first-child { flex: 1 1 auto; justify-content: center; }
+}
+
+/* ── Medications page ── */
+.med-shell {
+  padding: 24px;
+}
+.med-page-head,
+.med-context-row,
+.med-schedule-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.med-context-row {
+  align-items: center;
+  margin-top: 18px;
+}
+.med-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 18px;
+  margin-top: 24px;
+}
+.med-stat-card {
+  box-shadow: var(--he-shadow-soft);
+}
+.med-schedule-card {
+  margin-top: 18px;
+  border: 1px solid var(--he-hairline);
+  border-radius: 18px;
+  padding: 18px;
+  background: #fff;
+}
+.med-empty-state {
+  margin-top: 14px;
+  border: 1.5px dashed #F3D3D0;
+  border-radius: 18px;
+  padding: 44px 20px;
+  text-align: center;
+  background: linear-gradient(160deg, #FFFFFF 0%, #FFF8F7 58%, #F8FFF9 100%);
+}
+.med-empty-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 20px;
+}
+.med-empty-checks {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 20px;
+}
+.med-empty-checks span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 11px;
+  background: var(--he-green-bg);
+  border-radius: 999px;
+  color: var(--he-green-deep);
+  font-size: 11.5px;
+  font-weight: 800;
+}
+.med-dose-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  border: 1px solid var(--he-hairline);
+  border-radius: 16px;
+  padding: 12px 14px;
+}
+.med-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+@media (max-width: 1100px) {
+  .med-stat-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 700px) {
+  .med-shell { padding: 18px 14px; }
+  .med-add-main { width: 100%; justify-content: center; }
+  .med-stat-grid { grid-template-columns: 1fr; gap: 12px; }
+  .med-dose-row {
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .med-dose-row > span { margin-left: 0; }
+  .med-form-grid { grid-template-columns: 1fr; }
+  .med-drawer { width: 100% !important; }
 }
 
 /* ── Modal / bottom sheet ── */

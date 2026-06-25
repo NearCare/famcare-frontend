@@ -211,7 +211,7 @@ export default function AddFamilyModal({ onClose, onAdded, onActivated }: Props)
                 WhatsApp message preview
               </div>
               <p style={{ fontSize: 12.5, color: "#4A4560", lineHeight: 1.6, margin: 0 }}>
-                <em>wants to track your health on <strong>NearCare</strong> 🌱</em><br />
+                <em>wants to track your health on <strong>FamCare</strong> 🌱</em><br />
                 Reply <strong>YES</strong> to join and start logging your health together!
               </p>
             </div>
