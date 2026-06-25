@@ -298,7 +298,7 @@ function GoalsModal({
 }
 
 function MetricTile({
-  icon, label, color, deepColor, chipBg, stripBg, value, unit, goalText, pct, deltaDown, deltaText, sparkline, onClick,
+  icon, label, color, deepColor, chipBg, stripBg, value, unit, goalText, pct, deltaDown, deltaText, sparkline, onClick, onSetGoal,
 }: {
   icon: React.ReactNode;
   label: string;
@@ -314,6 +314,7 @@ function MetricTile({
   deltaText: string;
   sparkline: number[];
   onClick?: () => void;
+  onSetGoal?: () => void;
 }) {
   return (
     <div className="db-card fo-metric-tile" onClick={onClick} style={{ display: "flex", flexDirection: "column", padding: "13px 14px", cursor: onClick ? "pointer" : "default" }}>
@@ -331,7 +332,22 @@ function MetricTile({
         <span style={{ fontSize: 20, fontWeight: 800, color: "#1A2744", letterSpacing: "-.5px" }}>{value}</span>
         {unit && <span style={{ fontSize: 11.5, fontWeight: 700, color: "#9AA0AD", marginLeft: 3 }}>{unit}</span>}
       </div>
-      {goalText && <p style={{ margin: "1px 0 0", fontSize: 10.5, color: "#9AA0AD", fontWeight: 500 }}>{goalText}</p>}
+
+      {goalText ? (
+        <p style={{ margin: "1px 0 0", fontSize: 10.5, color: "#9AA0AD", fontWeight: 500 }}>{goalText}</p>
+      ) : (
+        <button
+          onClick={(e) => { e.stopPropagation(); onSetGoal?.(); }}
+          style={{
+            marginTop: 2, padding: "1px 7px", border: "1.5px dashed #D8D4F0",
+            borderRadius: 20, background: "none", cursor: "pointer",
+            fontSize: 10.5, fontWeight: 700, color: "#9B93E0", fontFamily: "inherit",
+            alignSelf: "flex-start",
+          }}
+        >
+          + Set goal
+        </button>
+      )}
 
       {pct !== undefined ? (
         <div style={{ display: "flex", alignItems: "center", gap: 7, marginTop: 7 }}>
@@ -341,7 +357,7 @@ function MetricTile({
           <span style={{ fontSize: 11, fontWeight: 800, color }}>{pct}%</span>
         </div>
       ) : (
-        <div style={{ marginTop: 7, height: 5 }} />
+        <div style={{ marginTop: 4, height: 5 }} />
       )}
 
       <div style={{
@@ -1235,6 +1251,7 @@ export default function DashboardPage() {
                 deltaText={proteinDeltaPct !== null ? `${Math.abs(proteinDeltaPct)}% vs last week` : "No data yet"}
                 sparkline={proteinSeries}
                 onClick={() => setMetricDetail({ label: "Protein", data: weeklyProtein, color: "#FF6B6B", unit: "g", goal: goalProtein ?? undefined, decimals: 0 })}
+                onSetGoal={() => setShowGoals(true)}
               />
               <MetricTile
                 icon={<FEWheat size={16} />} label="Calories"
@@ -1246,6 +1263,7 @@ export default function DashboardPage() {
                 deltaText={caloriesDeltaAbs !== null ? `${Math.abs(caloriesDeltaAbs)} kcal vs last week` : "No data yet"}
                 sparkline={caloriesSeries}
                 onClick={() => setMetricDetail({ label: "Calories", data: weeklyCalories, color: "#FF9F45", unit: "kcal", goal: goalCalories ?? undefined })}
+                onSetGoal={() => setShowGoals(true)}
               />
               <MetricTile
                 icon={<FEShoe size={16} />} label="Steps today"
@@ -1257,6 +1275,7 @@ export default function DashboardPage() {
                 deltaText={`${Math.abs(stepsVsYesterday).toLocaleString()} vs yesterday`}
                 sparkline={stepsSeries}
                 onClick={() => setMetricDetail({ label: "Steps", data: weeklySteps, color: "#2FBE76", unit: "steps", goal: goalSteps ?? undefined })}
+                onSetGoal={() => setShowGoals(true)}
               />
               <MetricTile
                 icon={<FEMoon size={16} />} label="Sleep"
@@ -1268,6 +1287,7 @@ export default function DashboardPage() {
                 deltaText={sleepAvg ? `avg last 7 days` : "No data yet"}
                 sparkline={sleepSeries}
                 onClick={sleepAvg ? () => setMetricDetail({ label: "Sleep", data: weeklySleep, color: "#8B7FE8", unit: "hrs", goal: goalSleep ?? undefined, decimals: 1 }) : undefined}
+                onSetGoal={() => setShowGoals(true)}
               />
               <div className="db-card" style={{
                 gridColumn: "1 / -1",
