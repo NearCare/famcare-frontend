@@ -62,11 +62,11 @@ type MetricDetail = {
   data: { label: string; value: number }[];
   color: string;
   unit: string;
-  goal: number;
+  goal?: number;
   decimals?: number;
 };
 
-function MetricDetailFloater({ detail, onClose }: { detail: MetricDetail; onClose: () => void }) {
+function MetricDetailFloater({ detail, onClose, onSetGoal }: { detail: MetricDetail; onClose: () => void; onSetGoal: () => void }) {
   useEffect(() => {
     const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
     document.addEventListener("keydown", handler);
@@ -74,7 +74,7 @@ function MetricDetailFloater({ detail, onClose }: { detail: MetricDetail; onClos
   }, [onClose]);
 
   const todayIdx = detail.data.length - 1;
-  const maxVal = Math.max(...detail.data.map(d => d.value), detail.goal * 0.5);
+  const maxVal = Math.max(...detail.data.map(d => d.value), detail.goal ? detail.goal * 0.5 : 1);
   const fmt = (v: number) => detail.decimals ? v.toFixed(detail.decimals) : Math.round(v).toLocaleString();
 
   return (
@@ -97,7 +97,21 @@ function MetricDetailFloater({ detail, onClose }: { detail: MetricDetail; onClos
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
           <div>
             <p style={{ margin: 0, fontSize: 17, fontWeight: 800, color: "#1A2744" }}>{detail.label}</p>
-            <p style={{ margin: "2px 0 0", fontSize: 12, color: "#9AA0AD", fontWeight: 500 }}>Last 7 days · Goal: {detail.goal.toLocaleString()} {detail.unit}/day</p>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 3 }}>
+              <p style={{ margin: 0, fontSize: 12, color: "#9AA0AD", fontWeight: 500 }}>
+                Last 7 days{detail.goal ? ` · Goal: ${detail.goal.toLocaleString()} ${detail.unit}/day` : ""}
+              </p>
+              <button
+                onClick={(e) => { e.stopPropagation(); onClose(); onSetGoal(); }}
+                style={{
+                  padding: "2px 8px", border: "1.5px solid #E0DCF0", borderRadius: 20,
+                  background: "none", cursor: "pointer", fontSize: 10.5, fontWeight: 700,
+                  color: "#7C6FF7", fontFamily: "inherit", lineHeight: 1.5,
+                }}
+              >
+                {detail.goal ? "Edit goal" : "Set goal"}
+              </button>
+            </div>
           </div>
           <button
             onClick={onClose}
@@ -126,20 +140,22 @@ function MetricDetailFloater({ detail, onClose }: { detail: MetricDetail; onClos
               itemStyle={{ fontWeight: 700 }}
               formatter={(v) => [`${fmt(Number(v))} ${detail.unit}`, detail.label]}
             />
-            <ReferenceLine
-              y={detail.goal}
-              stroke="#E0DCF0" strokeDasharray="5 4" strokeWidth={1.5}
-              label={{ value: "Goal", position: "right", fontSize: 10, fill: "#BFC4CE", fontFamily: "'Plus Jakarta Sans', sans-serif" }}
-            />
+            {detail.goal && (
+              <ReferenceLine
+                y={detail.goal}
+                stroke="#E0DCF0" strokeDasharray="5 4" strokeWidth={1.5}
+                label={{ value: "Goal", position: "right", fontSize: 10, fill: "#BFC4CE", fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+              />
+            )}
             <Bar dataKey="value" radius={[7, 7, 3, 3]}>
               {detail.data.map((entry, i) => (
                 <Cell
                   key={i}
                   fill={i === todayIdx
                     ? detail.color
-                    : entry.value >= detail.goal
-                      ? detail.color + "CC"
-                      : detail.color + "44"
+                    : detail.goal
+                      ? (entry.value >= detail.goal ? detail.color + "CC" : detail.color + "44")
+                      : detail.color + "88"
                   }
                 />
               ))}
@@ -148,11 +164,14 @@ function MetricDetailFloater({ detail, onClose }: { detail: MetricDetail; onClos
         </ResponsiveContainer>
 
         <div style={{ display: "flex", gap: 12, marginTop: 14, flexWrap: "wrap" }}>
-          {[
+          {(detail.goal ? [
             { dot: detail.color, label: "Today" },
             { dot: detail.color + "CC", label: "Goal met" },
             { dot: detail.color + "44", label: "Below goal" },
-          ].map(({ dot, label }) => (
+          ] : [
+            { dot: detail.color, label: "Today" },
+            { dot: detail.color + "88", label: "Other days" },
+          ]).map(({ dot, label }) => (
             <span key={label} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, fontWeight: 600, color: "#9AA0AD" }}>
               <span style={{ width: 8, height: 8, borderRadius: 2, background: dot, display: "inline-block" }} />
               {label}
@@ -1216,7 +1235,7 @@ export default function DashboardPage() {
                 deltaDown={proteinDeltaPct !== null && proteinDeltaPct < 0}
                 deltaText={proteinDeltaPct !== null ? `${Math.abs(proteinDeltaPct)}% vs last week` : "No data yet"}
                 sparkline={proteinSeries}
-                onClick={() => setMetricDetail({ label: "Protein", data: weeklyProtein, color: "#FF6B6B", unit: "g", goal: goalProtein ?? 50, decimals: 0 })}
+                onClick={() => setMetricDetail({ label: "Protein", data: weeklyProtein, color: "#FF6B6B", unit: "g", goal: goalProtein ?? undefined, decimals: 0 })}
               />
               <MetricTile
                 icon={<FEWheat size={16} />} label="Calories"
@@ -1227,7 +1246,7 @@ export default function DashboardPage() {
                 deltaDown={caloriesDeltaAbs !== null && caloriesDeltaAbs < 0}
                 deltaText={caloriesDeltaAbs !== null ? `${Math.abs(caloriesDeltaAbs)} kcal vs last week` : "No data yet"}
                 sparkline={caloriesSeries}
-                onClick={() => setMetricDetail({ label: "Calories", data: weeklyCalories, color: "#FF9F45", unit: "kcal", goal: goalCalories ?? 2000 })}
+                onClick={() => setMetricDetail({ label: "Calories", data: weeklyCalories, color: "#FF9F45", unit: "kcal", goal: goalCalories ?? undefined })}
               />
               <MetricTile
                 icon={<FEShoe size={16} />} label="Steps today"
@@ -1238,7 +1257,7 @@ export default function DashboardPage() {
                 deltaDown={stepsVsYesterday < 0}
                 deltaText={`${Math.abs(stepsVsYesterday).toLocaleString()} vs yesterday`}
                 sparkline={stepsSeries}
-                onClick={() => setMetricDetail({ label: "Steps", data: weeklySteps, color: "#2FBE76", unit: "steps", goal: goalSteps ?? 10000 })}
+                onClick={() => setMetricDetail({ label: "Steps", data: weeklySteps, color: "#2FBE76", unit: "steps", goal: goalSteps ?? undefined })}
               />
               <MetricTile
                 icon={<FEMoon size={16} />} label="Sleep"
@@ -1249,7 +1268,7 @@ export default function DashboardPage() {
                 deltaDown={false}
                 deltaText={sleepAvg ? `avg last 7 days` : "No data yet"}
                 sparkline={sleepSeries}
-                onClick={sleepAvg ? () => setMetricDetail({ label: "Sleep", data: weeklySleep, color: "#8B7FE8", unit: "hrs", goal: goalSleep ?? 8, decimals: 1 }) : undefined}
+                onClick={sleepAvg ? () => setMetricDetail({ label: "Sleep", data: weeklySleep, color: "#8B7FE8", unit: "hrs", goal: goalSleep ?? undefined, decimals: 1 }) : undefined}
               />
               <div className="db-card" style={{
                 display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
@@ -1323,7 +1342,11 @@ export default function DashboardPage() {
       )}
 
       {metricDetail && (
-        <MetricDetailFloater detail={metricDetail} onClose={() => setMetricDetail(null)} />
+        <MetricDetailFloater
+          detail={metricDetail}
+          onClose={() => setMetricDetail(null)}
+          onSetGoal={() => setShowGoals(true)}
+        />
       )}
 
       {showGoals && user && (
