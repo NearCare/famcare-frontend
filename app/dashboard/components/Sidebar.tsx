@@ -46,7 +46,7 @@ export default function Sidebar() {
     <>
       <div className="db-mobile-topbar">
         <span style={{ fontSize: 17, fontWeight: 800, fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
-          Near<span style={{ color: "#FF6B6B" }}>Care</span>
+          Fam<span style={{ color: "#FF6B6B" }}>Care</span>
         </span>
         <button onClick={() => setMobileOpen(!mobileOpen)}
           style={{ background: "none", border: "none", cursor: "pointer", padding: 4, display: "flex", alignItems: "center" }}>
@@ -67,7 +67,7 @@ export default function Sidebar() {
               <circle cx="12" cy="8.5" r="3" fill="rgba(255,255,255,0.45)" />
             </svg>
           </div>
-          <span className="db-brand-name">Near<span className="care">Care</span></span>
+          <span className="db-brand-name">Fam<span className="care">Care</span></span>
         </div>
 
         <nav className="db-nav">

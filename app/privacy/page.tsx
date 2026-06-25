@@ -13,7 +13,7 @@ export default function PrivacyPolicy() {
         background: "#fff",
       }}>
         <Link href="/" style={{ fontSize: 18, fontWeight: 800, color: "#1A2744", textDecoration: "none" }}>
-          Near<span style={{ color: "#E85C5C" }}>Care</span>
+          Fam<span style={{ color: "#E85C5C" }}>Care</span>
         </Link>
         <Link href="/login" style={{
           padding: "9px 20px", background: "#E85C5C", color: "#fff",
