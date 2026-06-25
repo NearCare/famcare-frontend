@@ -1073,7 +1073,7 @@ export default function DashboardPage() {
         </div>
         </div>
 
-        <div style={{ display: "flex", gap: 16, alignItems: "flex-start", flexWrap: "wrap" }}>
+        <div style={{ display: "flex", gap: 16, alignItems: "stretch", flexWrap: "wrap" }}>
           <div className="db-card" style={{ flex: "1 1 0", minWidth: 380, padding: "24px 26px 22px", position: "relative", overflow: "hidden" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 22 }}>
               <span style={{ fontSize: 17, fontWeight: 800, color: "#1A2744", fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Your Weekly Score</span>
@@ -1224,8 +1224,7 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          <div style={{ flex: "1 1 0", minWidth: 300 }}>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 10 }}>
+          <div style={{ flex: "1 1 0", minWidth: 300, display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 10, alignContent: "start" }}>
               <MetricTile
                 icon={<FEMeat size={16} />} label="Protein"
                 color="var(--he-coral)" deepColor="var(--he-coral-deep)" chipBg="var(--he-coral-bg-2)" stripBg="var(--he-coral-bg)"
@@ -1271,6 +1270,7 @@ export default function DashboardPage() {
                 onClick={sleepAvg ? () => setMetricDetail({ label: "Sleep", data: weeklySleep, color: "#8B7FE8", unit: "hrs", goal: goalSleep ?? undefined, decimals: 1 }) : undefined}
               />
               <div className="db-card" style={{
+                gridColumn: "1 / -1",
                 display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
                 textAlign: "center", gap: 6, position: "relative", overflow: "hidden", padding: "13px 14px",
                 background: "linear-gradient(165deg, var(--he-green-bg) 0%, #fff 65%)",
@@ -1287,7 +1287,6 @@ export default function DashboardPage() {
                 <p style={{ margin: 0, fontWeight: 800, fontSize: 13, color: "var(--he-green-deep)" }}>{motivCopy.title}</p>
                 <p style={{ margin: 0, fontSize: 11, color: "#5A5F6E", lineHeight: 1.4, maxWidth: 200 }}>{motivCopy.message}</p>
               </div>
-            </div>
           </div>
         </div>
 
