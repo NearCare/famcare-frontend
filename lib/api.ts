@@ -36,6 +36,10 @@ const MOCK_USER: User = {
   id: 1,
   phone: "+910000000000",
   name: "Test User",
+  goal_steps: null,
+  goal_protein_g: null,
+  goal_calories: null,
+  goal_sleep_hours: null,
   created_at: new Date().toISOString(),
 };
 
@@ -75,6 +79,10 @@ export type User = {
   id: number;
   phone: string;
   name: string | null;
+  goal_steps: number | null;
+  goal_protein_g: number | null;
+  goal_calories: number | null;
+  goal_sleep_hours: number | null;
   created_at: string;
 };
 
@@ -185,6 +193,25 @@ export async function verifyOtp(
     throw new Error(message ?? "Couldn't verify your code right now. Please try again.");
   }
   return res.json() as Promise<AuthResponse>;
+}
+
+/** Updates the user's personal health goals. Pass null to clear a goal. */
+export async function updateUserGoals(
+  userId: number,
+  goals: { goal_steps: number | null; goal_protein_g: number | null; goal_calories: number | null; goal_sleep_hours: number | null },
+  token: string,
+): Promise<User> {
+  if (MOCK_API) return { ...MOCK_USER, ...goals };
+  const res = await fetch(`${BASE_URL}/api/users/${userId}/goals`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify(goals),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error((err as { error?: string }).error ?? "Failed to update goals");
+  }
+  return res.json() as Promise<User>;
 }
 
 /** Sets the caller's display name. Used by the first-login onboarding step. */
