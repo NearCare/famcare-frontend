@@ -1,10 +1,10 @@
 @AGENTS.md
 
-# NearCare Frontend
+# FamCare Frontend
 
 ## Project overview
 
-Next.js 15 (App Router) dashboard for **NearCare** — a WhatsApp-first family health tracking platform. Family members send casual Hindi/English messages or voice notes to a WhatsApp number; the Kotlin/Ktor backend (at `../nearcare-be`) parses them and stores structured health data. This frontend displays that data.
+Next.js 15 (App Router) dashboard for **FamCare** — a WhatsApp-first family health tracking platform. Family members send casual Hindi/English messages or voice notes to a WhatsApp number; the Kotlin/Ktor backend parses them and stores structured health data. This frontend displays that data.
 
 ## Stack
 
@@ -107,7 +107,7 @@ KPI hover lift is defined in `globals.css` as `.db-kpi` — add that class to an
 
 ## Backend API
 
-Kotlin/Ktor backend at `../nearcare-be`, port **8080** locally.
+Kotlin/Ktor backend, port **8080** locally.
 
 ### Auth
 - `POST /auth/send-otp` — `{ phone }` → sends OTP via WhatsApp

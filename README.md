@@ -1,6 +1,6 @@
 <div align="center">
 
-# NearCare
+# FamCare
 
 **Track your family's health — just send a WhatsApp message.**
 
@@ -17,7 +17,7 @@ A warm-pastel health dashboard that visualises data logged by family members via
 
 ## About
 
-NearCare is a WhatsApp-first family health tracker. Family members send casual Hindi/English messages or voice notes; a Kotlin/Ktor backend parses them with Gemini AI and stores structured health logs. This frontend displays that data in a clean, warm-pastel dashboard.
+FamCare is a WhatsApp-first family health tracker. Family members send casual Hindi/English messages or voice notes; a Kotlin/Ktor backend parses them with Gemini AI and stores structured health logs. This frontend displays that data in a clean, warm-pastel dashboard.
 
 Key highlights:
 
@@ -55,8 +55,8 @@ Key highlights:
 
 ```bash
 # 1. Clone the repo
-git clone https://github.com/your-org/nearcare-frontend.git
-cd nearcare-frontend
+git clone https://github.com/your-org/famcare-frontend.git
+cd famcare-frontend
 
 # 2. Install dependencies
 npm install
@@ -152,5 +152,5 @@ The `FluentEmoji.tsx` components are hand-crafted layered SVGs that match the Mi
 ---
 
 <div align="center">
-Made with care by the NearCare team
+Made with care by the FamCare team
 </div>

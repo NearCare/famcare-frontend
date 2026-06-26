@@ -98,7 +98,7 @@ export default function LoginPage() {
             </svg>
           </div>
           <span style={{ fontSize: 18, fontWeight: 700, letterSpacing: "-.3px" }}>
-            Health<em style={{ color: "#E85C5C", fontStyle: "normal" }}>Ease</em>
+            Fam<em style={{ color: "#E85C5C", fontStyle: "normal" }}>Care</em>
           </span>
         </div>
 

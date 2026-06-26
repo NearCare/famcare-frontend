@@ -3,7 +3,7 @@ import Link from "next/link";
 import {
   House, TrendUp, ForkKnife, Lightning, ClipboardText, Trophy,
   Bell, Gear, CalendarBlank, Fire, Lock, MapPin, Users,
-  ChatDots, ChartBar, Target, Heart, UserCircle,
+  ChatDots, ChartBar, Heart, UserCircle,
 } from "@phosphor-icons/react";
 import { FEShoe, FETarget } from "./dashboard/components/FluentEmoji";
 
@@ -43,7 +43,7 @@ const DashboardMockup = () => (
             <path d="M10 17.2C10 17.2 2.5 12.5 2.5 7.5A5 5 0 0 1 10 3.84 5 5 0 0 1 17.5 7.5C17.5 12.5 10 17.2 10 17.2Z" fill="white" />
           </svg>
         </div>
-        <span style={{ fontSize: 11.5, fontWeight: 700 }}>Health<em style={{ color: "#E85C5C", fontStyle: "normal" }}>Ease</em></span>
+        <span style={{ fontSize: 11.5, fontWeight: 700 }}>Fam<em style={{ color: "#E85C5C", fontStyle: "normal" }}>Care</em></span>
       </div>
       <div style={{ fontSize: 11, fontWeight: 600 }}>
         Hello, Priya! 👋 <small style={{ fontSize: 9.5, color: "#6B7A9A", fontWeight: 400, display: "block", marginTop: 1 }}>Here&apos;s your health summary for today.</small>
@@ -270,7 +270,7 @@ export default function LandingPage() {
             <HeartIcon />
           </div>
           <span style={{ fontSize: 17, fontWeight: 700, letterSpacing: "-.3px" }}>
-            Health<em style={{ color: "#E85C5C", fontStyle: "normal" }}>Ease</em>
+            Fam<em style={{ color: "#E85C5C", fontStyle: "normal" }}>Care</em>
           </span>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>

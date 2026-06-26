@@ -23,6 +23,7 @@ import {
 import StreakPill from "../components/StreakPill";
 
 const WA_LINK = "https://wa.me/";
+const MEDICINES_STORAGE_KEY = "famcare_medicines";
 
 type PersonOption = {
   id: string;
@@ -436,13 +437,13 @@ export default function MedicationsPage() {
       setPeople(options);
       setSelectedPersonId(options[0]?.id ?? "self");
 
-      const saved = localStorage.getItem("nearcare_medicines");
+      const saved = localStorage.getItem(MEDICINES_STORAGE_KEY);
       if (saved) setMedicines(JSON.parse(saved) as Medicine[]);
     })();
   }, []);
 
   useEffect(() => {
-    localStorage.setItem("nearcare_medicines", JSON.stringify(medicines));
+    localStorage.setItem(MEDICINES_STORAGE_KEY, JSON.stringify(medicines));
   }, [medicines]);
 
   const selectedPerson = people.find((person) => person.id === selectedPersonId);
