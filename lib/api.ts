@@ -324,6 +324,106 @@ export async function getMemberLogs(memberId: number, token: string, days = 7): 
   return data.logs;
 }
 
+// ─── Medications ──────────────────────────────────────────────────────────────
+
+export type MedicineSchedule = {
+  id: number;
+  medicine_id: number;
+  time_of_day: string;
+  days_of_week: number[] | null;
+  reminder_enabled: boolean;
+  reminder_offset_minutes: number;
+  created_at: string;
+  updated_at: string;
+};
+
+export type Medicine = {
+  id: number;
+  owner_id: number;
+  patient_user_id: number;
+  created_by_user_id: number;
+  name: string;
+  strength: string | null;
+  form: string;
+  dose: string;
+  timing: string | null;
+  start_date: string;
+  end_date: string | null;
+  notes: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+  schedules: MedicineSchedule[];
+};
+
+export type MedicineScheduleInput = {
+  time_of_day: string;
+  days_of_week?: number[] | null;
+  reminder_enabled: boolean;
+  reminder_offset_minutes: number;
+};
+
+export type CreateMedicineInput = {
+  patient_user_id: number;
+  name: string;
+  strength?: string | null;
+  form: string;
+  dose: string;
+  timing?: string | null;
+  start_date: string;
+  end_date?: string | null;
+  notes?: string | null;
+  schedules: MedicineScheduleInput[];
+};
+
+export type TodayDose = {
+  id: string;
+  medicine: Medicine;
+  schedule: MedicineSchedule;
+  scheduled_for: string;
+  status: "upcoming" | "due" | "taken" | "missed" | "skipped";
+  marked_at: string | null;
+  marked_by_user_id: number | null;
+};
+
+export async function getMedicines(patientUserId: number, token: string): Promise<Medicine[]> {
+  if (MOCK_API) return [];
+  const data = await authedFetch<{ medicines: Medicine[] }>(
+    `/api/medicines?patientUserId=${patientUserId}`,
+    token,
+  );
+  return data.medicines;
+}
+
+export async function getTodayMedicineDoses(patientUserId: number, token: string): Promise<TodayDose[]> {
+  if (MOCK_API) return [];
+  const data = await authedFetch<{ doses: TodayDose[] }>(
+    `/api/medicines/today?patientUserId=${patientUserId}`,
+    token,
+  );
+  return data.doses;
+}
+
+export async function createMedicine(input: CreateMedicineInput, token: string): Promise<Medicine> {
+  return authedFetch<Medicine>("/api/medicines", token, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+}
+
+export async function markMedicineDose(
+  medicineId: number,
+  input: { schedule_id: number; scheduled_for: string; status: "taken" | "missed" | "skipped"; note?: string | null },
+  token: string,
+): Promise<TodayDose> {
+  return authedFetch<TodayDose>(`/api/medicines/${medicineId}/doses`, token, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+}
+
 // ─── Derived helpers used by the dashboard ───────────────────────────────────
 
 /** Pull the last 7 logs and bucket a given metric into Mon–Sun arrays for charts. */
