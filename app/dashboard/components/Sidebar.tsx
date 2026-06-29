@@ -3,8 +3,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import {
-  House, Users, TrendUp, CalendarDots, MapPin, FileText,
-  Lightning, Bell, Gear, List, Pill,
+  House, Users, TrendUp, FileText, Lightning, Gear, List, Pill, Brain,
 } from "@phosphor-icons/react";
 
 const navItems = [
@@ -12,11 +11,9 @@ const navItems = [
   { label: "Family Overview",  href: "/dashboard/family-overview", soon: false },
   { label: "Medications",      href: "/dashboard/medications",     soon: false },
   { label: "Progress",         href: "#",                          soon: true  },
-  { label: "Appointments",     href: "#",                          soon: true  },
-  { label: "Nearby Providers", href: "#",                          soon: true  },
+  { label: "AI Health Insights", href: "#",                        soon: true  },
   { label: "Health Records",   href: "#",                          soon: true  },
   { label: "Activity",         href: "#",                          soon: true  },
-  { label: "Reminders",        href: "#",                          soon: true  },
   { label: "Settings",         href: "#",                          soon: true  },
 ];
 
@@ -25,11 +22,9 @@ const NAV_ICONS: Record<string, React.ElementType> = {
   "Family Overview":  Users,
   "Medications":      Pill,
   "Progress":         TrendUp,
-  "Appointments":     CalendarDots,
-  "Nearby Providers": MapPin,
+  "AI Health Insights": Brain,
   "Health Records":   FileText,
   "Activity":         Lightning,
-  "Reminders":        Bell,
   "Settings":         Gear,
 };
 
