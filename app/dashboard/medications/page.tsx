@@ -44,6 +44,11 @@ type ScheduledTime = {
   time: string;
 };
 
+type SelectOption = {
+  value: string;
+  label: string;
+};
+
 type MedicineForm = {
   personId: string;
   name: string;
@@ -188,6 +193,121 @@ function TextField({
   );
 }
 
+function FancySelect({
+  value,
+  options,
+  onChange,
+  tone = "neutral",
+  compact = false,
+}: {
+  value: string;
+  options: SelectOption[];
+  onChange: (value: string) => void;
+  tone?: "neutral" | "green";
+  compact?: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const selected = options.find((option) => option.value === value) ?? options[0];
+  const isGreen = tone === "green";
+
+  return (
+    <div
+      tabIndex={0}
+      onBlur={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+          setOpen(false);
+        }
+      }}
+      style={{ position: "relative", minWidth: compact ? 190 : undefined }}
+    >
+      <button
+        type="button"
+        onClick={() => setOpen((current) => !current)}
+        style={{
+          width: "100%",
+          height: compact ? 38 : 44,
+          border: `1.5px solid ${isGreen ? "#D8F5E4" : "var(--he-card-border)"}`,
+          borderRadius: compact ? 12 : 13,
+          padding: compact ? "0 36px 0 13px" : "0 38px 0 13px",
+          background: isGreen ? "var(--he-green-bg)" : "#FAF9FA",
+          color: isGreen ? "var(--he-green-deep)" : "var(--he-ink-1)",
+          fontFamily: "inherit",
+          fontSize: compact ? 13 : 13.5,
+          fontWeight: 800,
+          cursor: "pointer",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 10,
+          boxShadow: open ? "0 8px 22px rgba(31,28,35,.1)" : "none",
+          outline: "none",
+          textAlign: "left",
+        }}
+      >
+        <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{selected?.label}</span>
+        <CaretDown
+          size={14}
+          weight="bold"
+          color={isGreen ? "var(--he-green-deep)" : "var(--he-ink-2)"}
+          style={{ position: "absolute", right: 13, transform: open ? "rotate(180deg)" : "none", transition: "transform .16s ease" }}
+        />
+      </button>
+      {open && (
+        <div
+          style={{
+            position: "absolute",
+            top: "calc(100% + 6px)",
+            left: 0,
+            right: 0,
+            zIndex: 30,
+            background: "#fff",
+            border: "1.5px solid var(--he-card-border)",
+            borderRadius: 13,
+            boxShadow: "0 16px 34px rgba(31,28,35,.16)",
+            padding: 5,
+            overflow: "hidden",
+          }}
+        >
+          {options.map((option) => {
+            const active = option.value === value;
+            return (
+              <button
+                key={option.value}
+                type="button"
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => {
+                  onChange(option.value);
+                  setOpen(false);
+                }}
+                style={{
+                  width: "100%",
+                  minHeight: 36,
+                  border: "none",
+                  borderRadius: 9,
+                  background: active ? (isGreen ? "var(--he-green-bg)" : "var(--he-coral-bg)") : "#fff",
+                  color: active ? (isGreen ? "var(--he-green-deep)" : "var(--he-coral-deep)") : "var(--he-ink-2)",
+                  fontFamily: "inherit",
+                  fontSize: 13,
+                  fontWeight: active ? 800 : 700,
+                  cursor: "pointer",
+                  padding: "8px 10px",
+                  textAlign: "left",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                }}
+              >
+                <span style={{ width: 16, color: active ? "currentColor" : "transparent", fontWeight: 900 }}>✓</span>
+                <span>{option.label}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function AddMedicineDrawer({
   people,
   initialPersonId,
@@ -204,6 +324,10 @@ function AddMedicineDrawer({
   const [form, setForm] = useState<MedicineForm>(() => defaultForm(initialPersonId));
   const selectedPerson = people.find((person) => person.id === form.personId);
   const canSave = form.personId && form.name.trim() && form.times.length > 0;
+  const personOptions = people.map((person) => ({
+    value: person.id,
+    label: `${person.name} ${person.label === "You" ? "(You)" : ""}`,
+  }));
 
   const update = <K extends keyof MedicineForm>(key: K, value: MedicineForm[K]) => {
     setForm((current) => ({ ...current, [key]: value }));
@@ -248,11 +372,11 @@ function AddMedicineDrawer({
           flexDirection: "column",
           fontFamily: "'Plus Jakarta Sans', var(--font-jakarta), system-ui, sans-serif",
         }}
-      >
-        <div style={{ padding: "24px 24px 18px", borderBottom: "1px solid var(--he-hairline)", display: "flex", alignItems: "flex-start", gap: 14 }}>
-          <div style={{ width: 42, height: 42, borderRadius: 14, background: "var(--he-coral-bg)", display: "grid", placeItems: "center", flex: "none" }}>
-            <Pill size={21} weight="bold" color="var(--he-coral)" />
-        </div>
+	      >
+	        <div style={{ padding: "24px 24px 18px", borderBottom: "1px solid var(--he-hairline)", display: "flex", alignItems: "flex-start", gap: 14 }}>
+	          <div style={{ width: 42, height: 42, borderRadius: 14, background: "var(--he-coral-bg)", display: "grid", placeItems: "center", flex: "none" }}>
+	            <Pill size={21} weight="bold" color="var(--he-coral)" />
+	          </div>
           <div style={{ flex: 1 }}>
             <h2 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: "var(--he-ink-1)", letterSpacing: "-.4px" }}>Add Medicine</h2>
             <p style={{ margin: "4px 0 0", fontSize: 13, fontWeight: 500, color: "var(--he-ink-3)", lineHeight: 1.5 }}>
@@ -267,27 +391,12 @@ function AddMedicineDrawer({
         <div style={{ padding: 24, overflowY: "auto", display: "flex", flexDirection: "column", gap: 18 }}>
           <div>
             <FieldLabel>Who is this medicine for?</FieldLabel>
-            <select
+            <FancySelect
               value={form.personId}
-              onChange={(e) => update("personId", e.target.value)}
-              style={{
-                width: "100%",
-                height: 44,
-                border: "1.5px solid #D8F5E4",
-                borderRadius: 13,
-                padding: "0 13px",
-                background: "var(--he-green-bg)",
-                color: "var(--he-green-deep)",
-                fontFamily: "inherit",
-                fontSize: 13.5,
-                fontWeight: 800,
-                outline: "none",
-              }}
-            >
-              {people.map((person) => (
-                <option key={person.id} value={person.id}>{person.name} {person.label === "You" ? "(You)" : ""}</option>
-              ))}
-            </select>
+              options={personOptions}
+              onChange={(nextValue) => update("personId", nextValue)}
+              tone="green"
+            />
           </div>
 
           <div className="med-form-grid">
@@ -397,18 +506,13 @@ function AddMedicineDrawer({
             </div>
             <div>
               <FieldLabel>Duration</FieldLabel>
-              <select
+              <FancySelect
                 value={form.duration}
-                onChange={(e) => update("duration", e.target.value as MedicineForm["duration"])}
-                style={{ width: "100%", height: 42, border: "1.5px solid var(--he-card-border)", borderRadius: 12, padding: "0 13px", background: "#FAF9FA", fontFamily: "inherit", fontSize: 13.5, fontWeight: 700, color: "var(--he-ink-1)" }}
-              >
-                <option>Ongoing</option>
-                <option>7 days</option>
-                <option>14 days</option>
-                <option>Custom</option>
-              </select>
-            </div>
-          </div>
+                options={["Ongoing", "7 days", "14 days", "Custom"].map((option) => ({ value: option, label: option }))}
+                onChange={(nextValue) => update("duration", nextValue as MedicineForm["duration"])}
+	              />
+	            </div>
+	          </div>
 
           <label style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14, border: "1px solid var(--he-hairline)", borderRadius: 14, padding: "13px 14px", cursor: "pointer" }}>
             <span style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -551,6 +655,10 @@ export default function MedicationsPage() {
   const adherence = completedDoses.length ? Math.round((takenDoses.length / completedDoses.length) * 100) : null;
   const dueSoon = todayDoses.filter((dose) => dose.status === "due" || dose.status === "upcoming").length;
   const avatarLetter = (user?.name ?? "T").charAt(0).toUpperCase();
+  const selectedPersonOptions = people.map((person) => ({
+    value: person.id,
+    label: `${person.name} ${person.label === "You" ? "(You)" : ""}`,
+  }));
 
   const scheduleRows: ScheduleRow[] = todayDoses.map((dose, index) => ({
     id: dose.id,
@@ -673,31 +781,13 @@ export default function MedicationsPage() {
           <div className="med-context-row">
             <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
               <span style={{ fontSize: 12.5, color: "var(--he-ink-3)", fontWeight: 800 }}>Viewing medicines for</span>
-              <div style={{ position: "relative" }}>
-                <select
-                  value={selectedPersonId}
-                  onChange={(e) => setSelectedPersonId(e.target.value)}
-                  style={{
-                    appearance: "none",
-                    height: 38,
-                    minWidth: 180,
-                    border: "1.5px solid #D8F5E4",
-                    borderRadius: 12,
-                    padding: "0 36px 0 13px",
-                    background: "var(--he-green-bg)",
-                    color: "var(--he-green-deep)",
-                    fontFamily: "inherit",
-                    fontSize: 13,
-                    fontWeight: 800,
-                    outline: "none",
-                  }}
-                >
-                  {people.map((person) => (
-                    <option key={person.id} value={person.id}>{person.name} {person.label === "You" ? "(You)" : ""}</option>
-                  ))}
-                </select>
-                <CaretDown size={14} weight="bold" color="var(--he-green-deep)" style={{ position: "absolute", right: 12, top: 12, pointerEvents: "none" }} />
-              </div>
+              <FancySelect
+                value={selectedPersonId}
+                options={selectedPersonOptions}
+                onChange={setSelectedPersonId}
+                tone="green"
+                compact
+              />
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 7, color: "var(--he-ink-3)", fontSize: 12.5, fontWeight: 700 }}>
               <Info size={15} weight="bold" />
