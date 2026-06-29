@@ -1,6 +1,11 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { DM_Sans, Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
+
+const siteUrl = "https://famcarehealth.com";
+const siteTitle = "FamCare - WhatsApp Medicine Reminders for Parents";
+const siteDescription =
+  "FamCare helps families track parents' medicines with WhatsApp reminders, dose confirmations, missed-dose alerts, and daily adherence summaries.";
 
 const dmSans = DM_Sans({
   subsets: ["latin"],
@@ -17,23 +22,43 @@ const jakartaSans = Plus_Jakarta_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "FamCare — Family Health, Simplified",
-  description: "Track appointments, steps and daily wellness habits. The WhatsApp-first health companion for Indian families.",
-  viewport: "width=device-width, initial-scale=1",
+  metadataBase: new URL(siteUrl),
+  title: {
+    default: siteTitle,
+    template: "%s | FamCare",
+  },
+  description: siteDescription,
+  keywords: [
+    "WhatsApp medicine reminders",
+    "medicine reminder app for parents",
+    "parent medicine tracker India",
+    "family medicine tracker",
+    "medicine adherence app",
+    "elderly parent care app",
+  ],
+  alternates: {
+    canonical: "/",
+  },
   openGraph: {
-    title: "FamCare — Family Health, Simplified",
-    description: "Mom sends a WhatsApp message. You see a health dashboard. No app needed.",
-    url: "https://famcarehealth.com",
+    title: siteTitle,
+    description: siteDescription,
+    url: "/",
     siteName: "FamCare",
-    images: [{ url: "/family-sunset.png", width: 1200, height: 630, alt: "FamCare — Family Health" }],
+    images: [{ url: "/family-sunset.png", width: 1200, height: 630, alt: "FamCare WhatsApp medicine reminders for parents" }],
+    locale: "en_IN",
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "FamCare — Family Health, Simplified",
-    description: "Mom sends a WhatsApp message. You see a health dashboard. No app needed.",
+    title: siteTitle,
+    description: siteDescription,
     images: ["/family-sunset.png"],
   },
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
 };
 
 export default function RootLayout({

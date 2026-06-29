@@ -7,6 +7,68 @@ import {
 } from "@phosphor-icons/react";
 import { FEShoe, FETarget } from "./dashboard/components/FluentEmoji";
 
+const structuredData = {
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Organization",
+      "@id": "https://famcarehealth.com/#organization",
+      name: "FamCare",
+      url: "https://famcarehealth.com",
+      logo: "https://famcarehealth.com/family-sunset.png",
+    },
+    {
+      "@type": "SoftwareApplication",
+      "@id": "https://famcarehealth.com/#software",
+      name: "FamCare",
+      url: "https://famcarehealth.com",
+      applicationCategory: "HealthApplication",
+      operatingSystem: "Web, WhatsApp",
+      description:
+        "WhatsApp-first medicine reminders, dose confirmations, missed-dose alerts, and family adherence summaries for parents.",
+      offers: {
+        "@type": "Offer",
+        price: "0",
+        priceCurrency: "INR",
+      },
+      audience: {
+        "@type": "Audience",
+        audienceType: "Family caregivers",
+      },
+    },
+    {
+      "@type": "FAQPage",
+      "@id": "https://famcarehealth.com/#faq",
+      mainEntity: [
+        {
+          "@type": "Question",
+          name: "Can parents use FamCare without installing an app?",
+          acceptedAnswer: {
+            "@type": "Answer",
+            text: "Yes. FamCare is designed around WhatsApp so parents can receive reminders and confirm medicine doses without installing another app.",
+          },
+        },
+        {
+          "@type": "Question",
+          name: "Can children manage medicines for their parents?",
+          acceptedAnswer: {
+            "@type": "Answer",
+            text: "Yes. Family members can add medicines, view today's schedule, and track dose confirmations for active family members.",
+          },
+        },
+        {
+          "@type": "Question",
+          name: "Does FamCare provide medical advice?",
+          acceptedAnswer: {
+            "@type": "Answer",
+            text: "No. FamCare helps families track reminders and adherence. It does not replace prescriptions, doctors, or professional medical advice.",
+          },
+        },
+      ],
+    },
+  ],
+};
+
 const HeartIcon = () => (
   <svg width="18" height="18" viewBox="0 0 20 20" fill="none">
     <path d="M10 17.2C10 17.2 2.5 12.5 2.5 7.5A5 5 0 0 1 10 3.84 5 5 0 0 1 17.5 7.5C17.5 12.5 10 17.2 10 17.2Z" fill="white" />
@@ -256,6 +318,10 @@ const DashboardMockup = () => (
 export default function LandingPage() {
   return (
     <div className="flex flex-col min-h-screen bg-white">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
+      />
       {/* Nav */}
       <nav className="lp-nav" style={{
         display: "flex", alignItems: "center", justifyContent: "space-between",
@@ -305,16 +371,16 @@ export default function LandingPage() {
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
               <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22,4 12,14.01 9,11.01" />
             </svg>
-            Trusted by 10,000+ families
+            WhatsApp-first care for Indian families
           </div>
 
           <h1 className="lp-hero-title" style={{ fontSize: 54, fontWeight: 700, lineHeight: 1.08, letterSpacing: "-1.5px" }}>
-            <span style={{ color: "#1A2744" }}>Simple. Smart.</span><br />
-            <span style={{ color: "#E85C5C" }}>Better Health,<br />Every Day.</span>
+            <span style={{ color: "#1A2744" }}>Know if your parents</span><br />
+            <span style={{ color: "#E85C5C" }}>took their medicines today.</span>
           </h1>
 
           <p style={{ fontSize: 15, color: "#6B7A9A", lineHeight: 1.78, marginTop: 18, maxWidth: 390 }}>
-            Track appointments, steps and daily wellness habits. See your progress in beautiful charts and stay motivated together as a family.
+            FamCare sends WhatsApp medicine reminders to parents, lets them confirm doses, and alerts family members when a dose is missed.
           </p>
 
           <div className="lp-hero-cta" style={{ display: "flex", alignItems: "center", gap: 18, marginTop: 30 }}>
@@ -345,8 +411,8 @@ export default function LandingPage() {
           <div className="lp-hero-badges" style={{ display: "flex", gap: 20, marginTop: 32 }}>
             {[
               { bg: "#EBF3FF", icon: <Lock size={13} weight="bold" color="#4A8FE2" />, title: "Private & Secure", desc: "Your data is always\nsafe with us" },
-              { bg: "#E8F8EE", icon: <MapPin size={13} weight="bold" color="#3EB86A" />, title: "Nearby Providers", desc: "Find clinics and\ndoctors near you" },
-              { bg: "#FFEDEC", icon: <Users size={13} weight="bold" color="#E85C5C" />, title: "For the Whole Family", desc: "Healthy habits,\ntogether" },
+              { bg: "#E8F8EE", icon: <MapPin size={13} weight="bold" color="#3EB86A" />, title: "WhatsApp First", desc: "No new app for\nparents" },
+              { bg: "#FFEDEC", icon: <Users size={13} weight="bold" color="#E85C5C" />, title: "For Caregivers", desc: "Track medicines\nas a family" },
             ].map((t) => (
               <div key={t.title} style={{ display: "flex", alignItems: "flex-start", gap: 9 }}>
                 <div style={{
@@ -386,18 +452,18 @@ export default function LandingPage() {
           <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="#E85C5C" strokeWidth="1.5">
             <path d="M10 17s-7-4.5-7-9a5 5 0 0 1 7-4.58A5 5 0 0 1 17 8c0 4.5-7 9-7 9z" />
           </svg>
-          Everything you need to build healthy habits
+          Everything families need to manage medicines
           <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="#E85C5C" strokeWidth="1.5">
             <path d="M10 17s-7-4.5-7-9a5 5 0 0 1 7-4.58A5 5 0 0 1 17 8c0 4.5-7 9-7 9z" />
           </svg>
         </div>
         <div className="lp-features-grid" style={{ display: "grid", gridTemplateColumns: "repeat(5,1fr)", gap: 12 }}>
           {[
-            { bg: "#E6F9EE", icon: <ChatDots size={22} weight="bold" color="#3EB86A" />, title: "Track Health", desc: "Log vitals, steps and appointments easily from anywhere, anytime." },
-            { bg: "#FFEDEC", icon: <ChartBar size={22} weight="bold" color="#E85C5C" />, title: "Beautiful Insights", desc: "Visualize your progress with easy-to-understand charts and summaries." },
-            { bg: "#EBF3FF", icon: <FETarget size={22} />, title: "Set Goals", desc: "Set daily goals for steps, meals and activity. We'll help you stay on track." },
-            { bg: "#FFF8E0", icon: <Trophy size={22} weight="bold" color="#F5A623" />, title: "Celebrate Progress", desc: "Earn achievements and stay motivated every step of the way." },
-            { bg: "#F0EEFF", icon: <Lock size={22} weight="bold" color="#7C6FF7" />, title: "Secure & Private", desc: "Your data is encrypted and never shared with anyone." },
+            { bg: "#E6F9EE", icon: <ChatDots size={22} weight="bold" color="#3EB86A" />, title: "WhatsApp Reminders", desc: "Send medicine reminders at the right dose time without another app." },
+            { bg: "#FFEDEC", icon: <ChartBar size={22} weight="bold" color="#E85C5C" />, title: "Dose Confirmation", desc: "Parents can confirm when a medicine is taken so the family stays updated." },
+            { bg: "#EBF3FF", icon: <FETarget size={22} />, title: "Missed-Dose Alerts", desc: "Caregivers can see when a dose is not confirmed on time." },
+            { bg: "#FFF8E0", icon: <Trophy size={22} weight="bold" color="#F5A623" />, title: "Adherence Reports", desc: "See daily and weekly medicine adherence summaries for family members." },
+            { bg: "#F0EEFF", icon: <Lock size={22} weight="bold" color="#7C6FF7" />, title: "Secure & Private", desc: "Family health data is handled carefully and never sold." },
           ].map((f) => (
             <div key={f.title} style={{
               background: "#fff", borderRadius: 14, padding: "20px 14px", textAlign: "center",
@@ -435,16 +501,16 @@ export default function LandingPage() {
             </div>
             <h2 style={{ fontSize: 36, fontWeight: 700, lineHeight: 1.15, letterSpacing: "-.5px", color: "#1A2744" }}>
               Health tracking that<br />
-              <span style={{ color: "#E85C5C" }}>fits your family&apos;s life</span>
+              <span style={{ color: "#E85C5C" }}>fits your parent&apos;s routine</span>
             </h2>
             <p style={{ fontSize: 15, color: "#6B7A9A", lineHeight: 1.75, marginTop: 16, maxWidth: 380 }}>
-              No app to download. No form to fill. Just send a casual message on WhatsApp — in Hindi or English — and we&apos;ll take care of the rest.
+              Parents can use WhatsApp for reminders and confirmations, while caregivers get a simple dashboard for medicines, family health logs, and missed-dose updates.
             </p>
             <div style={{ display: "flex", flexDirection: "column", gap: 14, marginTop: 28 }}>
               {[
-                { icon: <ChatDots size={16} weight="bold" color="#E85C5C" />, text: "Works in Hindi, English or both mixed" },
-                { icon: <UserCircle size={16} weight="bold" color="#E85C5C" />, text: "Designed for parents who don't use apps" },
-                { icon: <ChartBar size={16} weight="bold" color="#E85C5C" />, text: "You see the dashboard, they just WhatsApp" },
+                { icon: <ChatDots size={16} weight="bold" color="#E85C5C" />, text: "Medicine reminders can reach parents on WhatsApp" },
+                { icon: <UserCircle size={16} weight="bold" color="#E85C5C" />, text: "Children can manage medicines for active family members" },
+                { icon: <ChartBar size={16} weight="bold" color="#E85C5C" />, text: "Daily dose status and adherence stay visible to caregivers" },
               ].map((item) => (
                 <div key={item.text} style={{ display: "flex", alignItems: "center", gap: 12 }}>
                   <div style={{
@@ -478,6 +544,36 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* FAQ */}
+      <section style={{ padding: "8px 60px 56px", background: "#fff" }}>
+        <div style={{ maxWidth: 920, margin: "0 auto" }}>
+          <h2 style={{ fontSize: 30, fontWeight: 700, textAlign: "center", color: "#1A2744", letterSpacing: "-.4px" }}>
+            Frequently asked questions
+          </h2>
+          <div style={{ display: "grid", gap: 12, marginTop: 28 }}>
+            {[
+              {
+                question: "Can parents use FamCare without installing an app?",
+                answer: "Yes. FamCare is designed around WhatsApp so parents can receive medicine reminders and confirm doses without learning a new app.",
+              },
+              {
+                question: "Can children manage medicines for their parents?",
+                answer: "Yes. Children or caregivers can add medicines for active family members, view today's schedule, and track whether doses were confirmed.",
+              },
+              {
+                question: "Does FamCare replace a doctor or prescription?",
+                answer: "No. FamCare is for reminders, tracking, and family coordination. Always follow the doctor's prescription and medical advice.",
+              },
+            ].map((item) => (
+              <div key={item.question} style={{ border: "1px solid #F0E8E8", borderRadius: 12, padding: "18px 20px", background: "#FFFCFB" }}>
+                <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: "#1A2744" }}>{item.question}</h3>
+                <p style={{ margin: "8px 0 0", fontSize: 13.5, color: "#6B7A9A", lineHeight: 1.7 }}>{item.answer}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* CTA bar */}
       <div className="lp-cta-bar" style={{
         background: "linear-gradient(135deg,#FFF0EE,#FFE4DE)",
@@ -494,8 +590,8 @@ export default function LandingPage() {
             </svg>
           </div>
           <div>
-            <h3 style={{ fontSize: 16, fontWeight: 700 }}>Start your health journey today!</h3>
-            <p style={{ fontSize: 12.5, color: "#6B7A9A", marginTop: 2 }}>It&apos;s free, simple and it works.</p>
+            <h3 style={{ fontSize: 16, fontWeight: 700 }}>Start tracking your parent&apos;s medicines today</h3>
+            <p style={{ fontSize: 12.5, color: "#6B7A9A", marginTop: 2 }}>Set reminders, confirm doses, and keep the family updated.</p>
           </div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
