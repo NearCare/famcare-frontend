@@ -221,9 +221,12 @@ export default function SeoLandingPage({
       </section>
 
       <section className="seo-faq">
-        <div className="seo-section-head">
-          <p className="seo-section-kicker">Questions families ask</p>
-          <h2>Common questions</h2>
+        <div className="seo-faq-head">
+          <img src="/family-whatsapp.webp" alt="" aria-hidden="true" />
+          <div className="seo-section-head">
+            <p className="seo-section-kicker">Questions families ask</p>
+            <h2>Common questions</h2>
+          </div>
         </div>
         <div className="seo-faq-list">
           {content.faqs.map((faq) => (
