@@ -63,6 +63,7 @@ type ScheduleRow = {
   tone: string;
   status: string;
   actionStatus: TodayDose["status"];
+  canMarkTaken: boolean;
 };
 
 const todayISO = () => new Date().toLocaleDateString("en-CA");
@@ -544,6 +545,7 @@ export default function MedicationsPage() {
     tone: index % 4 === 1 ? "orange" : index % 4 === 2 ? "violet" : index % 4 === 3 ? "blue" : "green",
     status: statusLabel(dose.status),
     actionStatus: dose.status,
+    canMarkTaken: dose.status !== "taken" && dose.status !== "upcoming",
   }));
 
   const openAdd = () => setShowAddDrawer(true);
@@ -764,7 +766,7 @@ export default function MedicationsPage() {
                         <p style={{ margin: "4px 0 0", color: "var(--he-ink-2)", fontSize: 12.5, fontWeight: 600 }}>{row.dose} &nbsp;•&nbsp; {row.timing}</p>
                       </div>
                       <span style={{ background: colors.bg, color: colors.text, borderRadius: 99, padding: "7px 12px", fontSize: 12, fontWeight: 800, whiteSpace: "nowrap" }}>{row.status}</span>
-                      {row.actionStatus === "taken" ? null : (
+                      {row.canMarkTaken ? (
                         <button
                           onClick={() => markTaken(row)}
                           disabled={markingDoseId === row.id}
@@ -772,7 +774,11 @@ export default function MedicationsPage() {
                         >
                           {markingDoseId === row.id ? "Saving..." : "Mark taken"}
                         </button>
-                      )}
+                      ) : row.actionStatus === "upcoming" ? (
+                        <span style={{ color: "var(--he-ink-3)", fontSize: 12, fontWeight: 800, whiteSpace: "nowrap" }}>
+                          Not due yet
+                        </span>
+                      ) : null}
                       <CaretRight size={18} weight="bold" color="var(--he-ink-3)" />
                     </div>
                   );
