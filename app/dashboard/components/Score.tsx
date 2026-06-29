@@ -37,10 +37,10 @@ function scoreGradientId(score: number | null, size: number) {
 
 export function ScoreText({ score, tier, size = "md" }: { score: number | null; tier: ScoreTier; size?: "sm" | "md" | "lg" }) {
   const scale = size === "lg"
-    ? { numerator: 38, slash: 44, denominator: 26, gap: 7 }
+    ? { numerator: 34, slash: 38, denominator: 25, gap: 6 }
     : size === "sm"
-    ? { numerator: 18, slash: 22, denominator: 13, gap: 4 }
-    : { numerator: 28, slash: 34, denominator: 20, gap: 6 };
+    ? { numerator: 16, slash: 18, denominator: 13, gap: 3 }
+    : { numerator: 25, slash: 29, denominator: 20, gap: 5 };
 
   return (
     <span style={{ display: "inline-flex", alignItems: "baseline", gap: scale.gap, whiteSpace: "nowrap" }}>
@@ -84,10 +84,10 @@ export function ScoreRing({ score, tier, size = 46 }: { score: number | null; ti
         transform={`rotate(-90 ${size / 2} ${size / 2})`}
       />
       <text
-        x={isLarge ? size * 0.42 : size * 0.42}
-        y={isLarge ? size * 0.55 : size * 0.48}
+        x={size * 0.43}
+        y={isLarge ? size * 0.54 : size * 0.48}
         textAnchor="end"
-        fontSize={isLarge ? size * 0.28 : size * 0.23}
+        fontSize={isLarge ? size * 0.24 : size * 0.2}
         fontWeight={900}
         fill={score === null ? "#9AA0AD" : `url(#${gradientId})`}
         fontFamily="'Plus Jakarta Sans', sans-serif"
@@ -96,18 +96,18 @@ export function ScoreRing({ score, tier, size = 46 }: { score: number | null; ti
       </text>
       <text
         x={size * 0.5}
-        y={isLarge ? size * 0.56 : size * 0.5}
+        y={isLarge ? size * 0.55 : size * 0.5}
         textAnchor="middle"
-        fontSize={isLarge ? size * 0.34 : size * 0.29}
+        fontSize={isLarge ? size * 0.27 : size * 0.23}
         fontWeight={800}
         fill="#A7ADBA"
         fontFamily="'Plus Jakarta Sans', sans-serif"
       >/</text>
       <text
-        x={size * 0.58}
-        y={isLarge ? size * 0.55 : size * 0.49}
+        x={size * 0.57}
+        y={isLarge ? size * 0.54 : size * 0.49}
         textAnchor="start"
-        fontSize={isLarge ? size * 0.19 : size * 0.16}
+        fontSize={isLarge ? size * 0.18 : size * 0.15}
         fontWeight={700}
         fill="#9AA0AD"
         fontFamily="'Plus Jakarta Sans', sans-serif"
