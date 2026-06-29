@@ -6,7 +6,7 @@ import {
 } from "recharts";
 import { X, ChartBar, ClipboardText, Scroll } from "@phosphor-icons/react";
 import { FEShoe, FEMeat, FEWheat } from "./FluentEmoji";
-import { getMemberSummary, getMemberLogs, logsToWeeklyMetric, type FamilyMember, type Summary, type HealthLog } from "@/lib/api";
+import { getMemberLogs, logsToWeeklyMetric, type FamilyMember, type HealthLog } from "@/lib/api";
 
 interface Props {
   member: FamilyMember;
@@ -58,19 +58,14 @@ function Skel({ w = "100%", h = 16 }: { w?: string | number; h?: number }) {
 }
 
 export default function FamilyMemberModal({ member, onClose }: Props) {
-  const [summary, setSummary] = useState<Summary | null>(null);
   const [logs, setLogs] = useState<HealthLog[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const token = localStorage.getItem("auth_token") ?? "";
-    Promise.all([
-      getMemberSummary(member.id, token),
-      getMemberLogs(member.id, token, 7),
-    ]).then(([s, l]) => {
-      setSummary(s);
-      setLogs(l);
-    }).finally(() => setLoading(false));
+    getMemberLogs(member.id, token, 7)
+      .then(setLogs)
+      .finally(() => setLoading(false));
   }, [member.id]);
 
   const weeklySteps = logsToWeeklyMetric(logs, "steps");
@@ -79,7 +74,11 @@ export default function FamilyMemberModal({ member, onClose }: Props) {
   const todayIST = new Date().toLocaleDateString("en-CA");
   const todayLog = logs.find(l => l.logged_at === todayIST);
   const todaySteps = todayLog?.steps ?? 0;
+  const todayProtein = todayLog?.protein_g ?? 0;
+  const todayCalories = todayLog?.calories ?? 0;
   const todayStepPct = Math.min(Math.round((todaySteps / 10000) * 100), 100);
+  const todayProteinPct = Math.min(Math.round((todayProtein / 50) * 100), 100);
+  const todayCaloriesPct = Math.min(Math.round((todayCalories / 2000) * 100), 100);
 
   const avatarLetter = (member.name ?? member.label).charAt(0).toUpperCase();
 
@@ -148,8 +147,8 @@ export default function FamilyMemberModal({ member, onClose }: Props) {
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 12 }}>
             {[
               { icon: <FEShoe size={24} />, label: "Steps today", val: loading ? null : todaySteps ? `${todaySteps.toLocaleString()}` : "—", unit: "", bar: todayStepPct, color: "#7C6FF7", bg: "#F0EEFF" },
-              { icon: <FEMeat size={24} />, label: "Avg protein", val: loading ? null : summary?.avg_protein_g != null ? `${summary.avg_protein_g.toFixed(0)}` : "—", unit: "g", bar: Math.min(Math.round(((summary?.avg_protein_g ?? 0) / 50) * 100), 100), color: "#2FBE76", bg: "#EAFBF0" },
-              { icon: <FEWheat size={24} />, label: "Avg calories", val: loading ? null : summary?.avg_calories != null ? `${Math.round(summary.avg_calories).toLocaleString()}` : "—", unit: "", bar: Math.min(Math.round(((summary?.avg_calories ?? 0) / 2000) * 100), 100), color: "#FF9F45", bg: "#FFF4E8" },
+              { icon: <FEMeat size={24} />, label: "Protein today", val: loading ? null : todayProtein ? `${todayProtein.toFixed(0)}` : "—", unit: "g", bar: todayProteinPct, color: "#2FBE76", bg: "#EAFBF0" },
+              { icon: <FEWheat size={24} />, label: "Calories today", val: loading ? null : todayCalories ? `${todayCalories.toLocaleString()}` : "—", unit: "", bar: todayCaloriesPct, color: "#FF9F45", bg: "#FFF4E8" },
             ].map(card => (
               <div key={card.label} style={{ background: card.bg, borderRadius: 14, padding: "14px 14px 12px" }}>
                 <div style={{ marginBottom: 6 }}>{card.icon}</div>

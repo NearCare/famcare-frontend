@@ -13,6 +13,7 @@ import {
   getUserSummary,
   getFamilyMembers,
   getMemberSummary,
+  getMemberLogs,
   updateUserGoals,
   logsToWeeklyMetric,
   calculateStreak,
@@ -478,7 +479,7 @@ const RANK_PALETTE = [
   { bg: "var(--he-violet-bg)", accent: "#8B7FE8", text: "#6A5BD0", caption: "Room to improve" },
 ];
 
-type MemberRow = { member: FamilyMember; summary: Summary | null };
+type MemberRow = { member: FamilyMember; summary: Summary | null; logs: HealthLog[] };
 
 export default function DashboardPage() {
   const [user, setUser] = useState<User | null>(null);
@@ -548,6 +549,7 @@ export default function DashboardPage() {
         activeMembers.map(async (member) => ({
           member,
           summary: await getMemberSummary(member.id, token).catch(() => null),
+          logs: await getMemberLogs(member.id, token, 7).catch(() => []),
         }))
       );
       setMemberRows(rows);
@@ -584,16 +586,24 @@ export default function DashboardPage() {
   const goalSteps = user?.goal_steps ?? null;
   const goalSleep = user?.goal_sleep_hours ?? null;
 
-  const proteinPct = goalProtein ? Math.min(Math.round((proteinAvg / goalProtein) * 100), 100) : undefined;
-  const caloriesPct = goalCalories ? Math.min(Math.round((caloriesAvg / goalCalories) * 100), 100) : undefined;
   const stepsAvgPct = goalSteps ? Math.min(Math.round((stepsAvg / goalSteps) * 100), 100) : undefined;
 
   const todayIST = new Date().toLocaleDateString("en-CA");
   const yesterdayDate = new Date(); yesterdayDate.setDate(yesterdayDate.getDate() - 1);
   const yesterdayIST = yesterdayDate.toLocaleDateString("en-CA");
-  const todaySteps = logs.find((l) => l.logged_at === todayIST)?.steps ?? 0;
-  const yesterdaySteps = logs.find((l) => l.logged_at === yesterdayIST)?.steps ?? 0;
+  const todayLog = logs.find((l) => l.logged_at === todayIST);
+  const yesterdayLog = logs.find((l) => l.logged_at === yesterdayIST);
+  const todayProtein = todayLog?.protein_g ?? 0;
+  const todayCalories = todayLog?.calories ?? 0;
+  const todaySteps = todayLog?.steps ?? 0;
+  const yesterdayProtein = yesterdayLog?.protein_g ?? 0;
+  const yesterdayCalories = yesterdayLog?.calories ?? 0;
+  const yesterdaySteps = yesterdayLog?.steps ?? 0;
+  const proteinTodayPct = goalProtein ? Math.min(Math.round((todayProtein / goalProtein) * 100), 100) : undefined;
+  const caloriesTodayPct = goalCalories ? Math.min(Math.round((todayCalories / goalCalories) * 100), 100) : undefined;
   const stepsTodayPct = goalSteps ? Math.min(Math.round((todaySteps / goalSteps) * 100), 100) : undefined;
+  const proteinVsYesterday = todayProtein - yesterdayProtein;
+  const caloriesVsYesterday = todayCalories - yesterdayCalories;
   const stepsVsYesterday = todaySteps - yesterdaySteps;
 
   const stepsAvgPctForScore = Math.min(Math.round((stepsAvg / (goalSteps ?? 10000)) * 100), 100);
@@ -624,7 +634,6 @@ export default function DashboardPage() {
   const proteinDeltaPct = prevWeekAvgs && prevWeekAvgs.protein > 0
     ? Math.round(((proteinAvg - prevWeekAvgs.protein) / prevWeekAvgs.protein) * 100)
     : null;
-  const caloriesDeltaAbs = prevWeekAvgs ? Math.round(caloriesAvg - prevWeekAvgs.calories) : null;
 
   const daysLoggedThisWeek = useMemo(() => {
     const last7Dates = Array.from({ length: 7 }, (_, i) => {
@@ -811,10 +820,14 @@ export default function DashboardPage() {
               )}
             </div>
             <div style={{ display: "flex", alignItems: "stretch", gap: 16, overflowX: "auto", padding: "10px 4px 12px" }}>
-              {memberRows.map(({ member, summary: memberSummary }) => {
+              {memberRows.map(({ member, summary: memberSummary, logs: memberLogs }) => {
                 const score = computeScore(memberSummary);
                 const tier = scoreTier(score);
                 const avatarLetter = (member.name ?? member.label).charAt(0).toUpperCase();
+                const memberTodayLog = memberLogs.find((l) => l.logged_at === todayIST);
+                const memberTodayCalories = memberTodayLog?.calories ?? null;
+                const memberTodayProtein = memberTodayLog?.protein_g ?? null;
+                const memberTodaySteps = memberTodayLog?.steps ?? null;
                 return (
                   <div
                     key={member.id}
@@ -864,18 +877,18 @@ export default function DashboardPage() {
                     <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 6, marginTop: 20, textAlign: "center" }}>
                       <div>
                         <div style={{ display: "flex", justifyContent: "center" }}><Flame size={20} color="#FF9F45" /></div>
-                        <p style={{ margin: "6px 0 0", fontSize: 14, fontWeight: 800, color: "#1A2744" }}>{memberSummary?.avg_calories != null ? memberSummary.avg_calories.toFixed(0) : "—"}</p>
-                        <p style={{ margin: 0, fontSize: 10, fontWeight: 600, color: "#7C84A8" }}>Cal</p>
+                        <p style={{ margin: "6px 0 0", fontSize: 14, fontWeight: 800, color: "#1A2744" }}>{memberTodayCalories != null ? memberTodayCalories.toLocaleString() : "—"}</p>
+                        <p style={{ margin: 0, fontSize: 10, fontWeight: 600, color: "#7C84A8" }}>Cal today</p>
                       </div>
                       <div>
                         <div style={{ display: "flex", justifyContent: "center" }}><Dumbbell size={20} color="#4F9BF5" /></div>
-                        <p style={{ margin: "6px 0 0", fontSize: 14, fontWeight: 800, color: "#1A2744" }}>{memberSummary?.avg_protein_g != null ? `${memberSummary.avg_protein_g.toFixed(0)}g` : "—"}</p>
-                        <p style={{ margin: 0, fontSize: 10, fontWeight: 600, color: "#7C84A8" }}>Protein</p>
+                        <p style={{ margin: "6px 0 0", fontSize: 14, fontWeight: 800, color: "#1A2744" }}>{memberTodayProtein != null ? `${memberTodayProtein.toFixed(0)}g` : "—"}</p>
+                        <p style={{ margin: 0, fontSize: 10, fontWeight: 600, color: "#7C84A8" }}>Protein today</p>
                       </div>
                       <div>
                         <div style={{ display: "flex", justifyContent: "center" }}><Footprints size={20} color="#20A865" /></div>
-                        <p style={{ margin: "6px 0 0", fontSize: 14, fontWeight: 800, color: "#1A2744" }}>{memberSummary?.avg_steps != null ? Math.round(memberSummary.avg_steps).toLocaleString() : "—"}</p>
-                        <p style={{ margin: 0, fontSize: 10, fontWeight: 600, color: "#7C84A8" }}>Steps</p>
+                        <p style={{ margin: "6px 0 0", fontSize: 14, fontWeight: 800, color: "#1A2744" }}>{memberTodaySteps != null ? memberTodaySteps.toLocaleString() : "—"}</p>
+                        <p style={{ margin: 0, fontSize: 10, fontWeight: 600, color: "#7C84A8" }}>Steps today</p>
                       </div>
                     </div>
                     <button
@@ -1158,25 +1171,25 @@ export default function DashboardPage() {
 
           <div style={{ flex: "1 1 0", minWidth: 300, display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 10, alignContent: "start" }}>
               <MetricTile
-                icon={<FEMeat size={16} />} label="Protein"
+                icon={<FEMeat size={16} />} label="Protein today"
                 color="var(--he-coral)" deepColor="var(--he-coral-deep)" chipBg="var(--he-coral-bg-2)" stripBg="var(--he-coral-bg)"
-                value={proteinAvg ? proteinAvg.toFixed(0) : "—"} unit="g"
+                value={todayProtein ? todayProtein.toFixed(0) : "—"} unit="g"
                 goalText={goalProtein ? `of ${goalProtein}g goal` : undefined}
-                pct={proteinPct}
-                deltaDown={proteinDeltaPct !== null && proteinDeltaPct < 0}
-                deltaText={proteinDeltaPct !== null ? `${Math.abs(proteinDeltaPct)}% vs last week` : "No data yet"}
+                pct={proteinTodayPct}
+                deltaDown={proteinVsYesterday < 0}
+                deltaText={`${Math.abs(proteinVsYesterday).toFixed(0)}g vs yesterday`}
                 sparkline={proteinSeries}
                 onClick={() => setMetricDetail({ label: "Protein", data: weeklyProtein, color: "#FF6B6B", unit: "g", goal: goalProtein ?? undefined, decimals: 0 })}
                 onSetGoal={() => setShowGoals(true)}
               />
               <MetricTile
-                icon={<FEWheat size={16} />} label="Calories"
+                icon={<FEWheat size={16} />} label="Calories today"
                 color="var(--he-orange)" deepColor="var(--he-orange-deep)" chipBg="var(--he-orange-bg-2)" stripBg="var(--he-orange-bg)"
-                value={caloriesAvg ? caloriesAvg.toFixed(0) : "—"} unit="kcal"
+                value={todayCalories ? todayCalories.toLocaleString() : "—"} unit="kcal"
                 goalText={goalCalories ? `of ${goalCalories.toLocaleString()} kcal goal` : undefined}
-                pct={caloriesPct}
-                deltaDown={caloriesDeltaAbs !== null && caloriesDeltaAbs < 0}
-                deltaText={caloriesDeltaAbs !== null ? `${Math.abs(caloriesDeltaAbs)} kcal vs last week` : "No data yet"}
+                pct={caloriesTodayPct}
+                deltaDown={caloriesVsYesterday < 0}
+                deltaText={`${Math.abs(caloriesVsYesterday).toLocaleString()} kcal vs yesterday`}
                 sparkline={caloriesSeries}
                 onClick={() => setMetricDetail({ label: "Calories", data: weeklyCalories, color: "#FF9F45", unit: "kcal", goal: goalCalories ?? undefined })}
                 onSetGoal={() => setShowGoals(true)}
@@ -1272,7 +1285,7 @@ export default function DashboardPage() {
       {showAddFamily && (
         <AddFamilyModal
           onClose={() => setShowAddFamily(false)}
-          onAdded={(member) => setMemberRows((rows) => [...rows, { member, summary: null }])}
+          onAdded={(member) => setMemberRows((rows) => [...rows, { member, summary: null, logs: [] }])}
         />
       )}
 

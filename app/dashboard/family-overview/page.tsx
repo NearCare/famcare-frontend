@@ -4,9 +4,11 @@ import { CheckCircle, Warning, Sparkle, CaretRight, UserPlus, Trophy } from "@ph
 import { Flame, Dumbbell, Footprints } from "lucide-react";
 import {
   getFamilyMembers,
+  getMemberLogs,
   getMemberSummary,
   getUserSummary,
   type User,
+  type HealthLog,
   type Summary,
   type FamilyMember,
 } from "@/lib/api";
@@ -22,7 +24,7 @@ import Sidebar from "../components/Sidebar";
 import FamilyMemberModal from "../components/FamilyMemberModal";
 import AddFamilyModal from "../components/AddFamilyModal";
 
-type MemberRow = { member: FamilyMember; summary: Summary | null };
+type MemberRow = { member: FamilyMember; summary: Summary | null; logs: HealthLog[] };
 
 export default function FamilyOverviewPage() {
   const [user, setUser] = useState<User | null>(null);
@@ -53,6 +55,7 @@ export default function FamilyOverviewPage() {
           activeMembers.map(async (member) => ({
             member,
             summary: await getMemberSummary(member.id, token).catch(() => null),
+            logs: await getMemberLogs(member.id, token, 7).catch(() => []),
           }))
         );
         setMemberRows(rows);
@@ -76,6 +79,7 @@ export default function FamilyOverviewPage() {
     ];
     return rows.sort((a, b) => (b.score ?? -1) - (a.score ?? -1));
   }, [user, personalSummary, memberRows]);
+  const todayIST = new Date().toLocaleDateString("en-CA");
 
   if (loading) {
     return (
@@ -169,11 +173,15 @@ export default function FamilyOverviewPage() {
           </div>
         ) : (
           <div style={{ display: "flex", alignItems: "stretch", gap: 16, flexWrap: "wrap" }}>
-            {memberRows.map(({ member, summary: memberSummary }) => {
-              const score = computeScore(memberSummary);
-              const tier = scoreTier(score);
-              const avatarLetter = (member.name ?? member.label).charAt(0).toUpperCase();
-              return (
+              {memberRows.map(({ member, summary: memberSummary, logs }) => {
+                const score = computeScore(memberSummary);
+                const tier = scoreTier(score);
+                const avatarLetter = (member.name ?? member.label).charAt(0).toUpperCase();
+                const todayLog = logs.find((l) => l.logged_at === todayIST);
+                const todayCalories = todayLog?.calories ?? null;
+                const todayProtein = todayLog?.protein_g ?? null;
+                const todaySteps = todayLog?.steps ?? null;
+                return (
                 <div
                   key={member.id}
                   className="fo-member-card"
@@ -222,18 +230,18 @@ export default function FamilyOverviewPage() {
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 6, marginTop: 20, textAlign: "center" }}>
                     <div>
                       <div style={{ display: "flex", justifyContent: "center" }}><Flame size={20} color="#FF9F45" /></div>
-                      <p style={{ margin: "6px 0 0", fontSize: 14, fontWeight: 800, color: "#1A2744" }}>{memberSummary?.avg_calories != null ? memberSummary.avg_calories.toFixed(0) : "—"}</p>
-                      <p style={{ margin: 0, fontSize: 10, fontWeight: 600, color: "#7C84A8" }}>Cal</p>
+                      <p style={{ margin: "6px 0 0", fontSize: 14, fontWeight: 800, color: "#1A2744" }}>{todayCalories != null ? todayCalories.toLocaleString() : "—"}</p>
+                      <p style={{ margin: 0, fontSize: 10, fontWeight: 600, color: "#7C84A8" }}>Cal today</p>
                     </div>
                     <div>
                       <div style={{ display: "flex", justifyContent: "center" }}><Dumbbell size={20} color="#4F9BF5" /></div>
-                      <p style={{ margin: "6px 0 0", fontSize: 14, fontWeight: 800, color: "#1A2744" }}>{memberSummary?.avg_protein_g != null ? `${memberSummary.avg_protein_g.toFixed(0)}g` : "—"}</p>
-                      <p style={{ margin: 0, fontSize: 10, fontWeight: 600, color: "#7C84A8" }}>Protein</p>
+                      <p style={{ margin: "6px 0 0", fontSize: 14, fontWeight: 800, color: "#1A2744" }}>{todayProtein != null ? `${todayProtein.toFixed(0)}g` : "—"}</p>
+                      <p style={{ margin: 0, fontSize: 10, fontWeight: 600, color: "#7C84A8" }}>Protein today</p>
                     </div>
                     <div>
                       <div style={{ display: "flex", justifyContent: "center" }}><Footprints size={20} color="#20A865" /></div>
-                      <p style={{ margin: "6px 0 0", fontSize: 14, fontWeight: 800, color: "#1A2744" }}>{memberSummary?.avg_steps != null ? Math.round(memberSummary.avg_steps).toLocaleString() : "—"}</p>
-                      <p style={{ margin: 0, fontSize: 10, fontWeight: 600, color: "#7C84A8" }}>Steps</p>
+                      <p style={{ margin: "6px 0 0", fontSize: 14, fontWeight: 800, color: "#1A2744" }}>{todaySteps != null ? todaySteps.toLocaleString() : "—"}</p>
+                      <p style={{ margin: 0, fontSize: 10, fontWeight: 600, color: "#7C84A8" }}>Steps today</p>
                     </div>
                   </div>
                   <button
@@ -362,7 +370,7 @@ export default function FamilyOverviewPage() {
       {showAddFamily && (
         <AddFamilyModal
           onClose={() => setShowAddFamily(false)}
-          onAdded={(member) => setMemberRows((rows) => [...rows, { member, summary: null }])}
+          onAdded={(member) => setMemberRows((rows) => [...rows, { member, summary: null, logs: [] }])}
         />
       )}
     </div>
