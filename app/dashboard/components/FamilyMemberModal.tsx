@@ -6,7 +6,7 @@ import {
   ResponsiveContainer, Cell,
 } from "recharts";
 import { X, ChartBar, ClipboardText, Scroll, Info, Pill, CalendarCheck, CaretRight } from "@phosphor-icons/react";
-import { FEShoe, FEMeat, FEWheat } from "./FluentEmoji";
+import { FEShoe, FEProtein, FEWheat } from "./FluentEmoji";
 import {
   getMemberLogs,
   getMedicines,
@@ -227,7 +227,7 @@ export default function FamilyMemberModal({ member, onClose }: Props) {
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 12 }}>
             {[
               { icon: <FEShoe size={24} />, label: "Steps today", val: loading ? null : todaySteps ? `${todaySteps.toLocaleString()}` : "—", unit: "", bar: todayStepPct, color: "#7C6FF7", bg: "#F0EEFF" },
-              { icon: <FEMeat size={24} />, label: "Protein today", estimated: true, val: loading ? null : todayProtein ? `${todayProtein.toFixed(0)}` : "—", unit: "g", bar: todayProteinPct, color: "#2FBE76", bg: "#EAFBF0" },
+              { icon: <FEProtein size={24} />, label: "Protein today", estimated: true, val: loading ? null : todayProtein ? `${todayProtein.toFixed(0)}` : "—", unit: "g", bar: todayProteinPct, color: "#2FBE76", bg: "#EAFBF0" },
               { icon: <FEWheat size={24} />, label: "Calories today", estimated: true, val: loading ? null : todayCalories ? `${todayCalories.toLocaleString()}` : "—", unit: "", bar: todayCaloriesPct, color: "#FF9F45", bg: "#FFF4E8" },
             ].map(card => (
               <div key={card.label} style={{ background: card.bg, borderRadius: 14, padding: "14px 14px 12px" }}>
@@ -283,7 +283,7 @@ export default function FamilyMemberModal({ member, onClose }: Props) {
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 {[
                   { ic: <FEShoe size={20} />, label: "Steps", val: todayLog.steps != null ? todayLog.steps.toLocaleString() : "—" },
-                  { ic: <FEMeat size={20} />, label: "Protein", estimated: true, val: todayLog.protein_g != null ? `${todayLog.protein_g.toFixed(0)}g` : "—" },
+                  { ic: <FEProtein size={20} />, label: "Protein", estimated: true, val: todayLog.protein_g != null ? `${todayLog.protein_g.toFixed(0)}g` : "—" },
                   { ic: <FEWheat size={20} />, label: "Calories", estimated: true, val: todayLog.calories != null ? `${todayLog.calories} kcal` : "—" },
                 ].map(row => (
                   <div key={row.label} style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 13.5 }}>

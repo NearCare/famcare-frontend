@@ -29,16 +29,16 @@ export const FEShoe = ({ size = 28 }: { size?: number }) => (
   </svg>
 );
 
-export const FEMeat = ({ size = 28 }: { size?: number }) => (
+export const FEProtein = ({ size = 28 }: { size?: number }) => (
   <svg width={size} height={size} viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <ellipse cx="16.5" cy="20" rx="10.5" ry="6" fill="#8B3A0F" opacity=".22"/>
-    <ellipse cx="16.5" cy="17.5" rx="10" ry="7" fill="#C0392B"/>
-    <ellipse cx="16.5" cy="16.5" rx="9" ry="6" fill="#E74C3C"/>
-    <ellipse cx="16.5" cy="15.5" rx="7" ry="4.5" fill="#EC6B57"/>
-    <ellipse cx="13.5" cy="14.5" rx="3" ry="2" fill="#FF8A7A" opacity=".65"/>
-    <path d="M8 25C6 24 5 21.5 5 19" stroke="#7D2A0A" strokeWidth="2.5" strokeLinecap="round"/>
-    <circle cx="7" cy="27" r="3.5" fill="#8B3A0F"/>
-    <circle cx="7" cy="27" r="2.5" fill="#A0522D"/>
+    <circle cx="16" cy="16" r="12" fill="#FF6B6B" opacity=".14"/>
+    <path d="M11 20.5L16 8l5 12.5" stroke="#E8465A" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"/>
+    <path d="M13 16h6" stroke="#FF7C8B" strokeWidth="2.4" strokeLinecap="round"/>
+    <circle cx="9" cy="22" r="3.5" fill="#FF8A94"/>
+    <circle cx="23" cy="22" r="3.5" fill="#FF6B6B"/>
+    <circle cx="16" cy="8" r="3.2" fill="#E8465A"/>
+    <circle cx="8" cy="10" r="2.2" fill="#FFB2B8"/>
+    <circle cx="24" cy="10" r="2.2" fill="#FFB2B8"/>
   </svg>
 );
 

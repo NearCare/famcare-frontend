@@ -7,7 +7,7 @@ import {
 } from "@phosphor-icons/react";
 import { Flame, Dumbbell, Footprints } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip as ReTooltip, ResponsiveContainer, ReferenceLine, Cell } from "recharts";
-import { FEShoe, FEMeat, FEWheat, FEDroplet, FEMoon, FEFlame, FEChat } from "./components/FluentEmoji";
+import { FEShoe, FEProtein, FEWheat, FEDroplet, FEMoon, FEFlame, FEChat } from "./components/FluentEmoji";
 import {
   getUserLogs,
   getUserSummary,
@@ -1132,7 +1132,7 @@ export default function DashboardPage() {
                     <span style={{ width: 44, textAlign: "right", fontSize: 12, fontWeight: 700, color: "#9AA0AD" }}>{stepsPts}/40</span>
                   </div>
                   <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    <FEMeat size={20} />
+                    <FEProtein size={20} />
                     <span style={{ width: 78, fontSize: 12.5, fontWeight: 700, color: "#2C2F3A", display: "inline-flex", alignItems: "center", gap: 4 }}>
                       Protein <EstimateInfo />
                     </span>
@@ -1236,7 +1236,7 @@ export default function DashboardPage() {
 
           <div style={{ minWidth: 0, display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 10, alignContent: "start" }}>
               <MetricTile
-                icon={<FEMeat size={16} />} label="Protein today"
+                icon={<FEProtein size={16} />} label="Protein today"
                 color="var(--he-coral)" deepColor="var(--he-coral-deep)" chipBg="var(--he-coral-bg-2)" stripBg="var(--he-coral-bg)"
                 value={todayProtein ? todayProtein.toFixed(0) : "—"} unit="g"
                 goalText={goalProtein ? `of ${goalProtein}g goal` : undefined}
