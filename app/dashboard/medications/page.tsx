@@ -791,7 +791,7 @@ export default function MedicationsPage() {
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 7, color: "var(--he-ink-3)", fontSize: 12.5, fontWeight: 700 }}>
               <Info size={15} weight="bold" />
-              Kids can manage reminders for parents from here.
+              Child can manage reminders for parents from here.
             </div>
           </div>
 
