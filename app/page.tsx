@@ -3,7 +3,7 @@ import Link from "next/link";
 import {
   House, TrendUp, ForkKnife, Lightning, ClipboardText, Trophy,
   Bell, Gear, CalendarBlank, Fire, Lock, MapPin, Users,
-  ChatDots, ChartBar, Heart, UserCircle,
+  ChatDots, ChartBar, Heart, UserCircle, Info,
 } from "@phosphor-icons/react";
 import { FEShoe, FETarget } from "./dashboard/components/FluentEmoji";
 
@@ -68,6 +68,14 @@ const structuredData = {
     },
   ],
 };
+
+function EstimateInfo({ size = 8 }: { size?: number }) {
+  return (
+    <span title="Estimated from meal messages. Values are approximate." style={{ display: "inline-flex", cursor: "help", color: "#9AA0AD" }}>
+      <Info size={size} weight="bold" />
+    </span>
+  );
+}
 
 const useCases = [
   {
@@ -174,7 +182,7 @@ const DashboardMockup = () => (
           {[
             { icon: <ForkKnife size={18} weight="bold" color="#E85C5C" />, label: "Meals Logged", color: "#E85C5C", val: "3", sub: "Today", pct: 100, colorClass: "r" },
             { icon: <FEShoe size={20} />, label: "Steps Today", color: "#4A8FE2", val: "6,842", sub: "Today", pct: 68, colorClass: "b", blue: true },
-            { icon: <Fire size={18} weight="bold" color="#F5A623" />, label: "Calories Est.", color: "#F5A623", val: "1,650", sub: "Today", pct: 83, colorClass: "o" },
+            { icon: <Fire size={18} weight="bold" color="#F5A623" />, label: "Calories", estimated: true, color: "#F5A623", val: "1,650", sub: "Today", pct: 83, colorClass: "o" },
           ].map((stat) => (
             <div key={stat.label} style={{
               background: stat.blue ? "linear-gradient(145deg,#EBF3FF,#D4E8FF)" : "#fff",
@@ -184,7 +192,7 @@ const DashboardMockup = () => (
               <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
                 <div style={{ display: "flex", alignItems: "center" }}>{stat.icon}</div>
                 <div>
-                  <div style={{ fontSize: 7.5, fontWeight: 600, color: stat.color }}>{stat.label}</div>
+                  <div style={{ fontSize: 7.5, fontWeight: 600, color: stat.color, display: "inline-flex", alignItems: "center", gap: 3 }}>{stat.label}{stat.estimated && <EstimateInfo />}</div>
                   <div style={{ fontSize: 18, fontWeight: 700, letterSpacing: "-.3px", lineHeight: 1.1, marginTop: 2 }}>{stat.val}</div>
                   <div style={{ fontSize: 7.5, color: "#6B7A9A" }}>{stat.sub}</div>
                 </div>
@@ -271,12 +279,12 @@ const DashboardMockup = () => (
               {[
                 { color: "#4A8FE2", label: "Steps", val: "6,842 / 10,000" },
                 { color: "#F5A623", label: "Active Time", val: "45 / 60 mins" },
-                { color: "#E85C5C", label: "Calories est.", val: "1,650 / 2,000" },
+                { color: "#E85C5C", label: "Calories", estimated: true, val: "1,650 / 2,000" },
               ].map((row) => (
                 <div key={row.label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 8.5 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 4, color: "#6B7A9A" }}>
                     <div style={{ width: 6, height: 6, borderRadius: "50%", background: row.color }}></div>
-                    {row.label}
+                    {row.label}{row.estimated && <EstimateInfo size={7} />}
                   </div>
                   <div style={{ fontWeight: 600 }}>{row.val}</div>
                 </div>

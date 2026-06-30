@@ -4,7 +4,7 @@ import {
   BarChart, Bar, XAxis, YAxis, Tooltip as ReTooltip,
   ResponsiveContainer, Cell,
 } from "recharts";
-import { X, ChartBar, ClipboardText, Scroll } from "@phosphor-icons/react";
+import { X, ChartBar, ClipboardText, Scroll, Info } from "@phosphor-icons/react";
 import { FEShoe, FEMeat, FEWheat } from "./FluentEmoji";
 import { getMemberLogs, logsToWeeklyMetric, type FamilyMember, type HealthLog } from "@/lib/api";
 
@@ -54,6 +54,14 @@ function Skel({ w = "100%", h = 16 }: { w?: string | number; h?: number }) {
       background: "linear-gradient(90deg,#F5EEEE 25%,#EFE8E8 50%,#F5EEEE 75%)",
       backgroundSize: "200% 100%", animation: "shimmer 1.4s infinite",
     }} />
+  );
+}
+
+function EstimateInfo() {
+  return (
+    <span title="Estimated from meal messages. Values are approximate." style={{ display: "inline-flex", cursor: "help", color: "#9AA0AD" }}>
+      <Info size={11} weight="bold" />
+    </span>
   );
 }
 
@@ -147,8 +155,8 @@ export default function FamilyMemberModal({ member, onClose }: Props) {
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 12 }}>
             {[
               { icon: <FEShoe size={24} />, label: "Steps today", val: loading ? null : todaySteps ? `${todaySteps.toLocaleString()}` : "—", unit: "", bar: todayStepPct, color: "#7C6FF7", bg: "#F0EEFF" },
-              { icon: <FEMeat size={24} />, label: "Protein today (est.)", val: loading ? null : todayProtein ? `${todayProtein.toFixed(0)}` : "—", unit: "g", bar: todayProteinPct, color: "#2FBE76", bg: "#EAFBF0" },
-              { icon: <FEWheat size={24} />, label: "Calories today (est.)", val: loading ? null : todayCalories ? `${todayCalories.toLocaleString()}` : "—", unit: "", bar: todayCaloriesPct, color: "#FF9F45", bg: "#FFF4E8" },
+              { icon: <FEMeat size={24} />, label: "Protein today", estimated: true, val: loading ? null : todayProtein ? `${todayProtein.toFixed(0)}` : "—", unit: "g", bar: todayProteinPct, color: "#2FBE76", bg: "#EAFBF0" },
+              { icon: <FEWheat size={24} />, label: "Calories today", estimated: true, val: loading ? null : todayCalories ? `${todayCalories.toLocaleString()}` : "—", unit: "", bar: todayCaloriesPct, color: "#FF9F45", bg: "#FFF4E8" },
             ].map(card => (
               <div key={card.label} style={{ background: card.bg, borderRadius: 14, padding: "14px 14px 12px" }}>
                 <div style={{ marginBottom: 6 }}>{card.icon}</div>
@@ -159,7 +167,9 @@ export default function FamilyMemberModal({ member, onClose }: Props) {
                     {card.val}<span style={{ fontSize: 13, fontWeight: 600, color: "#7A8099" }}>{card.unit}</span>
                   </div>
                 )}
-                <div style={{ fontSize: 11, color: "#7A8099", marginTop: 3 }}>{card.label}</div>
+                <div style={{ fontSize: 11, color: "#7A8099", marginTop: 3, display: "inline-flex", alignItems: "center", gap: 4 }}>
+                  {card.label}{card.estimated && <EstimateInfo />}
+                </div>
                 <div style={{ height: 4, borderRadius: 4, background: "rgba(0,0,0,0.08)", marginTop: 8 }}>
                   <div style={{ height: "100%", borderRadius: 4, background: card.color, width: `${card.bar}%`, transition: "width .6s ease" }} />
                 </div>
@@ -201,12 +211,12 @@ export default function FamilyMemberModal({ member, onClose }: Props) {
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 {[
                   { ic: <FEShoe size={20} />, label: "Steps", val: todayLog.steps != null ? todayLog.steps.toLocaleString() : "—" },
-                  { ic: <FEMeat size={20} />, label: "Protein est.", val: todayLog.protein_g != null ? `${todayLog.protein_g.toFixed(0)}g` : "—" },
-                  { ic: <FEWheat size={20} />, label: "Calories est.", val: todayLog.calories != null ? `${todayLog.calories} kcal` : "—" },
+                  { ic: <FEMeat size={20} />, label: "Protein", estimated: true, val: todayLog.protein_g != null ? `${todayLog.protein_g.toFixed(0)}g` : "—" },
+                  { ic: <FEWheat size={20} />, label: "Calories", estimated: true, val: todayLog.calories != null ? `${todayLog.calories} kcal` : "—" },
                 ].map(row => (
                   <div key={row.label} style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 13.5 }}>
                     <span style={{ display: "flex", alignItems: "center" }}>{row.ic}</span>
-                    <span style={{ color: "#7A8099", flex: 1 }}>{row.label}</span>
+                    <span style={{ color: "#7A8099", flex: 1, display: "inline-flex", alignItems: "center", gap: 4 }}>{row.label}{row.estimated && <EstimateInfo />}</span>
                     <span style={{ fontWeight: 700, color: "#2C2F3A" }}>{row.val}</span>
                   </div>
                 ))}

@@ -300,7 +300,7 @@ function GoalsModal({
 }
 
 function MetricTile({
-  icon, label, color, deepColor, chipBg, stripBg, value, unit, goalText, pct, deltaDown, deltaText, sparkline, onClick, onSetGoal,
+  icon, label, color, deepColor, chipBg, stripBg, value, unit, goalText, pct, deltaDown, deltaText, sparkline, onClick, onSetGoal, estimated = false,
 }: {
   icon: React.ReactNode;
   label: string;
@@ -317,6 +317,7 @@ function MetricTile({
   sparkline: number[];
   onClick?: () => void;
   onSetGoal?: () => void;
+  estimated?: boolean;
 }) {
   return (
     <div className="db-card fo-metric-tile" onClick={onClick} style={{ display: "flex", flexDirection: "column", padding: "13px 14px", cursor: onClick ? "pointer" : "default" }}>
@@ -326,6 +327,7 @@ function MetricTile({
             {icon}
           </div>
           <span style={{ fontSize: 12.5, fontWeight: 800, color: deepColor }}>{label}</span>
+          {estimated && <EstimateInfo color={deepColor} />}
         </div>
         <CaretRight size={13} color="#BFC4CE" />
       </div>
@@ -373,6 +375,24 @@ function MetricTile({
         <Sparkline data={sparkline} color={color} />
       </div>
     </div>
+  );
+}
+
+function EstimateInfo({ color = "#9AA0AD" }: { color?: string }) {
+  return (
+    <span
+      title="Estimated from your meal messages. Values are approximate and not medical advice."
+      onClick={(e) => e.stopPropagation()}
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        cursor: "help",
+        color,
+      }}
+    >
+      <Info size={13} weight="bold" />
+    </span>
   );
 }
 
@@ -1095,13 +1115,17 @@ export default function DashboardPage() {
                   </div>
                   <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                     <FEMeat size={20} />
-                    <span style={{ width: 78, fontSize: 12.5, fontWeight: 700, color: "#2C2F3A" }}>Protein est.</span>
+                    <span style={{ width: 78, fontSize: 12.5, fontWeight: 700, color: "#2C2F3A", display: "inline-flex", alignItems: "center", gap: 4 }}>
+                      Protein <EstimateInfo />
+                    </span>
                     <div className="db-bar-track" style={{ flex: 1, margin: 0 }}><div className="db-bar-fill" style={{ width: `${(proteinPts / 30) * 100}%`, background: "var(--he-coral)" }} /></div>
                     <span style={{ width: 44, textAlign: "right", fontSize: 12, fontWeight: 700, color: "#9AA0AD" }}>{proteinPts}/30</span>
                   </div>
                   <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                     <FEWheat size={20} />
-                    <span style={{ width: 78, fontSize: 12.5, fontWeight: 700, color: "#2C2F3A" }}>Calories est.</span>
+                    <span style={{ width: 78, fontSize: 12.5, fontWeight: 700, color: "#2C2F3A", display: "inline-flex", alignItems: "center", gap: 4 }}>
+                      Calories <EstimateInfo />
+                    </span>
                     <div className="db-bar-track" style={{ flex: 1, margin: 0 }}><div className="db-bar-fill" style={{ width: `${(caloriesPts / 30) * 100}%`, background: "#FFB877" }} /></div>
                     <span style={{ width: 44, textAlign: "right", fontSize: 12, fontWeight: 700, color: "#9AA0AD" }}>{caloriesPts}/30</span>
                   </div>
@@ -1171,7 +1195,7 @@ export default function DashboardPage() {
 
           <div style={{ flex: "1 1 0", minWidth: 300, display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 10, alignContent: "start" }}>
               <MetricTile
-                icon={<FEMeat size={16} />} label="Protein today (est.)"
+                icon={<FEMeat size={16} />} label="Protein today"
                 color="var(--he-coral)" deepColor="var(--he-coral-deep)" chipBg="var(--he-coral-bg-2)" stripBg="var(--he-coral-bg)"
                 value={todayProtein ? todayProtein.toFixed(0) : "—"} unit="g"
                 goalText={goalProtein ? `of ${goalProtein}g goal` : undefined}
@@ -1181,9 +1205,10 @@ export default function DashboardPage() {
                 sparkline={proteinSeries}
                 onClick={() => setMetricDetail({ label: "Protein", data: weeklyProtein, color: "#FF6B6B", unit: "g", goal: goalProtein ?? undefined, decimals: 0 })}
                 onSetGoal={() => setShowGoals(true)}
+                estimated
               />
               <MetricTile
-                icon={<FEWheat size={16} />} label="Calories today (est.)"
+                icon={<FEWheat size={16} />} label="Calories today"
                 color="var(--he-orange)" deepColor="var(--he-orange-deep)" chipBg="var(--he-orange-bg-2)" stripBg="var(--he-orange-bg)"
                 value={todayCalories ? todayCalories.toLocaleString() : "—"} unit="kcal"
                 goalText={goalCalories ? `of ${goalCalories.toLocaleString()} kcal goal` : undefined}
@@ -1193,6 +1218,7 @@ export default function DashboardPage() {
                 sparkline={caloriesSeries}
                 onClick={() => setMetricDetail({ label: "Calories", data: weeklyCalories, color: "#FF9F45", unit: "kcal", goal: goalCalories ?? undefined })}
                 onSetGoal={() => setShowGoals(true)}
+                estimated
               />
               <MetricTile
                 icon={<FEShoe size={16} />} label="Steps today"

@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
-import { CheckCircle, Warning, Sparkle, CaretRight, UserPlus, Trophy } from "@phosphor-icons/react";
+import { CheckCircle, Warning, Sparkle, CaretRight, UserPlus, Trophy, Info } from "@phosphor-icons/react";
 import { Flame, Dumbbell, Footprints } from "lucide-react";
 import {
   getFamilyMembers,
@@ -20,6 +20,14 @@ const RANK_PALETTE = [
   { bg: "#FFF1EC", accent: "#E8855C", text: "#A04830", caption: "Keep going!" },
   { bg: "#F0F4FF", accent: "#6B8FE8", text: "#3050A0", caption: "Building momentum" },
 ];
+
+function EstimateInfo() {
+  return (
+    <span title="Estimated from meal messages. Values are approximate." style={{ display: "inline-flex", cursor: "help", color: "#9AA0AD" }}>
+      <Info size={11} weight="bold" />
+    </span>
+  );
+}
 import Sidebar from "../components/Sidebar";
 import FamilyMemberModal from "../components/FamilyMemberModal";
 import AddFamilyModal from "../components/AddFamilyModal";
@@ -231,12 +239,12 @@ export default function FamilyOverviewPage() {
                     <div>
                       <div style={{ display: "flex", justifyContent: "center" }}><Flame size={20} color="#FF9F45" /></div>
                       <p style={{ margin: "6px 0 0", fontSize: 14, fontWeight: 800, color: "#1A2744" }}>{todayCalories != null ? todayCalories.toLocaleString() : "—"}</p>
-                      <p style={{ margin: 0, fontSize: 10, fontWeight: 600, color: "#7C84A8" }}>Cal est.</p>
+                      <p style={{ margin: 0, fontSize: 10, fontWeight: 600, color: "#7C84A8", display: "inline-flex", alignItems: "center", gap: 3 }}>Cal today <EstimateInfo /></p>
                     </div>
                     <div>
                       <div style={{ display: "flex", justifyContent: "center" }}><Dumbbell size={20} color="#4F9BF5" /></div>
                       <p style={{ margin: "6px 0 0", fontSize: 14, fontWeight: 800, color: "#1A2744" }}>{todayProtein != null ? `${todayProtein.toFixed(0)}g` : "—"}</p>
-                      <p style={{ margin: 0, fontSize: 10, fontWeight: 600, color: "#7C84A8" }}>Protein est.</p>
+                      <p style={{ margin: 0, fontSize: 10, fontWeight: 600, color: "#7C84A8", display: "inline-flex", alignItems: "center", gap: 3 }}>Protein today <EstimateInfo /></p>
                     </div>
                     <div>
                       <div style={{ display: "flex", justifyContent: "center" }}><Footprints size={20} color="#20A865" /></div>
