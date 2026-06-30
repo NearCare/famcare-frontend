@@ -57,7 +57,7 @@ export function ScoreText({ score, tier, size = "md" }: { score: number | null; 
       >
         {score ?? "—"}
       </span>
-      <span style={{ fontSize: scale.slash, fontWeight: 800, lineHeight: 0.9, color: "#A7ADBA" }}>/</span>
+      <span style={{ fontSize: scale.slash, fontWeight: 500, lineHeight: 0.9, color: "#A7ADBA" }}>/</span>
       <span style={{ fontSize: scale.denominator, fontWeight: 700, lineHeight: 1, color: "#9AA0AD" }}>100</span>
     </span>
   );
@@ -99,7 +99,7 @@ export function ScoreRing({ score, tier, size = 46 }: { score: number | null; ti
         y={isLarge ? size * 0.55 : size * 0.5}
         textAnchor="middle"
         fontSize={isLarge ? size * 0.27 : size * 0.23}
-        fontWeight={800}
+        fontWeight={500}
         fill="#A7ADBA"
         fontFamily="'Plus Jakarta Sans', sans-serif"
       >/</text>
