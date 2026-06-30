@@ -505,7 +505,7 @@ function AddMedicineDrawer({
               ))}
               <button
                 onClick={addScheduleTime}
-                style={{ height: 40, border: "1.5px dashed var(--he-coral)", borderRadius: 12, background: "#fff", color: "var(--he-coral-deep)", padding: "0 12px", fontFamily: "inherit", fontSize: 12.5, fontWeight: 800, cursor: "pointer" }}
+                style={{ height: 40, border: "1.5px dashed var(--he-green)", borderRadius: 12, background: "#fff", color: "var(--he-green-deep)", padding: "0 12px", fontFamily: "inherit", fontSize: 12.5, fontWeight: 800, cursor: "pointer" }}
               >
                 + Schedule {form.dayPart.toLowerCase()} time
               </button>
@@ -526,10 +526,10 @@ function AddMedicineDrawer({
                     title={day.label}
                     style={{
                       height: 34,
-                      border: `1.5px solid ${active ? "var(--he-coral)" : "var(--he-card-border)"}`,
+                      border: `1.5px solid ${active ? "var(--he-green)" : "var(--he-card-border)"}`,
                       borderRadius: 11,
-                      background: active ? "var(--he-coral-bg)" : "#fff",
-                      color: active ? "var(--he-coral-deep)" : "var(--he-ink-2)",
+                      background: active ? "var(--he-green-bg)" : "#fff",
+                      color: active ? "var(--he-green-deep)" : "var(--he-ink-2)",
                       fontFamily: "inherit",
                       fontSize: 11.5,
                       fontWeight: 800,
@@ -570,7 +570,7 @@ function AddMedicineDrawer({
           <button onClick={onClose} disabled={saving} style={{ flex: 1, height: 44, border: "1.5px solid var(--he-card-border)", borderRadius: 13, background: "#fff", color: "var(--he-ink-2)", fontFamily: "inherit", fontSize: 13.5, fontWeight: 800, cursor: saving ? "not-allowed" : "pointer" }}>
             Cancel
           </button>
-          <button onClick={save} disabled={!canSave || saving} style={{ flex: 1.4, height: 44, border: "none", borderRadius: 13, background: canSave && !saving ? "linear-gradient(150deg, var(--he-coral-2), var(--he-coral))" : "#F0A0A0", color: "#fff", fontFamily: "inherit", fontSize: 13.5, fontWeight: 800, cursor: canSave && !saving ? "pointer" : "not-allowed", boxShadow: canSave && !saving ? "0 8px 18px rgba(255,107,107,.28)" : "none" }}>
+          <button onClick={save} disabled={!canSave || saving} style={{ flex: 1.4, height: 44, border: "none", borderRadius: 13, background: canSave && !saving ? "linear-gradient(150deg, #38D184, var(--he-green))" : "#BDE8CF", color: "#fff", fontFamily: "inherit", fontSize: 13.5, fontWeight: 800, cursor: canSave && !saving ? "pointer" : "not-allowed", boxShadow: canSave && !saving ? "0 8px 18px rgba(32,168,101,.24)" : "none" }}>
             {saving ? "Saving..." : "Save Medicine"}
           </button>
         </div>
