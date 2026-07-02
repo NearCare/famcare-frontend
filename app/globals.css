@@ -156,10 +156,10 @@ a {
 }
 .db-brand-mark {
   width: 40px; height: 40px;
-  border-radius: 13px;
-  background: linear-gradient(150deg, var(--he-coral-2), var(--he-coral));
-  display: grid; place-items: center;
-  box-shadow: 0 6px 14px rgba(255,107,107,.35);
+  border-radius: 12px;
+  object-fit: contain;
+  display: block;
+  box-shadow: 0 6px 14px rgba(255,107,107,.18);
   flex: none;
 }
 .db-brand-name {
@@ -793,12 +793,10 @@ a {
 .seo-brand-mark {
   width: 34px;
   height: 34px;
-  border-radius: 8px;
-  display: grid;
-  place-items: center;
-  color: #fff;
-  background: var(--primary);
-  box-shadow: 0 8px 18px rgba(232, 92, 92, .24);
+  border-radius: 9px;
+  display: block;
+  object-fit: contain;
+  box-shadow: 0 8px 18px rgba(232, 92, 92, .12);
 }
 .seo-nav-links {
   display: flex;

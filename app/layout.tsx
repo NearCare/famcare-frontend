@@ -54,6 +54,13 @@ export const metadata: Metadata = {
     description: siteDescription,
     images: ["/family-sunset.png"],
   },
+  icons: {
+    icon: [
+      { url: "/favicon.png", type: "image/png", sizes: "64x64" },
+      { url: "/famcare-logo.png", type: "image/png", sizes: "512x512" },
+    ],
+    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
+  },
 };
 
 export const viewport: Viewport = {

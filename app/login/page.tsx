@@ -91,12 +91,7 @@ export default function LoginPage() {
 
         {/* Brand */}
         <div style={{ display: "flex", alignItems: "center", gap: 10, position: "relative", zIndex: 1 }}>
-          <div style={{ width: 38, height: 38, background: "#E85C5C", borderRadius: 11, display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-              <path d="M10 17.2C10 17.2 2.5 12.5 2.5 7.5A5 5 0 0 1 10 3.84 5 5 0 0 1 17.5 7.5C17.5 12.5 10 17.2 10 17.2Z" fill="white" />
-              <circle cx="10" cy="7.5" r="1.8" fill="#E85C5C" />
-            </svg>
-          </div>
+          <img src="/famcare-logo.png" alt="" style={{ width: 40, height: 40, objectFit: "contain", borderRadius: 11 }} />
           <span style={{ fontSize: 18, fontWeight: 700, letterSpacing: "-.3px" }}>
             Fam<em style={{ color: "#E85C5C", fontStyle: "normal" }}>Care</em>
           </span>

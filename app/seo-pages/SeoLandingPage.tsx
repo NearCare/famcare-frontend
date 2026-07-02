@@ -59,7 +59,7 @@ const navItems = [
 function Brand() {
   return (
     <Link href="/" className="seo-brand" aria-label="FamCare home">
-      <span className="seo-brand-mark">♥</span>
+      <img className="seo-brand-mark" src="/famcare-logo.png" alt="" />
       <span>Fam<span>Care</span></span>
     </Link>
   );

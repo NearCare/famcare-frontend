@@ -47,7 +47,8 @@ export default function Sidebar() {
   return (
     <>
       <div className="db-mobile-topbar">
-        <span style={{ fontSize: 17, fontWeight: 800, fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+        <span style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 17, fontWeight: 800, fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+          <img src="/famcare-logo.png" alt="" style={{ width: 28, height: 28, objectFit: "contain", borderRadius: 8 }} />
           Fam<span style={{ color: "#FF6B6B" }}>Care</span>
         </span>
         <button onClick={() => setMobileOpen(!mobileOpen)}
@@ -63,12 +64,7 @@ export default function Sidebar() {
 
       <aside className={`db-sidebar${mobileOpen ? " open" : ""}`}>
         <div className="db-brand">
-          <div className="db-brand-mark">
-            <svg width="21" height="21" viewBox="0 0 24 24" fill="none">
-              <path d="M12 21C12 21 4 14 4 8.5a8 8 0 0116 0C20 14 12 21 12 21z" fill="white" />
-              <circle cx="12" cy="8.5" r="3" fill="rgba(255,255,255,0.45)" />
-            </svg>
-          </div>
+          <img className="db-brand-mark" src="/famcare-logo.png" alt="" />
           <span className="db-brand-name">Fam<span className="care">Care</span></span>
         </div>
 
