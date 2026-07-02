@@ -274,6 +274,11 @@ export type FamilyMember = {
   created_at: string;
 };
 
+export type InviteFamilyResponse = {
+  member: FamilyMember;
+  method: "otp" | "template";
+};
+
 async function authedFetch<T>(path: string, token: string, options?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE_URL}${path}`, {
     ...options,
@@ -293,14 +298,30 @@ async function authedFetch<T>(path: string, token: string, options?: RequestInit
 
 export async function inviteFamilyMember(
   phone: string, label: string, type: string, token: string
-): Promise<FamilyMember> {
+): Promise<InviteFamilyResponse> {
   if (MOCK_API) {
-    return { id: 4, phone, name: null, label, type, status: "pending", created_at: new Date().toISOString() };
+    return {
+      member: { id: 4, phone, name: null, label, type, status: "pending", created_at: new Date().toISOString() },
+      method: "otp",
+    };
   }
-  return authedFetch<FamilyMember>("/family/invite", token, {
+  return authedFetch<InviteFamilyResponse>("/family/invite", token, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ phone, label, type }),
+  });
+}
+
+export async function verifyFamilyInviteOtp(
+  phone: string, code: string, token: string
+): Promise<FamilyMember> {
+  if (MOCK_API) {
+    return { id: 4, phone, name: null, label: "Dad", type: "family", status: "active", created_at: new Date().toISOString() };
+  }
+  return authedFetch<FamilyMember>("/family/invite/verify-otp", token, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ phone, code }),
   });
 }
 
