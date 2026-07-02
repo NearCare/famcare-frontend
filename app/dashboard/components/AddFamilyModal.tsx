@@ -2,9 +2,9 @@
 import { useEffect, useRef, useState } from "react";
 import { X, Users, UserCheck, WarningCircle } from "@phosphor-icons/react";
 import { FESmartphone } from "./FluentEmoji";
-import { inviteFamilyMember, getFamilyMembers, type FamilyMember } from "@/lib/api";
+import { inviteFamilyMember, verifyFamilyInviteOtp, getFamilyMembers, type FamilyMember } from "@/lib/api";
 
-type Step = "details" | "sent" | "success";
+type Step = "details" | "otp" | "sent" | "success";
 
 const POLL_INTERVAL_MS = 4000;
 const POLL_TIMEOUT_MS = 5 * 60 * 1000;
@@ -20,6 +20,7 @@ export default function AddFamilyModal({ onClose, onAdded, onActivated }: Props)
   const [type, setType] = useState<"family" | "friend">("family");
   const [label, setLabel] = useState("");
   const [rawPhone, setRawPhone] = useState("");
+  const [otp, setOtp] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [sentMember, setSentMember] = useState<FamilyMember | null>(null);
@@ -36,12 +37,32 @@ export default function AddFamilyModal({ onClose, onAdded, onActivated }: Props)
     const token = localStorage.getItem("auth_token") ?? "";
     setLoading(true);
     try {
-      const member = await inviteFamilyMember(phone, label.trim(), type, token);
-      setSentMember(member);
-      onAdded(member);
-      setStep("sent");
+      const invite = await inviteFamilyMember(phone, label.trim(), type, token);
+      setSentMember(invite.member);
+      onAdded(invite.member);
+      setStep(invite.method === "otp" ? "otp" : "sent");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to send invite");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleVerifyOtp(e: React.FormEvent) {
+    e.preventDefault();
+    setError("");
+    if (otp.trim().length !== 6) return setError("Enter the 6-digit OTP");
+
+    const token = localStorage.getItem("auth_token") ?? "";
+    setLoading(true);
+    try {
+      const member = await verifyFamilyInviteOtp(phone, otp.trim(), token);
+      setSentMember(member);
+      onAdded(member);
+      setStep("success");
+      onActivated?.();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Invalid or expired OTP");
     } finally {
       setLoading(false);
     }
@@ -110,7 +131,7 @@ export default function AddFamilyModal({ onClose, onAdded, onActivated }: Props)
           {[0, 1, 2].map(i => (
             <div key={i} style={{
               flex: 1, height: 4, borderRadius: 4,
-              background: i <= (step === "details" ? 0 : step === "sent" ? 1 : 2) ? "#7C6FF7" : "#EDE8FF",
+              background: i <= (step === "details" ? 0 : step === "success" ? 2 : 1) ? "#7C6FF7" : "#EDE8FF",
               transition: "background .3s",
             }} />
           ))}
@@ -121,7 +142,7 @@ export default function AddFamilyModal({ onClose, onAdded, onActivated }: Props)
           <>
             <h2 style={headingStyle}>Add a family member</h2>
             <p style={subStyle}>
-              They&apos;ll get a WhatsApp invite and can reply <strong>YES</strong> to join.
+              They&apos;ll get an OTP on WhatsApp. Enter it here to add them as family.
             </p>
 
             {/* Type toggle */}
@@ -182,7 +203,49 @@ export default function AddFamilyModal({ onClose, onAdded, onActivated }: Props)
               {error && <p style={{ fontSize: 12.5, color: "#E85C5C", margin: 0, display: "flex", alignItems: "center", gap: 5 }}><WarningCircle size={14} weight="bold" />{error}</p>}
 
               <button type="submit" disabled={loading} style={primaryBtnStyle(loading)}>
-                {loading ? "Sending…" : "Send WhatsApp Invite →"}
+                {loading ? "Sending…" : "Send OTP →"}
+              </button>
+            </form>
+          </>
+        )}
+
+        {/* ── Step 2: OTP verification ── */}
+        {step === "otp" && (
+          <>
+            <div style={{ marginBottom: 14, display: "flex", justifyContent: "center" }}><FESmartphone size={60} /></div>
+            <h2 style={{ ...headingStyle, textAlign: "center" }}>Enter OTP</h2>
+            <p style={{ ...subStyle, textAlign: "center", marginBottom: 22 }}>
+              Ask {sentMember?.label ?? "them"} for the 6-digit OTP sent to <strong style={{ color: "#2C2F3A" }}>{phone}</strong>.
+            </p>
+
+            <form onSubmit={handleVerifyOtp} style={{ display: "flex", flexDirection: "column", gap: 13 }}>
+              <div>
+                <label style={labelStyle}>WhatsApp OTP</label>
+                <input
+                  type="tel"
+                  inputMode="numeric"
+                  placeholder="6-digit code"
+                  maxLength={6}
+                  value={otp}
+                  onChange={e => { setOtp(e.target.value.replace(/\D/g, "").slice(0, 6)); setError(""); }}
+                  style={{ ...inputStyle, textAlign: "center", letterSpacing: 4, fontWeight: 800, fontSize: 18 }}
+                  onFocus={e => e.target.style.borderColor = "#7C6FF7"}
+                  onBlur={e => e.target.style.borderColor = "#E8E4F5"}
+                />
+              </div>
+
+              {error && <p style={{ fontSize: 12.5, color: "#E85C5C", margin: 0, display: "flex", alignItems: "center", gap: 5 }}><WarningCircle size={14} weight="bold" />{error}</p>}
+
+              <button type="submit" disabled={loading} style={primaryBtnStyle(loading)}>
+                {loading ? "Verifying…" : "Verify & Add Family →"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setStep("details")}
+                disabled={loading}
+                style={plainBtnStyle}
+              >
+                Change number
               </button>
             </form>
           </>
@@ -306,3 +369,15 @@ function primaryBtnStyle(disabled: boolean): React.CSSProperties {
     transition: "background .2s",
   };
 }
+
+const plainBtnStyle: React.CSSProperties = {
+  width: "100%",
+  padding: "10px 0",
+  border: "none",
+  background: "transparent",
+  color: "#7A8099",
+  cursor: "pointer",
+  fontWeight: 800,
+  fontSize: 12.5,
+  fontFamily: "'Plus Jakarta Sans', sans-serif",
+};
