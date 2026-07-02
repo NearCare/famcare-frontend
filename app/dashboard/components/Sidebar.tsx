@@ -3,7 +3,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import {
-  House, Users, TrendUp, FileText, Lightning, Gear, List, Pill, Brain,
+  House, Users, TrendUp, FileText, Lightning, Gear, List, Pill, Brain, SignOut, X,
 } from "@phosphor-icons/react";
 
 const navItems = [
@@ -35,7 +35,14 @@ function NavIcon({ name }: { name: string }) {
 
 export default function Sidebar() {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [confirmLogoutOpen, setConfirmLogoutOpen] = useState(false);
   const pathname = usePathname();
+
+  function handleLogout() {
+    localStorage.removeItem("auth_token");
+    localStorage.removeItem("auth_user");
+    window.location.href = "/login";
+  }
 
   return (
     <>
@@ -95,12 +102,66 @@ export default function Sidebar() {
           })}
         </nav>
 
+        <button
+          type="button"
+          onClick={() => {
+            setMobileOpen(false);
+            setConfirmLogoutOpen(true);
+          }}
+          className="db-nav-item db-logout-item"
+        >
+          <SignOut className="ni-icon" size={19} weight="bold" />
+          <span style={{ flex: 1 }}>Logout</span>
+        </button>
+
         <div className="db-motiv">
           <span className="leaf">🌱</span>
           <h4>Stay consistent,<br />see the change!</h4>
           <p>Small steps today,<br />a healthier tomorrow.</p>
         </div>
       </aside>
+
+      {confirmLogoutOpen && (
+        <div
+          className="db-modal-overlay"
+          onClick={() => setConfirmLogoutOpen(false)}
+        >
+          <div
+            className="db-modal-sheet db-logout-modal"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              aria-label="Close logout confirmation"
+              className="db-logout-modal-close"
+              onClick={() => setConfirmLogoutOpen(false)}
+            >
+              <X size={15} weight="bold" />
+            </button>
+            <div className="db-logout-modal-icon">
+              <SignOut size={24} weight="bold" />
+            </div>
+            <h2>Log out?</h2>
+            <p>You&apos;ll need to verify your WhatsApp number again to access the dashboard.</p>
+            <div className="db-logout-modal-actions">
+              <button
+                type="button"
+                className="db-logout-cancel"
+                onClick={() => setConfirmLogoutOpen(false)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="db-logout-confirm"
+                onClick={handleLogout}
+              >
+                Logout
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }
