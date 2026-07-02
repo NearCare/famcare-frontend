@@ -218,7 +218,7 @@ export default function AddFamilyModal({ onClose, onAdded, onActivated }: Props)
             {/* Waiting state — polling for the YES reply */}
             <div style={{
               display: "flex", alignItems: "center", justifyContent: "center", gap: 9,
-              marginBottom: 18, color: "#7C6FF7", fontSize: 12.5, fontWeight: 700,
+              marginBottom: 10, color: "#7C6FF7", fontSize: 12.5, fontWeight: 700,
             }}>
               <span style={{
                 width: 8, height: 8, borderRadius: "50%", background: "#7C6FF7",
@@ -226,6 +226,9 @@ export default function AddFamilyModal({ onClose, onAdded, onActivated }: Props)
               }} />
               Waiting for {sentMember?.label} to reply…
             </div>
+            <p style={{ fontSize: 12.5, color: "#7A8099", lineHeight: 1.55, margin: "0 0 18px" }}>
+              After they accept the request, refresh this page once to see their updated status.
+            </p>
 
             <button onClick={onClose} style={primaryBtnStyle(false)}>Done</button>
           </div>
