@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import { X, Users, UserCheck, WarningCircle } from "@phosphor-icons/react";
 import { FESmartphone } from "./FluentEmoji";
-import { inviteFamilyMember, getFamilyMembers, type FamilyMember, type InviteFamilyResponse } from "@/lib/api";
+import { inviteFamilyMember, getFamilyMembers, type FamilyMember } from "@/lib/api";
 
 type Step = "details" | "sent" | "success";
 
@@ -23,14 +23,9 @@ export default function AddFamilyModal({ onClose, onAdded, onActivated }: Props)
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [sentMember, setSentMember] = useState<FamilyMember | null>(null);
-  const [invite, setInvite] = useState<InviteFamilyResponse | null>(null);
-  const [copied, setCopied] = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const phone = `+91${rawPhone}`;
-  const whatsappShareUrl = invite
-    ? `https://wa.me/?text=${encodeURIComponent(invite.share_text)}`
-    : "#";
 
   async function handleInvite(e: React.FormEvent) {
     e.preventDefault();
@@ -41,26 +36,14 @@ export default function AddFamilyModal({ onClose, onAdded, onActivated }: Props)
     const token = localStorage.getItem("auth_token") ?? "";
     setLoading(true);
     try {
-      const inviteResponse = await inviteFamilyMember(phone, label.trim(), type, token);
-      setInvite(inviteResponse);
-      setSentMember(inviteResponse.member);
-      onAdded(inviteResponse.member);
+      const member = await inviteFamilyMember(phone, label.trim(), type, token);
+      setSentMember(member);
+      onAdded(member);
       setStep("sent");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create invite");
+      setError(err instanceof Error ? err.message : "Failed to send invite");
     } finally {
       setLoading(false);
-    }
-  }
-
-  async function handleCopyInvite() {
-    if (!invite) return;
-    try {
-      await navigator.clipboard.writeText(invite.share_text);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1800);
-    } catch {
-      setError("Couldn't copy invite. You can open WhatsApp and share it manually.");
     }
   }
 
@@ -138,7 +121,7 @@ export default function AddFamilyModal({ onClose, onAdded, onActivated }: Props)
           <>
             <h2 style={headingStyle}>Add a family member</h2>
             <p style={subStyle}>
-              Create a WhatsApp join link, share it with them, and they can send <strong>YES</strong> to join.
+              They&apos;ll get a WhatsApp invite and can reply <strong>YES</strong> to join.
             </p>
 
             {/* Type toggle */}
@@ -199,49 +182,37 @@ export default function AddFamilyModal({ onClose, onAdded, onActivated }: Props)
               {error && <p style={{ fontSize: 12.5, color: "#E85C5C", margin: 0, display: "flex", alignItems: "center", gap: 5 }}><WarningCircle size={14} weight="bold" />{error}</p>}
 
               <button type="submit" disabled={loading} style={primaryBtnStyle(loading)}>
-                {loading ? "Creating…" : "Create WhatsApp Invite →"}
+                {loading ? "Sending…" : "Send WhatsApp Invite →"}
               </button>
             </form>
           </>
         )}
 
-        {/* ── Step 2: invite ready ── */}
+        {/* ── Step 2: invite sent ── */}
         {step === "sent" && (
           <div style={{ textAlign: "center", padding: "8px 0 4px" }}>
             <div style={{ marginBottom: 14, display: "flex", justifyContent: "center" }}><FESmartphone size={64} /></div>
-            <h2 style={{ ...headingStyle, marginBottom: 8 }}>Invite link ready</h2>
+            <h2 style={{ ...headingStyle, marginBottom: 8 }}>Invite sent!</h2>
             <p style={{ fontSize: 13.5, color: "#7A8099", lineHeight: 1.65, margin: "0 0 6px" }}>
-              Share this link with <strong style={{ color: "#2C2F3A" }}>{sentMember?.label}</strong> from your WhatsApp or any chat.
+              A WhatsApp invite was sent to <strong style={{ color: "#2C2F3A" }}>{phone}</strong>.
             </p>
             <p style={{ fontSize: 13.5, color: "#7A8099", lineHeight: 1.65, margin: "0 0 24px" }}>
-              When they tap it and send <strong style={{ color: "#7C6FF7" }}>YES</strong> to FamCare,
+              Once {sentMember?.label} replies <strong style={{ color: "#7C6FF7" }}>YES</strong>,
               they&apos;ll appear active on your dashboard.
             </p>
 
-            {/* Share card */}
+            {/* Message preview */}
             <div style={{
               background: "#F4F1FF", borderRadius: 14, padding: "14px 16px",
               textAlign: "left", marginBottom: 22,
             }}>
               <div style={{ fontSize: 11, fontWeight: 700, color: "#9AA0AD", marginBottom: 6, textTransform: "uppercase", letterSpacing: 0.5 }}>
-                Share message
+                WhatsApp message preview
               </div>
-              <p style={{ fontSize: 12.5, color: "#4A4560", lineHeight: 1.6, margin: "0 0 12px", whiteSpace: "pre-line" }}>
-                {invite?.share_text}
+              <p style={{ fontSize: 12.5, color: "#4A4560", lineHeight: 1.6, margin: 0 }}>
+                <strong>FamCare request:</strong> Your name wants to add you as a family member.
+                Reply <strong>YES</strong> to accept, or ignore if unknown.
               </p>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                <button type="button" onClick={handleCopyInvite} style={secondaryBtnStyle}>
-                  {copied ? "Copied!" : "Copy invite"}
-                </button>
-                <a
-                  href={whatsappShareUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{ ...secondaryBtnStyle, textAlign: "center", textDecoration: "none", boxSizing: "border-box" }}
-                >
-                  Share on WhatsApp
-                </a>
-              </div>
             </div>
 
             {/* Waiting state — polling for the YES reply */}
@@ -332,16 +303,3 @@ function primaryBtnStyle(disabled: boolean): React.CSSProperties {
     transition: "background .2s",
   };
 }
-
-const secondaryBtnStyle: React.CSSProperties = {
-  width: "100%",
-  padding: "10px 0",
-  borderRadius: 10,
-  border: "1.5px solid #D9D4FF",
-  background: "#fff",
-  color: "#7C6FF7",
-  cursor: "pointer",
-  fontWeight: 800,
-  fontSize: 12.5,
-  fontFamily: "'Plus Jakarta Sans', sans-serif",
-};

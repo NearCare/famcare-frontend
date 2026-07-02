@@ -73,12 +73,6 @@ const MOCK_MEMBERS: FamilyMember[] = [
   { id: 3, phone: "+910000000002", name: null, label: "Member 2", type: "family", status: "active", created_at: new Date().toISOString() },
 ];
 
-const MOCK_INVITE: InviteFamilyResponse = {
-  member: { id: 4, phone: "+910000000003", name: null, label: "Dad", type: "family", status: "pending", created_at: new Date().toISOString() },
-  join_url: "https://wa.me/14155238886?text=YES",
-  share_text: "Test User invited you to connect on FamCare.\n\nTap this link and send YES to accept:\nhttps://wa.me/14155238886?text=YES",
-};
-
 // ─── Types (mirror the Kotlin data classes) ──────────────────────────────────
 
 export type User = {
@@ -280,12 +274,6 @@ export type FamilyMember = {
   created_at: string;
 };
 
-export type InviteFamilyResponse = {
-  member: FamilyMember;
-  join_url: string;
-  share_text: string;
-};
-
 async function authedFetch<T>(path: string, token: string, options?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE_URL}${path}`, {
     ...options,
@@ -305,12 +293,11 @@ async function authedFetch<T>(path: string, token: string, options?: RequestInit
 
 export async function inviteFamilyMember(
   phone: string, label: string, type: string, token: string
-): Promise<InviteFamilyResponse> {
-  if (MOCK_API) return {
-    ...MOCK_INVITE,
-    member: { ...MOCK_INVITE.member, phone, label, type, created_at: new Date().toISOString() },
-  };
-  return authedFetch<InviteFamilyResponse>("/family/invite", token, {
+): Promise<FamilyMember> {
+  if (MOCK_API) {
+    return { id: 4, phone, name: null, label, type, status: "pending", created_at: new Date().toISOString() };
+  }
+  return authedFetch<FamilyMember>("/family/invite", token, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ phone, label, type }),
