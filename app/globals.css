@@ -156,10 +156,10 @@ a {
 }
 .db-brand-mark {
   width: 40px; height: 40px;
-  border-radius: 13px;
-  background: linear-gradient(150deg, var(--he-coral-2), var(--he-coral));
-  display: grid; place-items: center;
-  box-shadow: 0 6px 14px rgba(255,107,107,.35);
+  border-radius: 12px;
+  object-fit: contain;
+  display: block;
+  box-shadow: 0 6px 14px rgba(255,107,107,.18);
   flex: none;
 }
 .db-brand-name {
@@ -194,6 +194,16 @@ a {
   font-size: 9px; font-weight: 700; color: var(--he-ink-4);
   background: #F5F2F5; padding: 2px 7px; border-radius: 20px; margin-left: auto;
 }
+.db-logout-item {
+  width: 100%;
+  border: none;
+  background: transparent;
+  font-family: inherit;
+  margin-top: 8px;
+  color: var(--he-coral-deep);
+}
+.db-logout-item .ni-icon { color: var(--he-coral); }
+.db-logout-item:hover { background: var(--he-coral-bg); }
 
 .db-motiv {
   background: linear-gradient(160deg, #FFF1EF 0%, #FFE9F0 100%);
@@ -625,6 +635,77 @@ a {
 .db-modal-sheet {
   animation: dbModalPop .2s var(--he-ease, ease);
 }
+.db-logout-modal {
+  width: 100%;
+  max-width: 380px;
+  background: #fff;
+  border-radius: 18px;
+  padding: 28px;
+  box-shadow: 0 24px 60px rgba(0,0,0,0.18);
+  position: relative;
+  font-family: 'Plus Jakarta Sans', var(--font-jakarta), system-ui, sans-serif;
+  text-align: left;
+}
+.db-logout-modal-close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 10px;
+  background: #F5F3F8;
+  color: var(--he-ink-2);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+.db-logout-modal-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  background: var(--he-coral-bg);
+  color: var(--he-coral-deep);
+  display: grid;
+  place-items: center;
+  margin-bottom: 18px;
+}
+.db-logout-modal h2 {
+  font-size: 21px;
+  font-weight: 800;
+  color: var(--he-ink-1);
+  margin: 0 0 6px;
+  letter-spacing: 0;
+}
+.db-logout-modal p {
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: var(--he-ink-2);
+  margin: 0 0 24px;
+}
+.db-logout-modal-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.db-logout-modal-actions button {
+  height: 42px;
+  border-radius: 11px;
+  font-family: inherit;
+  font-size: 13.5px;
+  font-weight: 800;
+  cursor: pointer;
+}
+.db-logout-cancel {
+  border: 1.5px solid #E8E4F5;
+  background: #fff;
+  color: var(--he-ink-2);
+}
+.db-logout-confirm {
+  border: none;
+  background: var(--he-coral-deep);
+  color: #fff;
+}
 @keyframes dbModalPop {
   0%   { opacity: 0; transform: scale(.96); }
   100% { opacity: 1; transform: scale(1); }
@@ -712,12 +793,10 @@ a {
 .seo-brand-mark {
   width: 34px;
   height: 34px;
-  border-radius: 8px;
-  display: grid;
-  place-items: center;
-  color: #fff;
-  background: var(--primary);
-  box-shadow: 0 8px 18px rgba(232, 92, 92, .24);
+  border-radius: 9px;
+  display: block;
+  object-fit: contain;
+  box-shadow: 0 8px 18px rgba(232, 92, 92, .12);
 }
 .seo-nav-links {
   display: flex;

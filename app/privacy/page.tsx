@@ -12,7 +12,8 @@ export default function PrivacyPolicy() {
         padding: "0 56px", height: 64, borderBottom: "1px solid #F5EEEE",
         background: "#fff",
       }}>
-        <Link href="/" style={{ fontSize: 18, fontWeight: 800, color: "#1A2744", textDecoration: "none" }}>
+        <Link href="/" style={{ display: "flex", alignItems: "center", gap: 9, fontSize: 18, fontWeight: 800, color: "#1A2744", textDecoration: "none" }}>
+          <img src="/famcare-logo.png" alt="" style={{ width: 36, height: 36, objectFit: "contain", borderRadius: 10 }} />
           Fam<span style={{ color: "#E85C5C" }}>Care</span>
         </Link>
         <Link href="/login" style={{

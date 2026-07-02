@@ -138,13 +138,6 @@ const useCases = [
   },
 ];
 
-const HeartIcon = () => (
-  <svg width="18" height="18" viewBox="0 0 20 20" fill="none">
-    <path d="M10 17.2C10 17.2 2.5 12.5 2.5 7.5A5 5 0 0 1 10 3.84 5 5 0 0 1 17.5 7.5C17.5 12.5 10 17.2 10 17.2Z" fill="white" />
-    <circle cx="10" cy="7.5" r="1.8" fill="#E85C5C" />
-  </svg>
-);
-
 const DashboardMockup = () => (
   <div style={{
     width: 600,
@@ -166,14 +159,7 @@ const DashboardMockup = () => (
       borderBottom: "1px solid #F0E8E8",
     }}>
       <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-        <div style={{
-          width: 22, height: 22, background: "#E85C5C", borderRadius: 6,
-          display: "flex", alignItems: "center", justifyContent: "center",
-        }}>
-          <svg width="12" height="12" viewBox="0 0 20 20" fill="none">
-            <path d="M10 17.2C10 17.2 2.5 12.5 2.5 7.5A5 5 0 0 1 10 3.84 5 5 0 0 1 17.5 7.5C17.5 12.5 10 17.2 10 17.2Z" fill="white" />
-          </svg>
-        </div>
+        <img src="/famcare-logo.png" alt="" style={{ width: 22, height: 22, objectFit: "contain", borderRadius: 6 }} />
         <span style={{ fontSize: 11.5, fontWeight: 700 }}>Fam<em style={{ color: "#E85C5C", fontStyle: "normal" }}>Care</em></span>
       </div>
       <div style={{ fontSize: 11, fontWeight: 600 }}>
@@ -398,12 +384,7 @@ export default function LandingPage() {
         background: "#fff", position: "sticky", top: 0, zIndex: 100,
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
-          <div style={{
-            width: 36, height: 36, background: "#E85C5C", borderRadius: 10,
-            display: "flex", alignItems: "center", justifyContent: "center",
-          }}>
-            <HeartIcon />
-          </div>
+          <img src="/famcare-logo.png" alt="" style={{ width: 38, height: 38, objectFit: "contain", borderRadius: 10 }} />
           <span style={{ fontSize: 17, fontWeight: 700, letterSpacing: "-.3px" }}>
             Fam<em style={{ color: "#E85C5C", fontStyle: "normal" }}>Care</em>
           </span>
