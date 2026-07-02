@@ -294,6 +294,9 @@ async function authedFetch<T>(path: string, token: string, options?: RequestInit
 export async function inviteFamilyMember(
   phone: string, label: string, type: string, token: string
 ): Promise<FamilyMember> {
+  if (MOCK_API) {
+    return { id: 4, phone, name: null, label, type, status: "pending", created_at: new Date().toISOString() };
+  }
   return authedFetch<FamilyMember>("/family/invite", token, {
     method: "POST",
     headers: { "Content-Type": "application/json" },

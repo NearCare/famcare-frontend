@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { X, Users, UserCheck, WarningCircle, DeviceMobile } from "@phosphor-icons/react";
+import { X, Users, UserCheck, WarningCircle } from "@phosphor-icons/react";
 import { FESmartphone } from "./FluentEmoji";
 import { inviteFamilyMember, getFamilyMembers, type FamilyMember } from "@/lib/api";
 
@@ -121,7 +121,7 @@ export default function AddFamilyModal({ onClose, onAdded, onActivated }: Props)
           <>
             <h2 style={headingStyle}>Add a family member</h2>
             <p style={subStyle}>
-              They&apos;ll get a WhatsApp message and just need to reply <strong>YES</strong> to join.
+              They&apos;ll get a WhatsApp invite and can reply <strong>YES</strong> to join.
             </p>
 
             {/* Type toggle */}
@@ -194,15 +194,14 @@ export default function AddFamilyModal({ onClose, onAdded, onActivated }: Props)
             <div style={{ marginBottom: 14, display: "flex", justifyContent: "center" }}><FESmartphone size={64} /></div>
             <h2 style={{ ...headingStyle, marginBottom: 8 }}>Invite sent!</h2>
             <p style={{ fontSize: 13.5, color: "#7A8099", lineHeight: 1.65, margin: "0 0 6px" }}>
-              A WhatsApp message was sent to{" "}
-              <strong style={{ color: "#2C2F3A" }}>{phone}</strong>.
+              A WhatsApp invite was sent to <strong style={{ color: "#2C2F3A" }}>{phone}</strong>.
             </p>
             <p style={{ fontSize: 13.5, color: "#7A8099", lineHeight: 1.65, margin: "0 0 24px" }}>
-              Once <strong style={{ color: "#2C2F3A" }}>{sentMember?.label}</strong> replies{" "}
-              <strong style={{ color: "#7C6FF7" }}>YES</strong>, they&apos;ll appear active on your dashboard.
+              Once {sentMember?.label} replies <strong style={{ color: "#7C6FF7" }}>YES</strong>,
+              they&apos;ll appear active on your dashboard.
             </p>
 
-            {/* Preview of what dad gets */}
+            {/* Message preview */}
             <div style={{
               background: "#F4F1FF", borderRadius: 14, padding: "14px 16px",
               textAlign: "left", marginBottom: 22,
@@ -211,15 +210,15 @@ export default function AddFamilyModal({ onClose, onAdded, onActivated }: Props)
                 WhatsApp message preview
               </div>
               <p style={{ fontSize: 12.5, color: "#4A4560", lineHeight: 1.6, margin: 0 }}>
-                <em>wants to track your health on <strong>FamCare</strong> 🌱</em><br />
-                Reply <strong>YES</strong> to join and start logging your health together!
+                <strong>FamCare request:</strong> Your name wants to add you as a family member.
+                Reply <strong>YES</strong> to accept, or ignore if unknown.
               </p>
             </div>
 
             {/* Waiting state — polling for the YES reply */}
             <div style={{
               display: "flex", alignItems: "center", justifyContent: "center", gap: 9,
-              marginBottom: 18, color: "#7C6FF7", fontSize: 12.5, fontWeight: 700,
+              marginBottom: 10, color: "#7C6FF7", fontSize: 12.5, fontWeight: 700,
             }}>
               <span style={{
                 width: 8, height: 8, borderRadius: "50%", background: "#7C6FF7",
@@ -227,6 +226,9 @@ export default function AddFamilyModal({ onClose, onAdded, onActivated }: Props)
               }} />
               Waiting for {sentMember?.label} to reply…
             </div>
+            <p style={{ fontSize: 12.5, color: "#7A8099", lineHeight: 1.55, margin: "0 0 18px" }}>
+              After they accept the request, refresh this page once to see their updated status.
+            </p>
 
             <button onClick={onClose} style={primaryBtnStyle(false)}>Done</button>
           </div>
