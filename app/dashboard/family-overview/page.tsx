@@ -413,7 +413,14 @@ export default function FamilyOverviewPage() {
       </div>
 
       {selectedMember && (
-        <FamilyMemberModal member={selectedMember} onClose={() => setSelectedMember(null)} />
+        <FamilyMemberModal
+          member={selectedMember}
+          onClose={() => setSelectedMember(null)}
+          onRemoved={(memberId) => {
+            setMemberRows((rows) => rows.filter(({ member }) => member.id !== memberId));
+            setSelectedMember(null);
+          }}
+        />
       )}
 
       {showAddFamily && (
