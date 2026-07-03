@@ -28,6 +28,7 @@ import Sidebar from "./components/Sidebar";
 import FamilyMemberModal from "./components/FamilyMemberModal";
 import AddFamilyModal from "./components/AddFamilyModal";
 import StreakPill from "./components/StreakPill";
+import { captureEvent, identifyUser } from "@/lib/analytics";
 
 /** Averages raw logs falling within [minDaysAgo, maxDaysAgo] of today — used to compare this week vs last week. */
 function rangeAverages(logs: HealthLog[], minDaysAgo: number, maxDaysAgo: number) {
@@ -604,6 +605,12 @@ export default function DashboardPage() {
       setSummary(fetchedSummary);
 
       const activeMembers = members.filter((m) => m.status === "active");
+      identifyUser(authUser);
+      captureEvent("dashboard_viewed", {
+        family_member_count: activeMembers.length,
+        health_log_count: fetchedLogs.length,
+        has_family_members: activeMembers.length > 0,
+      });
       const rows = await Promise.all(
         activeMembers.map(async (member) => ({
           member,
@@ -1351,6 +1358,7 @@ export default function DashboardPage() {
           onClose={() => setSelectedMember(null)}
           onRemoved={(memberId) => {
             setMemberRows((rows) => rows.filter(({ member }) => member.id !== memberId));
+            captureEvent("family_member_removed", { member_id: memberId });
             setSelectedMember(null);
           }}
         />
@@ -1359,7 +1367,14 @@ export default function DashboardPage() {
       {showAddFamily && (
         <AddFamilyModal
           onClose={() => setShowAddFamily(false)}
-          onAdded={(member) => setMemberRows((rows) => [...rows, { member, summary: null, logs: [] }])}
+          onAdded={(member) => {
+            setMemberRows((rows) => [...rows, { member, summary: null, logs: [] }]);
+            captureEvent("family_member_added", {
+              member_id: member.id,
+              member_status: member.status,
+              member_type: member.type,
+            });
+          }}
         />
       )}
 

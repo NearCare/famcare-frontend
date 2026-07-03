@@ -28,6 +28,7 @@ import {
   type User,
 } from "@/lib/api";
 import StreakPill from "../components/StreakPill";
+import { captureEvent, identifyUser } from "@/lib/analytics";
 
 const WA_LINK = "https://wa.me/";
 
@@ -645,11 +646,16 @@ function MedicationsContent() {
         getFamilyMembers(token).catch(() => [] as FamilyMember[]),
         getUserLogs(authUser.id, 30).catch(() => []),
       ]);
+      const activeMembers = members.filter((member) => member.status === "active");
       setStreak(calculateStreak(logs));
+      identifyUser(authUser);
+      captureEvent("medications_viewed", {
+        family_member_count: activeMembers.length,
+        has_family_members: activeMembers.length > 0,
+      });
       const options: PersonOption[] = [
         { id: "self", userId: authUser.id, name: authUser.name ?? "You", label: "You" },
-        ...members
-          .filter((member) => member.status === "active")
+        ...activeMembers
           .map((member) => ({
             id: `member-${member.id}`,
             userId: member.id,
@@ -722,7 +728,12 @@ function MedicationsContent() {
     canMarkTaken: dose.status !== "taken" && dose.status !== "upcoming",
   }));
 
-  const openAdd = () => setShowAddDrawer(true);
+  const openAdd = () => {
+    captureEvent("medicine_add_opened", {
+      patient_type: selectedPersonId === "self" ? "self" : "family",
+    });
+    setShowAddDrawer(true);
+  };
   const refreshMedicinesFor = async (patientUserId: number) => {
     const token = localStorage.getItem("auth_token") ?? "";
     const [nextMedicines, nextDoses] = await Promise.all([
@@ -761,6 +772,12 @@ function MedicationsContent() {
           reminder_offset_minutes: 15,
         })),
       }, token);
+      captureEvent("medicine_added", {
+        patient_type: form.personId === "self" ? "self" : "family",
+        schedules_count: form.times.length,
+        reminders_enabled: form.reminders,
+        days_count: form.daysOfWeek.length,
+      });
       setSelectedPersonId(form.personId);
       setShowAddDrawer(false);
       await refreshMedicinesFor(person.userId);
@@ -781,6 +798,10 @@ function MedicationsContent() {
         scheduled_for: row.scheduledFor,
         status: "taken",
       }, token);
+      captureEvent("medicine_dose_marked", {
+        status: "taken",
+        medicine_id: row.medicineId,
+      });
       await refreshSelectedMedicines();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to mark dose");

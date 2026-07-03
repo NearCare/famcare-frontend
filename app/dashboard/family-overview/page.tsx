@@ -73,6 +73,7 @@ function EstimateInfo() {
 import Sidebar from "../components/Sidebar";
 import FamilyMemberModal from "../components/FamilyMemberModal";
 import AddFamilyModal from "../components/AddFamilyModal";
+import { captureEvent, identifyUser } from "@/lib/analytics";
 
 type MemberRow = { member: FamilyMember; summary: Summary | null; logs: HealthLog[] };
 
@@ -101,6 +102,11 @@ export default function FamilyOverviewPage() {
         setPersonalSummary(mySummary);
 
         const activeMembers = members.filter((m) => m.status === "active");
+        identifyUser(authUser);
+        captureEvent("family_overview_viewed", {
+          family_member_count: activeMembers.length,
+          has_family_members: activeMembers.length > 0,
+        });
         const rows = await Promise.all(
           activeMembers.map(async (member) => ({
             member,
@@ -418,6 +424,7 @@ export default function FamilyOverviewPage() {
           onClose={() => setSelectedMember(null)}
           onRemoved={(memberId) => {
             setMemberRows((rows) => rows.filter(({ member }) => member.id !== memberId));
+            captureEvent("family_member_removed", { member_id: memberId, source: "family_overview" });
             setSelectedMember(null);
           }}
         />
@@ -426,7 +433,15 @@ export default function FamilyOverviewPage() {
       {showAddFamily && (
         <AddFamilyModal
           onClose={() => setShowAddFamily(false)}
-          onAdded={(member) => setMemberRows((rows) => [...rows, { member, summary: null, logs: [] }])}
+          onAdded={(member) => {
+            setMemberRows((rows) => [...rows, { member, summary: null, logs: [] }]);
+            captureEvent("family_member_added", {
+              member_id: member.id,
+              member_status: member.status,
+              member_type: member.type,
+              source: "family_overview",
+            });
+          }}
         />
       )}
     </div>
