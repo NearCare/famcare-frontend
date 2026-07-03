@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip as ReTooltip,
   ResponsiveContainer, Cell,
@@ -120,6 +120,7 @@ function EstimateInfo() {
 }
 
 export default function FamilyMemberModal({ member, onClose, onRemoved }: Props) {
+  const [contentReady, setContentReady] = useState(false);
   const [logs, setLogs] = useState<HealthLog[]>([]);
   const [medicines, setMedicines] = useState<Medicine[]>([]);
   const [todayDoses, setTodayDoses] = useState<TodayDose[]>([]);
@@ -130,13 +131,23 @@ export default function FamilyMemberModal({ member, onClose, onRemoved }: Props)
   const [removeError, setRemoveError] = useState("");
 
   useEffect(() => {
+    const frame = window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => setContentReady(true));
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, []);
+
+  useEffect(() => {
+    if (!contentReady) return;
     const token = localStorage.getItem("auth_token") ?? "";
+    setLoading(true);
     getMemberLogs(member.id, token, 7)
       .then(setLogs)
       .finally(() => setLoading(false));
-  }, [member.id]);
+  }, [contentReady, member.id]);
 
   useEffect(() => {
+    if (!contentReady) return;
     const token = localStorage.getItem("auth_token") ?? "";
     setMedicationLoading(true);
     Promise.all([
@@ -148,21 +159,21 @@ export default function FamilyMemberModal({ member, onClose, onRemoved }: Props)
         setTodayDoses(nextDoses);
       })
       .finally(() => setMedicationLoading(false));
-  }, [member.id]);
+  }, [contentReady, member.id]);
 
-  const weeklySteps = logsToWeeklyMetric(logs, "steps");
-  const weeklyProtein = logsToWeeklyMetric(logs, "protein_g");
-  const weeklyCalories = logsToWeeklyMetric(logs, "calories");
+  const weeklySteps = useMemo(() => logsToWeeklyMetric(logs, "steps"), [logs]);
+  const weeklyProtein = useMemo(() => logsToWeeklyMetric(logs, "protein_g"), [logs]);
+  const weeklyCalories = useMemo(() => logsToWeeklyMetric(logs, "calories"), [logs]);
   const todayIST = new Date().toLocaleDateString("en-CA");
-  const todayLog = logs.find(l => l.logged_at === todayIST);
+  const todayLog = useMemo(() => logs.find(l => l.logged_at === todayIST), [logs, todayIST]);
   const todaySteps = todayLog?.steps ?? 0;
   const todayProtein = todayLog?.protein_g ?? 0;
   const todayCalories = todayLog?.calories ?? 0;
   const todayStepPct = Math.min(Math.round((todaySteps / 10000) * 100), 100);
   const todayProteinPct = Math.min(Math.round((todayProtein / 50) * 100), 100);
   const todayCaloriesPct = Math.min(Math.round((todayCalories / 2000) * 100), 100);
-  const activeMedicines = medicines.filter((medicine) => medicine.is_active);
-  const takenDoses = todayDoses.filter((dose) => dose.status === "taken");
+  const activeMedicines = useMemo(() => medicines.filter((medicine) => medicine.is_active), [medicines]);
+  const takenDoses = useMemo(() => todayDoses.filter((dose) => dose.status === "taken"), [todayDoses]);
   const medicationHref = `/dashboard/medications?person=member-${member.id}`;
 
   const avatarLetter = (member.name ?? member.label).charAt(0).toUpperCase();
@@ -280,7 +291,7 @@ export default function FamilyMemberModal({ member, onClose, onRemoved }: Props)
               <div style={{ fontSize: 13.5, fontWeight: 800, color: "#2C2F3A", marginBottom: 12, fontFamily: "'Plus Jakarta Sans', sans-serif", display: "flex", alignItems: "center", gap: 7 }}>
                 <ChartBar size={15} weight="bold" color="#7C6FF7" /> {chart.title}
               </div>
-              {loading ? <Skel h={120} /> : (
+              {loading || !contentReady ? <Skel h={120} /> : (
                 <MiniMetricChart
                   data={chart.data}
                   unitLabel={chart.unitLabel}

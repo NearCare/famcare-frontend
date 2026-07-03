@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import {
   CheckCircle, Warning, Sparkle, CaretRight, Info, TrendUp, Minus, X,
   Star, CalendarBlank, CalendarCheck, Trophy, SignOut, UserPlus,
@@ -550,6 +550,7 @@ export default function DashboardPage() {
   const [error, setError] = useState<string | null>(null);
   const [showAccountMenu, setShowAccountMenu] = useState(false);
   const [selectedMember, setSelectedMember] = useState<FamilyMember | null>(null);
+  const [, startModalTransition] = useTransition();
   const [showAddFamily, setShowAddFamily] = useState(false);
   const [showScoreInfo, setShowScoreInfo] = useState(false);
   const [metricDetail, setMetricDetail] = useState<MetricDetail | null>(null);
@@ -937,7 +938,7 @@ export default function DashboardPage() {
                       </div>
                     </div>
                     <button
-                      onClick={() => setSelectedMember(member)}
+                      onClick={() => startModalTransition(() => setSelectedMember(member))}
                       style={{
                         width: "100%", marginTop: 18, padding: "10px 0", border: `1.5px solid ${tier.border}`, borderRadius: 14,
                         background: tier.bg, color: tier.textColor, fontSize: 13, fontWeight: 700,
