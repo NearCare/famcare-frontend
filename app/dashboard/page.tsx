@@ -70,23 +70,38 @@ type MetricDetail = {
 };
 
 function MetricDetailFloater({ detail, onClose, onSetGoal }: { detail: MetricDetail; onClose: () => void; onSetGoal: () => void }) {
+  const [chartReady, setChartReady] = useState(false);
+
   useEffect(() => {
     const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
     document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
   }, [onClose]);
 
+  useEffect(() => {
+    setChartReady(false);
+    const frame = window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => setChartReady(true));
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [detail]);
+
   const todayIdx = detail.data.length - 1;
-  const maxVal = Math.max(...detail.data.map(d => d.value), detail.goal ? detail.goal * 0.5 : 1);
-  const fmt = (v: number) => detail.decimals ? v.toFixed(detail.decimals) : Math.round(v).toLocaleString();
+  const maxVal = useMemo(
+    () => Math.max(...detail.data.map(d => d.value), detail.goal ? detail.goal * 0.5 : 1),
+    [detail],
+  );
+  const fmt = useCallback(
+    (v: number) => detail.decimals ? v.toFixed(detail.decimals) : Math.round(v).toLocaleString(),
+    [detail.decimals],
+  );
 
   return (
     <div
       onClick={onClose}
       style={{
-        position: "fixed", inset: 0, background: "rgba(26,20,20,.45)", zIndex: 300,
+        position: "fixed", inset: 0, background: "rgba(26,20,20,.38)", zIndex: 300,
         display: "flex", alignItems: "center", justifyContent: "center", padding: 20,
-        backdropFilter: "blur(2px)",
       }}
     >
       <div
@@ -95,6 +110,9 @@ function MetricDetailFloater({ detail, onClose, onSetGoal }: { detail: MetricDet
           background: "#fff", borderRadius: 24, padding: "26px 26px 22px",
           width: "100%", maxWidth: 460, boxShadow: "0 24px 60px rgba(26,20,20,.18)",
           fontFamily: "'Plus Jakarta Sans', sans-serif",
+          contain: "layout paint",
+          willChange: "transform, opacity",
+          transform: "translateZ(0)",
         }}
       >
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
@@ -128,43 +146,64 @@ function MetricDetailFloater({ detail, onClose, onSetGoal }: { detail: MetricDet
           </button>
         </div>
 
-        <ResponsiveContainer width="100%" height={180}>
-          <BarChart data={detail.data} barSize={32} margin={{ top: 10, right: 4, left: 0, bottom: 0 }}>
-            <XAxis
-              dataKey="label"
-              axisLine={false} tickLine={false}
-              tick={{ fontSize: 11, fontWeight: 700, fill: "#9AA0AD", fontFamily: "'Plus Jakarta Sans', sans-serif" }}
-            />
-            <YAxis hide domain={[0, maxVal * 1.25]} />
-            <ReTooltip
-              cursor={{ fill: "rgba(0,0,0,.04)", radius: 8 }}
-              contentStyle={{ background: "#fff", border: "1px solid #F2F1F3", borderRadius: 10, fontSize: 12, fontFamily: "'Plus Jakarta Sans', sans-serif" }}
-              labelStyle={{ color: "#9AA0AD", fontSize: 11, fontWeight: 700 }}
-              itemStyle={{ fontWeight: 700 }}
-              formatter={(v) => [`${fmt(Number(v))} ${detail.unit}`, detail.label]}
-            />
-            {detail.goal && (
-              <ReferenceLine
-                y={detail.goal}
-                stroke="#E0DCF0" strokeDasharray="5 4" strokeWidth={1.5}
-                label={{ value: "Goal", position: "right", fontSize: 10, fill: "#BFC4CE", fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+        {chartReady ? (
+          <ResponsiveContainer width="100%" height={180}>
+            <BarChart data={detail.data} barSize={32} margin={{ top: 10, right: 4, left: 0, bottom: 0 }}>
+              <XAxis
+                dataKey="label"
+                axisLine={false} tickLine={false}
+                tick={{ fontSize: 11, fontWeight: 700, fill: "#9AA0AD", fontFamily: "'Plus Jakarta Sans', sans-serif" }}
               />
-            )}
-            <Bar dataKey="value" radius={[7, 7, 3, 3]}>
-              {detail.data.map((entry, i) => (
-                <Cell
-                  key={i}
-                  fill={i === todayIdx
-                    ? detail.color
-                    : detail.goal
-                      ? (entry.value >= detail.goal ? detail.color + "CC" : detail.color + "44")
-                      : detail.color + "88"
-                  }
+              <YAxis hide domain={[0, maxVal * 1.25]} />
+              <ReTooltip
+                cursor={{ fill: "rgba(0,0,0,.04)", radius: 8 }}
+                contentStyle={{ background: "#fff", border: "1px solid #F2F1F3", borderRadius: 10, fontSize: 12, fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+                labelStyle={{ color: "#9AA0AD", fontSize: 11, fontWeight: 700 }}
+                itemStyle={{ fontWeight: 700 }}
+                formatter={(v) => [`${fmt(Number(v))} ${detail.unit}`, detail.label]}
+              />
+              {detail.goal && (
+                <ReferenceLine
+                  y={detail.goal}
+                  stroke="#E0DCF0" strokeDasharray="5 4" strokeWidth={1.5}
+                  label={{ value: "Goal", position: "right", fontSize: 10, fill: "#BFC4CE", fontFamily: "'Plus Jakarta Sans', sans-serif" }}
                 />
-              ))}
-            </Bar>
-          </BarChart>
-        </ResponsiveContainer>
+              )}
+              <Bar dataKey="value" radius={[7, 7, 3, 3]}>
+                {detail.data.map((entry, i) => (
+                  <Cell
+                    key={i}
+                    fill={i === todayIdx
+                      ? detail.color
+                      : detail.goal
+                        ? (entry.value >= detail.goal ? detail.color + "CC" : detail.color + "44")
+                        : detail.color + "88"
+                    }
+                  />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        ) : (
+          <div style={{ height: 180, display: "grid", alignItems: "end", gridTemplateColumns: "repeat(7, 1fr)", gap: 10, padding: "14px 2px 8px" }}>
+            {detail.data.map((entry, i) => {
+              const pct = maxVal > 0 ? Math.max(8, Math.round((entry.value / (maxVal * 1.25)) * 100)) : 8;
+              return (
+                <div key={`${entry.label}-${i}`} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
+                  <div style={{
+                    width: "100%",
+                    maxWidth: 32,
+                    height: `${pct}%`,
+                    minHeight: 12,
+                    borderRadius: "7px 7px 3px 3px",
+                    background: i === todayIdx ? detail.color : detail.color + "44",
+                  }} />
+                  <span style={{ fontSize: 11, fontWeight: 700, color: "#9AA0AD" }}>{entry.label}</span>
+                </div>
+              );
+            })}
+          </div>
+        )}
 
         <div style={{ display: "flex", gap: 12, marginTop: 14, flexWrap: "wrap" }}>
           {(detail.goal ? [
