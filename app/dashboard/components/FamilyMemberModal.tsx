@@ -12,6 +12,7 @@ import {
   getMedicines,
   getTodayMedicineDoses,
   logsToWeeklyMetric,
+  removeFamilyMember,
   type FamilyMember,
   type HealthLog,
   type Medicine,
@@ -21,6 +22,7 @@ import {
 interface Props {
   member: FamilyMember;
   onClose: () => void;
+  onRemoved?: (memberId: number) => void;
 }
 
 function MiniMetricChart({
@@ -117,12 +119,15 @@ function EstimateInfo() {
   );
 }
 
-export default function FamilyMemberModal({ member, onClose }: Props) {
+export default function FamilyMemberModal({ member, onClose, onRemoved }: Props) {
   const [logs, setLogs] = useState<HealthLog[]>([]);
   const [medicines, setMedicines] = useState<Medicine[]>([]);
   const [todayDoses, setTodayDoses] = useState<TodayDose[]>([]);
   const [loading, setLoading] = useState(true);
   const [medicationLoading, setMedicationLoading] = useState(true);
+  const [confirmRemove, setConfirmRemove] = useState(false);
+  const [removing, setRemoving] = useState(false);
+  const [removeError, setRemoveError] = useState("");
 
   useEffect(() => {
     const token = localStorage.getItem("auth_token") ?? "";
@@ -161,9 +166,25 @@ export default function FamilyMemberModal({ member, onClose }: Props) {
   const medicationHref = `/dashboard/medications?person=member-${member.id}`;
 
   const avatarLetter = (member.name ?? member.label).charAt(0).toUpperCase();
+  const displayName = member.name ?? member.label;
 
   const typeColor = member.type === "family" ? "#7C6FF7" : "#FF9F45";
   const typeBg   = member.type === "family" ? "#F0EEFF"  : "#FFF4E8";
+
+  const handleRemove = async () => {
+    const token = localStorage.getItem("auth_token") ?? "";
+    setRemoving(true);
+    setRemoveError("");
+    try {
+      await removeFamilyMember(member.id, token);
+      onRemoved?.(member.id);
+      onClose();
+    } catch (err) {
+      setRemoveError(err instanceof Error ? err.message : "Failed to remove family member");
+    } finally {
+      setRemoving(false);
+    }
+  };
 
   return (
     <div
@@ -200,7 +221,7 @@ export default function FamilyMemberModal({ member, onClose }: Props) {
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <span style={{ fontSize: 17, fontWeight: 800, color: "#2C2F3A", fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
-                {member.name ?? member.label}
+                {displayName}
               </span>
               <span style={{ fontSize: 11, fontWeight: 700, color: typeColor, background: typeBg, padding: "2px 9px", borderRadius: 20 }}>
                 {member.label}
@@ -430,6 +451,85 @@ export default function FamilyMemberModal({ member, onClose }: Props) {
               No health logs yet. Ask them to send a WhatsApp message! 📱
             </div>
           )}
+
+          <div style={{
+            borderTop: "1px solid #F0EEF5",
+            paddingTop: 18,
+            display: "flex",
+            flexDirection: "column",
+            gap: 12,
+          }}>
+            {confirmRemove ? (
+              <div style={{ background: "#FFF4F4", border: "1px solid #FFD7D7", borderRadius: 14, padding: 14 }}>
+                <p style={{ margin: 0, color: "#2C2F3A", fontSize: 13, fontWeight: 800 }}>
+                  Remove {displayName} from your family?
+                </p>
+                <p style={{ margin: "5px 0 0", color: "#7A8099", fontSize: 12, lineHeight: 1.45 }}>
+                  You will stop seeing each other&apos;s health data after this.
+                </p>
+                {removeError && (
+                  <p style={{ margin: "10px 0 0", color: "#E85C5C", fontSize: 12, fontWeight: 700 }}>{removeError}</p>
+                )}
+                <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 14 }}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setConfirmRemove(false);
+                      setRemoveError("");
+                    }}
+                    disabled={removing}
+                    style={{
+                      border: "1px solid #E7E4EE",
+                      borderRadius: 999,
+                      background: "#fff",
+                      color: "#5A5F6E",
+                      padding: "9px 14px",
+                      fontSize: 12,
+                      fontWeight: 800,
+                      cursor: removing ? "not-allowed" : "pointer",
+                    }}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleRemove}
+                    disabled={removing}
+                    style={{
+                      border: "none",
+                      borderRadius: 999,
+                      background: removing ? "#F3A0A0" : "#E85C5C",
+                      color: "#fff",
+                      padding: "9px 14px",
+                      fontSize: 12,
+                      fontWeight: 900,
+                      cursor: removing ? "not-allowed" : "pointer",
+                    }}
+                  >
+                    {removing ? "Removing..." : "Remove"}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setConfirmRemove(true)}
+                style={{
+                  alignSelf: "flex-start",
+                  border: "1px solid #FFD7D7",
+                  borderRadius: 999,
+                  background: "#FFF4F4",
+                  color: "#E85C5C",
+                  padding: "10px 14px",
+                  fontSize: 12,
+                  fontWeight: 900,
+                  cursor: "pointer",
+                }}
+              >
+                Remove family member
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </div>

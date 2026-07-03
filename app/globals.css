@@ -201,7 +201,10 @@ a {
   font-family: inherit;
   margin-top: 8px;
   color: var(--he-coral-deep);
+  text-align: left;
+  appearance: none;
 }
+.db-logout-item span { text-align: left; }
 .db-logout-item .ni-icon { color: var(--he-coral); }
 .db-logout-item:hover { background: var(--he-coral-bg); }
 

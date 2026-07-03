@@ -331,6 +331,13 @@ export async function getFamilyMembers(token: string): Promise<FamilyMember[]> {
   return data.members;
 }
 
+export async function removeFamilyMember(memberId: number, token: string): Promise<void> {
+  if (MOCK_API) return;
+  await authedFetch<{ message: string }>(`/family/members/${memberId}`, token, {
+    method: "DELETE",
+  });
+}
+
 export async function getMemberSummary(memberId: number, token: string): Promise<Summary | null> {
   if (MOCK_API) return MOCK_SUMMARY;
   const data = await authedFetch<Summary | { message: string }>(

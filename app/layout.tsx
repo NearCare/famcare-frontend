@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { DM_Sans, Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
+import Providers from "./providers";
 
 const siteUrl = "https://famcarehealth.com";
 const siteTitle = "FamCare - WhatsApp Medicine Reminders for Parents";
@@ -76,7 +77,7 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${dmSans.variable} ${jakartaSans.variable}`}>
       <body style={{ fontFamily: "var(--font-dm-sans), 'DM Sans', sans-serif" }}>
-        {children}
+        <Providers>{children}</Providers>
       </body>
     </html>
   );
