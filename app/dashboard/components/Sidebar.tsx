@@ -3,29 +3,21 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import {
-  House, Users, TrendUp, FileText, Lightning, Gear, List, Pill, Brain, SignOut, X,
+  House, Users, FileText, List, Pill, SignOut, X,
 } from "@phosphor-icons/react";
 
 const navItems = [
-  { label: "Home",             href: "/dashboard",                soon: false },
-  { label: "Family Overview",  href: "/dashboard/family-overview", soon: false },
-  { label: "Medications",      href: "/dashboard/medications",     soon: false },
-  { label: "Progress",         href: "#",                          soon: true  },
-  { label: "AI Health Insights", href: "#",                        soon: true  },
-  { label: "Health Records",   href: "#",                          soon: true  },
-  { label: "Activity",         href: "#",                          soon: true  },
-  { label: "Settings",         href: "#",                          soon: true  },
+  { label: "Home",             href: "/dashboard" },
+  { label: "Family Overview",  href: "/dashboard/family-overview" },
+  { label: "Medications",      href: "/dashboard/medications" },
+  { label: "Logs",             href: "/dashboard/logs" },
 ];
 
 const NAV_ICONS: Record<string, React.ElementType> = {
   "Home":             House,
   "Family Overview":  Users,
   "Medications":      Pill,
-  "Progress":         TrendUp,
-  "AI Health Insights": Brain,
-  "Health Records":   FileText,
-  "Activity":         Lightning,
-  "Settings":         Gear,
+  "Logs":             FileText,
 };
 
 function NavIcon({ name }: { name: string }) {
@@ -70,20 +62,7 @@ export default function Sidebar() {
 
         <nav className="db-nav">
           {navItems.map((item) => {
-            const active = !item.soon && pathname === item.href;
-            if (item.soon) {
-              return (
-                <a
-                  key={item.label}
-                  onClick={(e) => e.preventDefault()}
-                  className={`db-nav-item soon${active ? " active" : ""}`}
-                >
-                  <NavIcon name={item.label} />
-                  <span style={{ flex: 1 }}>{item.label}</span>
-                  <span className="db-soon-badge">Soon</span>
-                </a>
-              );
-            }
+            const active = pathname === item.href;
             return (
               <Link
                 key={item.label}
