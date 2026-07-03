@@ -3,7 +3,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import {
   CheckCircle, Warning, Sparkle, CaretRight, Info, TrendUp, Minus, X,
-  Star, CalendarBlank, CalendarCheck, Trophy, SignOut, UserPlus,
+  Star, CalendarBlank, CalendarCheck, SignOut, UserPlus,
 } from "@phosphor-icons/react";
 import { Flame, Dumbbell, Footprints } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip as ReTooltip, ResponsiveContainer, ReferenceLine, Cell } from "recharts";
@@ -22,7 +22,7 @@ import {
   type Summary,
   type FamilyMember,
 } from "@/lib/api";
-import { scoreTier, computeScore, scoreFromAverages, ScoreRing, ScoreText } from "./components/Score";
+import { scoreTier, computeScore, scoreFromAverages, ScoreRing } from "./components/Score";
 import EmptyState from "./components/EmptyState";
 import Sidebar from "./components/Sidebar";
 import FamilyMemberModal from "./components/FamilyMemberModal";
@@ -532,13 +532,6 @@ const WaIcon = ({ size = 16 }: { size?: number }) => (
   </svg>
 );
 
-const RANK_PALETTE = [
-  { bg: "var(--he-green-bg)", accent: "var(--he-green)", text: "var(--he-green-deep)", caption: "Great job!" },
-  { bg: "var(--he-blue-bg)", accent: "var(--he-blue)", text: "var(--he-blue-deep)", caption: "Doing well!" },
-  { bg: "var(--he-orange-bg)", accent: "var(--he-orange)", text: "var(--he-orange-deep)", caption: "Keep it up!" },
-  { bg: "var(--he-violet-bg)", accent: "#8B7FE8", text: "#6A5BD0", caption: "Room to improve" },
-];
-
 type MemberRow = { member: FamilyMember; summary: Summary | null; logs: HealthLog[] };
 
 export default function DashboardPage() {
@@ -681,19 +674,6 @@ export default function DashboardPage() {
   const caloriesPts = hasData ? Math.round(caloriesPctForScore * 0.3) : 0;
   const personalScore = hasData ? stepsPts + proteinPts + caloriesPts : null;
   const personalTier = scoreTier(personalScore);
-
-  const rankedFamily = useMemo(() => {
-    const rows = [
-      { id: user?.id ?? 0, name: user?.name ?? "You", score: personalScore, isYou: true },
-      ...memberRows.map(({ member, summary: memberSummary }) => ({
-        id: member.id,
-        name: member.name ?? member.label,
-        score: computeScore(memberSummary),
-        isYou: false,
-      })),
-    ];
-    return rows.sort((a, b) => (b.score ?? -1) - (a.score ?? -1));
-  }, [user, personalScore, memberRows]);
 
   const prevWeekAvgs = useMemo(() => rangeAverages(logs, 7, 13), [logs]);
   const prevWeekScore = prevWeekAvgs ? scoreFromAverages(prevWeekAvgs.steps, prevWeekAvgs.protein, prevWeekAvgs.calories) : null;
@@ -989,78 +969,6 @@ export default function DashboardPage() {
               </button>
             </div>
           </div>
-        </div>
-
-        <div style={{ flex: "0 0 360px", minWidth: 300 }}>
-            <div className="db-card db-card-pad" style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 4 }}>
-                <div style={{
-                  width: 44, height: 44, borderRadius: 13, background: "var(--he-orange-bg)",
-                  display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
-                }}>
-                  <Trophy size={22} weight="fill" color="var(--he-orange)" />
-                </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <p style={{ margin: 0, fontSize: 16, fontWeight: 800, color: "#1A2744" }}>Family Ranking</p>
-                  <p style={{ margin: "1px 0 0", fontSize: 12, color: "#9AA0AD", fontWeight: 500 }}>Based on weekly health score</p>
-                </div>
-                <Link href="/dashboard/family-overview" style={{
-                  display: "flex", alignItems: "center", gap: 3, fontSize: 12, fontWeight: 700,
-                  color: "#7C6FF7", textDecoration: "none", flexShrink: 0,
-                }}>
-                  Manage <CaretRight size={11} weight="bold" />
-                </Link>
-              </div>
-
-              {rankedFamily.map((row, i) => {
-                const palette = RANK_PALETTE[i % RANK_PALETTE.length];
-                const medal = ["🥇", "🥈", "🥉"][i];
-                return (
-                  <div
-                    key={row.id}
-                    style={{
-                      display: "flex", flexDirection: "column", gap: 8,
-                      background: palette.bg, borderRadius: 14, padding: "12px 14px",
-                    }}
-                  >
-                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                      <span style={{
-                        width: i === 0 ? 36 : i === 1 ? 32 : 26, height: i === 0 ? 36 : i === 1 ? 32 : 26,
-                        borderRadius: "50%", flexShrink: 0,
-                        display: "flex", alignItems: "center", justifyContent: "center",
-                        fontSize: i === 0 ? 24 : i === 1 ? 21 : medal ? 14 : 11, fontWeight: 800,
-                        background: medal ? "transparent" : "#fff", color: "#9AA0AD",
-                      }}>
-                        {medal ?? i + 1}
-                      </span>
-                      <div style={{
-                        width: 32, height: 32, borderRadius: "50%", flexShrink: 0,
-                        background: palette.accent, color: "#fff",
-                        display: "flex", alignItems: "center", justifyContent: "center",
-                        fontWeight: 800, fontSize: 13,
-                      }}>
-                        {row.name.charAt(0).toUpperCase()}
-                      </div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <p style={{
-                          margin: 0, fontSize: 13.5, fontWeight: 800, color: "#1A2744",
-                          whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
-                        }}>
-                          {row.name}{row.isYou ? " (You)" : ""}
-                        </p>
-                        <p style={{ margin: 0, fontSize: 11.5, fontWeight: 700, color: palette.text }}>{palette.caption}</p>
-                      </div>
-                      <span style={{ flexShrink: 0 }}>
-                        <ScoreText score={row.score} tier={scoreTier(row.score)} size="sm" />
-                      </span>
-                    </div>
-                    <div className="db-bar-track" style={{ margin: 0, height: 5 }}>
-                      <div className="db-bar-fill" style={{ width: `${row.score ?? 0}%`, background: palette.accent }} />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
         </div>
         </div>
 
