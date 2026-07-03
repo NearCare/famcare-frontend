@@ -497,7 +497,7 @@ export function logsToWeeklySteps(
 
 /** Counts consecutive days (ending today or yesterday) the user has a logged entry. */
 export function calculateStreak(logs: HealthLog[]): number {
-  const loggedDates = new Set(logs.map((l) => l.logged_at));
+  const loggedDates = new Set(logs.filter(hasLoggedMetric).map((l) => l.logged_at));
   const d = new Date();
   let key = d.toLocaleDateString("en-CA");
 
@@ -515,4 +515,8 @@ export function calculateStreak(logs: HealthLog[]): number {
     key = d.toLocaleDateString("en-CA");
   }
   return streak;
+}
+
+export function hasLoggedMetric(log: HealthLog): boolean {
+  return log.steps != null || log.protein_g != null || log.calories != null || log.sleep_hours != null;
 }

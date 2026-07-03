@@ -17,6 +17,7 @@ import {
   updateUserGoals,
   logsToWeeklyMetric,
   calculateStreak,
+  hasLoggedMetric,
   type User,
   type HealthLog,
   type Summary,
@@ -723,7 +724,20 @@ export default function DashboardPage() {
       d.setDate(d.getDate() - i);
       return d.toLocaleDateString("en-CA");
     });
-    return last7Dates.filter((date) => logs.some((l) => l.logged_at === date)).length;
+    return last7Dates.filter((date) => logs.some((l) => l.logged_at === date && hasLoggedMetric(l))).length;
+  }, [logs]);
+  const weeklyActivity = useMemo(() => {
+    const loggedDates = new Set(logs.filter(hasLoggedMetric).map((log) => log.logged_at));
+    const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+    return Array.from({ length: 7 }, (_, i) => {
+      const d = new Date();
+      d.setDate(d.getDate() - (6 - i));
+      const key = d.toLocaleDateString("en-CA");
+      return {
+        label: days[d.getDay() === 0 ? 6 : d.getDay() - 1],
+        logged: loggedDates.has(key),
+      };
+    });
   }, [logs]);
   const consistencyMessage = daysLoggedThisWeek === 7
     ? "Amazing consistency! 🎉"
@@ -1133,20 +1147,15 @@ export default function DashboardPage() {
                 </div>
 
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(7, minmax(0, 1fr))", gap: 10, alignItems: "center" }}>
-                  {weeklySteps.map((d, i) => {
-                    const status = d.value === 0 ? "missed" : goalSteps && d.value >= goalSteps ? "met" : d.value > 0 ? "partial" : "missed";
-                    const colors = status === "met"
-                      ? { bg: "var(--he-green-bg)", border: "#CFEFDC", text: "var(--he-green-deep)" }
-                      : status === "partial"
-                      ? { bg: "var(--he-blue-bg)", border: "#D4E8FF", text: "var(--he-blue-deep)" }
-                      : { bg: "var(--he-coral-bg)", border: "#FFD2D2", text: "var(--he-coral-deep)" };
+                  {weeklyActivity.map((d, i) => {
+                    const colors = d.logged
+                      ? { bg: "var(--he-orange-bg)", border: "#FFD8AE", text: "var(--he-orange-deep)" }
+                      : { bg: "var(--he-blue-bg)", border: "#D4E8FF", text: "var(--he-blue-deep)" };
                     return (
                       <div key={i} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10, minWidth: 0 }}>
                         <span style={{ color: "#5A6170", fontSize: 12, fontWeight: 800 }}>{d.label}</span>
                         <span style={{ width: 48, height: 48, borderRadius: "50%", background: colors.bg, border: `1.5px solid ${colors.border}`, display: "grid", placeItems: "center", color: colors.text, boxShadow: "0 8px 18px rgba(31,28,35,.05)" }}>
-                          {status === "met" && <CheckCircle size={22} weight="bold" />}
-                          {status === "partial" && <Minus size={22} weight="bold" />}
-                          {status === "missed" && <X size={20} weight="bold" />}
+                          {d.logged ? <FEFlame size={22} /> : <Minus size={22} weight="bold" />}
                         </span>
                       </div>
                     );
@@ -1154,9 +1163,8 @@ export default function DashboardPage() {
                 </div>
 
                 <div style={{ borderTop: "1px dashed #ECE8EE", marginTop: 22, paddingTop: 16, display: "flex", justifyContent: "center", gap: 22, flexWrap: "wrap", color: "#7C84A8", fontSize: 12.5, fontWeight: 800 }}>
-                  <span style={{ display: "inline-flex", alignItems: "center", gap: 7 }}><CheckCircle size={17} weight="fill" color="var(--he-green)" /> Goal met</span>
-                  <span style={{ display: "inline-flex", alignItems: "center", gap: 7 }}><Minus size={17} weight="bold" color="var(--he-blue)" /> Partial</span>
-                  <span style={{ display: "inline-flex", alignItems: "center", gap: 7 }}><X size={16} weight="bold" color="var(--he-coral)" /> Missed</span>
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 7 }}><FEFlame size={17} /> Logged</span>
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 7 }}><Minus size={17} weight="bold" color="var(--he-blue)" /> Missed</span>
                 </div>
               </div>
 
