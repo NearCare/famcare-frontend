@@ -58,6 +58,35 @@ const MOCK_LOGS: HealthLog[] = Array.from({ length: 14 }, (_, i) => {
   };
 }).filter((_, i) => i !== 4);
 
+const MOCK_LOG_EVENTS: HealthLogEvent[] = [
+  {
+    id: 1,
+    user_id: 1,
+    logged_at: new Date().toLocaleDateString("en-CA"),
+    source: "text",
+    raw_message: "4 roti and bhindi sabzi",
+    summary: "Logged estimated calories and protein from roti and bhindi sabzi.",
+    steps: null,
+    protein_g: 14,
+    calories: 580,
+    sleep_hours: null,
+    created_at: new Date().toISOString(),
+  },
+  {
+    id: 2,
+    user_id: 2,
+    logged_at: new Date().toLocaleDateString("en-CA"),
+    source: "text",
+    raw_message: "6800 steps today",
+    summary: "Logged 6,800 steps.",
+    steps: 6800,
+    protein_g: null,
+    calories: null,
+    sleep_hours: null,
+    created_at: new Date(Date.now() - 60 * 60 * 1000).toISOString(),
+  },
+];
+
 const MOCK_SUMMARY: Summary = {
   period_days: 7,
   avg_steps: 6800,
@@ -95,6 +124,20 @@ export type HealthLog = {
   calories: number | null;
   sleep_hours: number | null;
   raw_message: string | null;
+};
+
+export type HealthLogEvent = {
+  id: number;
+  user_id: number;
+  logged_at: string;
+  source: "text" | "voice";
+  raw_message: string;
+  summary: string | null;
+  steps: number | null;
+  protein_g: number | null;
+  calories: number | null;
+  sleep_hours: number | null;
+  created_at: string;
 };
 
 export type Summary = {
@@ -246,6 +289,14 @@ export async function getUserLogs(
   return data.logs;
 }
 
+export async function getUserLogEvents(userId: number, days = 7): Promise<HealthLogEvent[]> {
+  if (MOCK_API) return MOCK_LOG_EVENTS.filter((event) => event.user_id === userId);
+  const data = await apiFetch<{ log_events: HealthLogEvent[] }>(
+    `/api/users/${userId}/log-events?days=${days}`
+  );
+  return data.log_events;
+}
+
 /**
  * Returns the 7-day aggregated summary for a user.
  * Returns null when the backend reports "No data given yet".
@@ -353,6 +404,31 @@ export async function getMemberLogs(memberId: number, token: string, days = 7): 
     `/family/members/${memberId}/logs?days=${days}`, token
   );
   return data.logs;
+}
+
+export async function getMemberLogEvents(memberId: number, token: string, days = 7): Promise<HealthLogEvent[]> {
+  if (MOCK_API) return MOCK_LOG_EVENTS.filter((event) => event.user_id === memberId);
+  const data = await authedFetch<{ log_events: HealthLogEvent[] }>(
+    `/family/members/${memberId}/log-events?days=${days}`, token
+  );
+  return data.log_events;
+}
+
+export type ReviewFeedbackType = "feature" | "improvement" | "issue" | "other";
+
+export async function submitReviewFeedback(input: {
+  type: ReviewFeedbackType;
+  message: string;
+  page_url?: string;
+}): Promise<void> {
+  if (MOCK_API) return;
+  const token = typeof window !== "undefined" ? localStorage.getItem("auth_token") : "";
+  if (!token) throw new Error("Please log in again before submitting feedback.");
+  await authedFetch<{ message: string }>("/api/review", token, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
 }
 
 // ─── Medications ──────────────────────────────────────────────────────────────

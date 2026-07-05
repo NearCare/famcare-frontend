@@ -3,7 +3,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import {
-  House, Users, FileText, List, Pill, SignOut, X,
+  ChatCircleText, House, Users, FileText, List, Pill, SignOut, X,
 } from "@phosphor-icons/react";
 
 const navItems = [
@@ -11,6 +11,7 @@ const navItems = [
   { label: "Family Overview",  href: "/dashboard/family-overview" },
   { label: "Medications",      href: "/dashboard/medications" },
   { label: "Logs",             href: "/dashboard/logs" },
+  { label: "Review",           href: "/dashboard/review" },
 ];
 
 const NAV_ICONS: Record<string, React.ElementType> = {
@@ -18,6 +19,7 @@ const NAV_ICONS: Record<string, React.ElementType> = {
   "Family Overview":  Users,
   "Medications":      Pill,
   "Logs":             FileText,
+  "Review":           ChatCircleText,
 };
 
 function NavIcon({ name }: { name: string }) {

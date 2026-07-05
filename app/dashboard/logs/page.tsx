@@ -14,6 +14,17 @@ import {
 import { Dumbbell, Footprints } from "lucide-react";
 import Sidebar from "../components/Sidebar";
 import { FEFlame } from "../components/FluentEmoji";
+import {
+  getFamilyMembers,
+  getMemberLogEvents,
+  getMemberLogs,
+  getUserLogEvents,
+  getUserLogs,
+  type FamilyMember,
+  type HealthLog,
+  type HealthLogEvent,
+  type User,
+} from "@/lib/api";
 
 type LogStatus = "logged" | "estimated" | "failed";
 
@@ -26,8 +37,10 @@ type LogDelta = {
 
 type HealthLogRow = {
   id: string;
+  sortKey: number;
+  loggedAt: string;
   time: string;
-  day: "Today" | "Yesterday";
+  day: string;
   member: string;
   avatar: string;
   source: "text" | "voice";
@@ -38,73 +51,101 @@ type HealthLogRow = {
   delta: LogDelta;
 };
 
-const demoLogs: HealthLogRow[] = [
-  {
-    id: "log-1",
-    time: "9:42 AM",
-    day: "Today",
-    member: "Priya",
-    avatar: "P",
-    source: "text",
-    message: "3 roti aur mutton curry",
-    status: "estimated",
-    confidence: "Medium",
-    summary: "Estimated home-cooked meal from roti and mutton curry.",
-    delta: { calories: 610, proteinG: 27 },
-  },
-  {
-    id: "log-2",
-    time: "8:20 AM",
-    day: "Today",
-    member: "Dad",
-    avatar: "D",
-    source: "text",
-    message: "6800 steps today",
-    status: "logged",
-    confidence: "High",
-    summary: "Steps logged directly from WhatsApp message.",
-    delta: { steps: 6800 },
-  },
-  {
-    id: "log-3",
-    time: "Yesterday",
-    day: "Yesterday",
-    member: "Mom",
-    avatar: "M",
-    source: "voice",
-    message: "Voice note: 7.5 hours sleep",
-    status: "logged",
-    confidence: "High",
-    summary: "Sleep duration extracted from a voice note.",
-    delta: { sleepHours: 7.5 },
-  },
-  {
-    id: "log-4",
-    time: "Yesterday",
-    day: "Yesterday",
-    member: "Priya",
-    avatar: "P",
-    source: "text",
-    message: "chai aur biscuit",
-    status: "estimated",
-    confidence: "Medium",
-    summary: "Estimated snack from common Indian food defaults.",
-    delta: { calories: 130, proteinG: 3 },
-  },
-  {
-    id: "log-5",
-    time: "Yesterday",
-    day: "Yesterday",
-    member: "You",
-    avatar: "Y",
-    source: "text",
-    message: "kal walk kiya",
-    status: "failed",
-    confidence: "Low",
-    summary: "Could not find a clear number to log.",
-    delta: {},
-  },
+type TimeWindowKey = "24h" | "yesterday" | "7d" | "30d" | "90d";
+
+const TIME_WINDOWS: { key: TimeWindowKey; label: string; days: number }[] = [
+  { key: "24h", label: "Last 24 hours", days: 2 },
+  { key: "yesterday", label: "Yesterday", days: 2 },
+  { key: "7d", label: "Last 7 days", days: 7 },
+  { key: "30d", label: "Last 30 days", days: 30 },
+  { key: "90d", label: "Last 90 days", days: 90 },
 ];
+
+function getTimeWindow(key: TimeWindowKey) {
+  return TIME_WINDOWS.find((window) => window.key === key) ?? TIME_WINDOWS[2];
+}
+
+function getMemberName(user: User, member?: FamilyMember) {
+  if (!member) return user.name?.trim() || "You";
+  return member.label?.trim() || member.name?.trim() || member.phone;
+}
+
+function avatarFor(name: string) {
+  return (name.trim()[0] || "?").toUpperCase();
+}
+
+function dayLabel(dateString: string) {
+  const today = new Date().toLocaleDateString("en-CA");
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  const yesterdayKey = yesterday.toLocaleDateString("en-CA");
+  if (dateString === today) return "Today";
+  if (dateString === yesterdayKey) return "Yesterday";
+  return new Date(`${dateString}T00:00:00`).toLocaleDateString("en-IN", { day: "numeric", month: "short" });
+}
+
+function timeLabel(createdAt: string, loggedAt: string) {
+  const date = new Date(createdAt);
+  if (!Number.isNaN(date.getTime())) {
+    return date.toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit" });
+  }
+  return dayLabel(loggedAt);
+}
+
+function eventStatus(event: HealthLogEvent): LogStatus {
+  if (event.calories != null || event.protein_g != null) return "estimated";
+  if (event.steps != null || event.sleep_hours != null) return "logged";
+  return "failed";
+}
+
+function eventToRow(event: HealthLogEvent, user: User, member?: FamilyMember): HealthLogRow {
+  const memberName = getMemberName(user, member);
+  return {
+    id: `event-${event.user_id}-${event.id}`,
+    sortKey: new Date(event.created_at).getTime() || new Date(`${event.logged_at}T00:00:00`).getTime(),
+    loggedAt: event.logged_at,
+    time: timeLabel(event.created_at, event.logged_at),
+    day: dayLabel(event.logged_at),
+    member: memberName,
+    avatar: avatarFor(memberName),
+    source: event.source,
+    message: event.raw_message,
+    status: eventStatus(event),
+    confidence: event.calories != null || event.protein_g != null ? "Medium" : "High",
+    summary: event.summary ?? "Logged from WhatsApp.",
+    delta: {
+      calories: event.calories ?? undefined,
+      proteinG: event.protein_g ?? undefined,
+      steps: event.steps ?? undefined,
+      sleepHours: event.sleep_hours ?? undefined,
+    },
+  };
+}
+
+function aggregateToRow(log: HealthLog, user: User, member?: FamilyMember): HealthLogRow {
+  const memberName = getMemberName(user, member);
+  const hasNutrition = log.calories != null || log.protein_g != null;
+  return {
+    id: `aggregate-${log.user_id}-${log.id}`,
+    sortKey: new Date(`${log.logged_at}T00:00:00`).getTime(),
+    loggedAt: log.logged_at,
+    time: dayLabel(log.logged_at),
+    day: dayLabel(log.logged_at),
+    member: memberName,
+    avatar: avatarFor(memberName),
+    source: log.raw_message?.startsWith("[voice]") ? "voice" : "text",
+    message: log.raw_message || "Daily aggregate log",
+    status: hasNutrition ? "estimated" : "logged",
+    confidence: hasNutrition ? "Medium" : "High",
+    summary: "Daily total from older aggregate logs.",
+    delta: {
+      calories: log.calories ?? undefined,
+      proteinG: log.protein_g ?? undefined,
+      steps: log.steps ?? undefined,
+      sleepHours: log.sleep_hours ?? undefined,
+    },
+  };
+}
 
 function formatDelta(delta: LogDelta) {
   const chips = [];
@@ -188,7 +229,7 @@ function SelectedDetail({ log }: { log: HealthLogRow }) {
   const StatusIcon = meta.icon;
 
   return (
-    <aside style={{
+    <aside className="logs-detail-panel" style={{
       background: "#fff",
       border: "1.5px solid var(--he-card-border)",
       borderRadius: 18,
@@ -245,11 +286,85 @@ function SelectedDetail({ log }: { log: HealthLogRow }) {
 export default function LogsPage() {
   const [query, setQuery] = useState("");
   const [selectedMember, setSelectedMember] = useState("All");
-  const [selectedId, setSelectedId] = useState(demoLogs[0]?.id ?? "");
-  const familyMembers = useMemo(() => ["All", ...Array.from(new Set(demoLogs.map((log) => log.member)))], []);
+  const [timeWindow, setTimeWindow] = useState<TimeWindowKey>("7d");
+  const [selectedId, setSelectedId] = useState("");
+  const [rows, setRows] = useState<HealthLogRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const selectedWindow = getTimeWindow(timeWindow);
+
+  useEffect(() => {
+    let cancelled = false;
+    const fetchDays = getTimeWindow(timeWindow).days;
+
+    async function loadLogs() {
+      try {
+        setLoading(true);
+        setError(null);
+        const stored = localStorage.getItem("auth_user");
+        const user: User | null = stored ? JSON.parse(stored) : null;
+        const token = localStorage.getItem("auth_token") ?? "";
+        if (!user || !token) {
+          window.location.href = "/login";
+          return;
+        }
+
+        const [ownEvents, ownDailyLogs, members] = await Promise.all([
+          getUserLogEvents(user.id, fetchDays).catch(() => []),
+          getUserLogs(user.id, fetchDays).catch(() => []),
+          getFamilyMembers(token).catch(() => []),
+        ]);
+
+        const activeMembers = members.filter((member) => member.status === "active");
+        const familyRows = await Promise.all(
+          activeMembers.map(async (member) => {
+            const [events, dailyLogs] = await Promise.all([
+              getMemberLogEvents(member.id, token, fetchDays).catch(() => []),
+              getMemberLogs(member.id, token, fetchDays).catch(() => []),
+            ]);
+            return events.length
+              ? events.map((event) => eventToRow(event, user, member))
+              : dailyLogs.map((log) => aggregateToRow(log, user, member));
+          }),
+        );
+
+        const ownRows = ownEvents.length
+          ? ownEvents.map((event) => eventToRow(event, user))
+          : ownDailyLogs.map((log) => aggregateToRow(log, user));
+        const nextRows = [...ownRows, ...familyRows.flat()].sort((a, b) => b.sortKey - a.sortKey);
+
+        if (!cancelled) {
+          setRows(nextRows);
+          setSelectedId((current) => current || nextRows[0]?.id || "");
+        }
+      } catch (err) {
+        if (!cancelled) setError(err instanceof Error ? err.message : "Failed to load logs");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+
+    loadLogs();
+    return () => { cancelled = true; };
+  }, [timeWindow]);
+
+  const familyMembers = useMemo(() => ["All", ...Array.from(new Set(rows.map((log) => log.member)))], [rows]);
+  const timeFilteredRows = useMemo(() => {
+    if (timeWindow === "yesterday") {
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      const key = yesterday.toLocaleDateString("en-CA");
+      return rows.filter((log) => log.loggedAt === key);
+    }
+    if (timeWindow === "24h") {
+      const since = Date.now() - 24 * 60 * 60 * 1000;
+      return rows.filter((log) => log.sortKey >= since);
+    }
+    return rows;
+  }, [rows, timeWindow]);
   const memberLogs = useMemo(() => (
-    selectedMember === "All" ? demoLogs : demoLogs.filter((log) => log.member === selectedMember)
-  ), [selectedMember]);
+    selectedMember === "All" ? timeFilteredRows : timeFilteredRows.filter((log) => log.member === selectedMember)
+  ), [selectedMember, timeFilteredRows]);
   const filteredLogs = useMemo(() => {
     const normalized = query.trim().toLowerCase();
     if (!normalized) return memberLogs;
@@ -257,7 +372,7 @@ export default function LogsPage() {
       [log.member, log.message, log.status, log.summary].some((value) => value.toLowerCase().includes(normalized)),
     );
   }, [memberLogs, query]);
-  const selected = filteredLogs.find((log) => log.id === selectedId) ?? filteredLogs[0] ?? demoLogs[0];
+  const selected = filteredLogs.find((log) => log.id === selectedId) ?? filteredLogs[0] ?? rows[0];
 
   useEffect(() => {
     if (filteredLogs.length && !filteredLogs.some((log) => log.id === selectedId)) {
@@ -311,29 +426,56 @@ export default function LogsPage() {
             </div>
           </div>
           <div className="db-top-actions">
-            <div className="db-pill" style={{ cursor: "default" }}>
+            <label className="db-pill" style={{ cursor: "pointer", position: "relative", paddingRight: 14 }}>
               <CalendarBlank size={15} weight="bold" />
-              Last 7 days
-            </div>
+              <select
+                value={timeWindow}
+                onChange={(event) => setTimeWindow(event.target.value as TimeWindowKey)}
+                aria-label="Select logs time window"
+                style={{
+                  appearance: "none",
+                  WebkitAppearance: "none",
+                  border: "none",
+                  outline: "none",
+                  background: "transparent",
+                  color: "inherit",
+                  fontFamily: "inherit",
+                  fontSize: "inherit",
+                  fontWeight: 800,
+                  cursor: "pointer",
+                  paddingRight: 18,
+                }}
+              >
+                {TIME_WINDOWS.map((window) => (
+                  <option key={window.key} value={window.key}>{window.label}</option>
+                ))}
+              </select>
+              <span style={{ color: "#9AA0AD", fontSize: 11, marginLeft: -15, pointerEvents: "none" }}>▾</span>
+            </label>
           </div>
         </div>
 
-        <section style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 12, marginBottom: 16 }}>
+        <section className="logs-metric-grid" style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 12, marginBottom: 16 }}>
           <MetricCard icon={<ChatCircleText size={18} weight="bold" />} label="Logs accepted" value={`${totals.logs}`} tone="violet" />
           <MetricCard icon={<FEFlame size={21} />} label="Calories added" value={`${totals.calories.toLocaleString()}`} tone="orange" />
           <MetricCard icon={<Dumbbell size={18} />} label="Protein added" value={`${totals.proteinG}g`} tone="green" />
           <MetricCard icon={<Footprints size={18} />} label="Steps added" value={totals.steps.toLocaleString()} tone="blue" />
         </section>
 
-        <section style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) 380px", gap: 16, alignItems: "start" }}>
+        <section className="logs-layout" style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) 380px", gap: 16, alignItems: "start" }}>
           <div style={{ display: "flex", flexDirection: "column", gap: 16, minWidth: 0 }}>
+            {error && (
+              <div style={{ background: "var(--he-coral-bg)", color: "var(--he-coral-deep)", border: "1.5px solid #FFD2D2", borderRadius: 14, padding: "12px 14px", fontSize: 13, fontWeight: 800 }}>
+                Couldn&apos;t load health logs. {error}
+              </div>
+            )}
             <div style={{ background: "#fff", border: "1.5px solid var(--he-card-border)", borderRadius: 18, boxShadow: "0 12px 32px rgba(31,28,35,.04)", overflow: "hidden" }}>
-              <div style={{ padding: "18px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14, borderBottom: "1px solid #F0EEF5" }}>
+              <div className="logs-card-head" style={{ padding: "18px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14, borderBottom: "1px solid #F0EEF5" }}>
                 <div>
                   <h2 style={{ margin: 0, color: "#1A2744", fontSize: 17, fontWeight: 900 }}>Recent WhatsApp logs</h2>
-                  <p style={{ margin: "4px 0 0", color: "#9AA0AD", fontSize: 12.5, fontWeight: 700 }}>Dummy data for localhost preview</p>
+                  <p style={{ margin: "4px 0 0", color: "#9AA0AD", fontSize: 12.5, fontWeight: 700 }}>Real WhatsApp messages and the values added to totals</p>
                 </div>
-                <label style={{ width: 260, maxWidth: "100%", height: 40, borderRadius: 999, border: "1.5px solid var(--he-card-border)", display: "flex", alignItems: "center", gap: 9, padding: "0 13px", background: "#FAFAFA" }}>
+                <label className="logs-search" style={{ width: 260, maxWidth: "100%", height: 40, borderRadius: 999, border: "1.5px solid var(--he-card-border)", display: "flex", alignItems: "center", gap: 9, padding: "0 13px", background: "#FAFAFA" }}>
                   <MagnifyingGlass size={15} weight="bold" color="#9AA0AD" />
                   <input
                     value={query}
@@ -345,12 +487,18 @@ export default function LogsPage() {
               </div>
 
               <div style={{ display: "flex", flexDirection: "column", maxHeight: 530, overflowY: "auto" }}>
-                {filteredLogs.map((log) => {
+                {loading && (
+                  <div style={{ padding: "28px 20px", color: "#9AA0AD", fontSize: 13, fontWeight: 800, textAlign: "center" }}>
+                    Loading WhatsApp logs...
+                  </div>
+                )}
+                {!loading && filteredLogs.map((log) => {
                   const selectedRow = log.id === selected.id;
                   const meta = statusMeta(log.status);
                   const StatusIcon = meta.icon;
                   return (
                     <button
+                      className="logs-row"
                       key={log.id}
                       type="button"
                       onClick={() => setSelectedId(log.id)}
@@ -396,13 +544,13 @@ export default function LogsPage() {
                           )}
                         </div>
                       </div>
-                      <span style={{ justifySelf: "end", display: "inline-flex", alignItems: "center", gap: 6, background: meta.bg, color: meta.color, borderRadius: 999, padding: "7px 10px", fontSize: 11.5, fontWeight: 900 }}>
+                      <span className="logs-row-status" style={{ justifySelf: "end", display: "inline-flex", alignItems: "center", gap: 6, background: meta.bg, color: meta.color, borderRadius: 999, padding: "7px 10px", fontSize: 11.5, fontWeight: 900 }}>
                         <StatusIcon size={14} weight="fill" /> {meta.label}
                       </span>
                     </button>
                   );
                 })}
-                {!filteredLogs.length && (
+                {!loading && !filteredLogs.length && (
                   <div style={{ padding: "28px 20px", color: "#9AA0AD", fontSize: 13, fontWeight: 800, textAlign: "center" }}>
                     No logs found for this filter.
                   </div>

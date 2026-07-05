@@ -911,12 +911,22 @@ export default function DashboardPage() {
                   <div
                     key={member.id}
                     className="fo-member-card"
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => startModalTransition(() => setSelectedMember(member))}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        startModalTransition(() => setSelectedMember(member));
+                      }
+                    }}
                     style={{
                       flex: "0 0 300px", minWidth: 300,
                       background:
                         `linear-gradient(165deg, ${tier.bg} 0%, #fff 55%) padding-box, linear-gradient(135deg, ${tier.border}, ${tier.ring}) border-box`,
                       borderRadius: 24, border: "1.5px solid transparent",
                       boxShadow: "0 4px 16px rgba(26,20,20,.05)", padding: "22px 22px 20px",
+                      cursor: "pointer",
                     }}
                   >
                     <div style={{
@@ -971,7 +981,10 @@ export default function DashboardPage() {
                       </div>
                     </div>
                     <button
-                      onClick={() => startModalTransition(() => setSelectedMember(member))}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        startModalTransition(() => setSelectedMember(member));
+                      }}
                       style={{
                         width: "100%", marginTop: 18, padding: "10px 0", border: `1.5px solid ${tier.border}`, borderRadius: 14,
                         background: tier.bg, color: tier.textColor, fontSize: 13, fontWeight: 700,

@@ -516,6 +516,78 @@ a {
   100% { transform: scale(1.7); opacity: 0; }
 }
 
+/* ── Logs / Review responsive shells ── */
+@media (max-width: 1040px) {
+  .review-layout,
+  .logs-layout {
+    grid-template-columns: 1fr !important;
+  }
+  .logs-detail-panel {
+    position: static !important;
+  }
+}
+
+@media (max-width: 900px) {
+  .logs-metric-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+  .review-type-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+  .logs-card-head {
+    align-items: stretch !important;
+    flex-direction: column !important;
+  }
+  .logs-search {
+    width: 100% !important;
+  }
+}
+
+@media (max-width: 700px) {
+  .logs-row {
+    grid-template-columns: 1fr !important;
+    gap: 10px !important;
+    padding: 14px 16px !important;
+  }
+  .logs-row > div:first-child {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+  }
+  .logs-row-status {
+    justify-self: start !important;
+  }
+  .logs-detail-panel {
+    padding: 16px !important;
+  }
+}
+
+@media (max-width: 520px) {
+  .logs-metric-grid,
+  .review-type-grid {
+    grid-template-columns: 1fr !important;
+  }
+  .review-layout form,
+  .review-layout aside {
+    padding: 16px !important;
+    border-radius: 18px !important;
+  }
+  .review-submit-row {
+    align-items: stretch !important;
+    flex-direction: column !important;
+  }
+  .review-submit-row button {
+    width: 100%;
+    justify-content: center;
+  }
+  .fo-member-card,
+  .fo-add-card {
+    flex-basis: 100% !important;
+    min-width: 0 !important;
+    width: 100% !important;
+  }
+}
+
 /* ── Family banner ── */
 @media (max-width: 640px) {
   .db-family-banner {
