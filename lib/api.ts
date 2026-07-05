@@ -414,6 +414,23 @@ export async function getMemberLogEvents(memberId: number, token: string, days =
   return data.log_events;
 }
 
+export type ReviewFeedbackType = "feature" | "improvement" | "issue" | "other";
+
+export async function submitReviewFeedback(input: {
+  type: ReviewFeedbackType;
+  message: string;
+  page_url?: string;
+}): Promise<void> {
+  if (MOCK_API) return;
+  const token = typeof window !== "undefined" ? localStorage.getItem("auth_token") : "";
+  if (!token) throw new Error("Please log in again before submitting feedback.");
+  await authedFetch<{ message: string }>("/api/review", token, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+}
+
 // ─── Medications ──────────────────────────────────────────────────────────────
 
 export type MedicineSchedule = {
