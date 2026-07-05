@@ -1,9 +1,9 @@
 "use client";
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import {
   CheckCircle, Warning, Sparkle, CaretRight, Info, TrendUp, Minus, X,
-  Star, CalendarBlank, CalendarCheck, Trophy, SignOut, UserPlus,
+  Star, CalendarBlank, CalendarCheck, SignOut, UserPlus,
 } from "@phosphor-icons/react";
 import { Flame, Dumbbell, Footprints } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip as ReTooltip, ResponsiveContainer, ReferenceLine, Cell } from "recharts";
@@ -17,12 +17,13 @@ import {
   updateUserGoals,
   logsToWeeklyMetric,
   calculateStreak,
+  hasLoggedMetric,
   type User,
   type HealthLog,
   type Summary,
   type FamilyMember,
 } from "@/lib/api";
-import { scoreTier, computeScore, scoreFromAverages, ScoreRing, ScoreText } from "./components/Score";
+import { scoreTier, computeScore, scoreFromAverages, ScoreRing } from "./components/Score";
 import EmptyState from "./components/EmptyState";
 import Sidebar from "./components/Sidebar";
 import FamilyMemberModal from "./components/FamilyMemberModal";
@@ -70,23 +71,38 @@ type MetricDetail = {
 };
 
 function MetricDetailFloater({ detail, onClose, onSetGoal }: { detail: MetricDetail; onClose: () => void; onSetGoal: () => void }) {
+  const [chartReady, setChartReady] = useState(false);
+
   useEffect(() => {
     const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
     document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
   }, [onClose]);
 
+  useEffect(() => {
+    setChartReady(false);
+    const frame = window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => setChartReady(true));
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [detail]);
+
   const todayIdx = detail.data.length - 1;
-  const maxVal = Math.max(...detail.data.map(d => d.value), detail.goal ? detail.goal * 0.5 : 1);
-  const fmt = (v: number) => detail.decimals ? v.toFixed(detail.decimals) : Math.round(v).toLocaleString();
+  const maxVal = useMemo(
+    () => Math.max(...detail.data.map(d => d.value), detail.goal ? detail.goal * 0.5 : 1),
+    [detail],
+  );
+  const fmt = useCallback(
+    (v: number) => detail.decimals ? v.toFixed(detail.decimals) : Math.round(v).toLocaleString(),
+    [detail.decimals],
+  );
 
   return (
     <div
       onClick={onClose}
       style={{
-        position: "fixed", inset: 0, background: "rgba(26,20,20,.45)", zIndex: 300,
+        position: "fixed", inset: 0, background: "rgba(26,20,20,.38)", zIndex: 300,
         display: "flex", alignItems: "center", justifyContent: "center", padding: 20,
-        backdropFilter: "blur(2px)",
       }}
     >
       <div
@@ -95,6 +111,9 @@ function MetricDetailFloater({ detail, onClose, onSetGoal }: { detail: MetricDet
           background: "#fff", borderRadius: 24, padding: "26px 26px 22px",
           width: "100%", maxWidth: 460, boxShadow: "0 24px 60px rgba(26,20,20,.18)",
           fontFamily: "'Plus Jakarta Sans', sans-serif",
+          contain: "layout paint",
+          willChange: "transform, opacity",
+          transform: "translateZ(0)",
         }}
       >
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
@@ -128,43 +147,64 @@ function MetricDetailFloater({ detail, onClose, onSetGoal }: { detail: MetricDet
           </button>
         </div>
 
-        <ResponsiveContainer width="100%" height={180}>
-          <BarChart data={detail.data} barSize={32} margin={{ top: 10, right: 4, left: 0, bottom: 0 }}>
-            <XAxis
-              dataKey="label"
-              axisLine={false} tickLine={false}
-              tick={{ fontSize: 11, fontWeight: 700, fill: "#9AA0AD", fontFamily: "'Plus Jakarta Sans', sans-serif" }}
-            />
-            <YAxis hide domain={[0, maxVal * 1.25]} />
-            <ReTooltip
-              cursor={{ fill: "rgba(0,0,0,.04)", radius: 8 }}
-              contentStyle={{ background: "#fff", border: "1px solid #F2F1F3", borderRadius: 10, fontSize: 12, fontFamily: "'Plus Jakarta Sans', sans-serif" }}
-              labelStyle={{ color: "#9AA0AD", fontSize: 11, fontWeight: 700 }}
-              itemStyle={{ fontWeight: 700 }}
-              formatter={(v) => [`${fmt(Number(v))} ${detail.unit}`, detail.label]}
-            />
-            {detail.goal && (
-              <ReferenceLine
-                y={detail.goal}
-                stroke="#E0DCF0" strokeDasharray="5 4" strokeWidth={1.5}
-                label={{ value: "Goal", position: "right", fontSize: 10, fill: "#BFC4CE", fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+        {chartReady ? (
+          <ResponsiveContainer width="100%" height={180}>
+            <BarChart data={detail.data} barSize={32} margin={{ top: 10, right: 4, left: 0, bottom: 0 }}>
+              <XAxis
+                dataKey="label"
+                axisLine={false} tickLine={false}
+                tick={{ fontSize: 11, fontWeight: 700, fill: "#9AA0AD", fontFamily: "'Plus Jakarta Sans', sans-serif" }}
               />
-            )}
-            <Bar dataKey="value" radius={[7, 7, 3, 3]}>
-              {detail.data.map((entry, i) => (
-                <Cell
-                  key={i}
-                  fill={i === todayIdx
-                    ? detail.color
-                    : detail.goal
-                      ? (entry.value >= detail.goal ? detail.color + "CC" : detail.color + "44")
-                      : detail.color + "88"
-                  }
+              <YAxis hide domain={[0, maxVal * 1.25]} />
+              <ReTooltip
+                cursor={{ fill: "rgba(0,0,0,.04)", radius: 8 }}
+                contentStyle={{ background: "#fff", border: "1px solid #F2F1F3", borderRadius: 10, fontSize: 12, fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+                labelStyle={{ color: "#9AA0AD", fontSize: 11, fontWeight: 700 }}
+                itemStyle={{ fontWeight: 700 }}
+                formatter={(v) => [`${fmt(Number(v))} ${detail.unit}`, detail.label]}
+              />
+              {detail.goal && (
+                <ReferenceLine
+                  y={detail.goal}
+                  stroke="#E0DCF0" strokeDasharray="5 4" strokeWidth={1.5}
+                  label={{ value: "Goal", position: "right", fontSize: 10, fill: "#BFC4CE", fontFamily: "'Plus Jakarta Sans', sans-serif" }}
                 />
-              ))}
-            </Bar>
-          </BarChart>
-        </ResponsiveContainer>
+              )}
+              <Bar dataKey="value" radius={[7, 7, 3, 3]}>
+                {detail.data.map((entry, i) => (
+                  <Cell
+                    key={i}
+                    fill={i === todayIdx
+                      ? detail.color
+                      : detail.goal
+                        ? (entry.value >= detail.goal ? detail.color + "CC" : detail.color + "44")
+                        : detail.color + "88"
+                    }
+                  />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        ) : (
+          <div style={{ height: 180, display: "grid", alignItems: "end", gridTemplateColumns: "repeat(7, 1fr)", gap: 10, padding: "14px 2px 8px" }}>
+            {detail.data.map((entry, i) => {
+              const pct = maxVal > 0 ? Math.max(8, Math.round((entry.value / (maxVal * 1.25)) * 100)) : 8;
+              return (
+                <div key={`${entry.label}-${i}`} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
+                  <div style={{
+                    width: "100%",
+                    maxWidth: 32,
+                    height: `${pct}%`,
+                    minHeight: 12,
+                    borderRadius: "7px 7px 3px 3px",
+                    background: i === todayIdx ? detail.color : detail.color + "44",
+                  }} />
+                  <span style={{ fontSize: 11, fontWeight: 700, color: "#9AA0AD" }}>{entry.label}</span>
+                </div>
+              );
+            })}
+          </div>
+        )}
 
         <div style={{ display: "flex", gap: 12, marginTop: 14, flexWrap: "wrap" }}>
           {(detail.goal ? [
@@ -532,13 +572,6 @@ const WaIcon = ({ size = 16 }: { size?: number }) => (
   </svg>
 );
 
-const RANK_PALETTE = [
-  { bg: "var(--he-green-bg)", accent: "var(--he-green)", text: "var(--he-green-deep)", caption: "Great job!" },
-  { bg: "var(--he-blue-bg)", accent: "var(--he-blue)", text: "var(--he-blue-deep)", caption: "Doing well!" },
-  { bg: "var(--he-orange-bg)", accent: "var(--he-orange)", text: "var(--he-orange-deep)", caption: "Keep it up!" },
-  { bg: "var(--he-violet-bg)", accent: "#8B7FE8", text: "#6A5BD0", caption: "Room to improve" },
-];
-
 type MemberRow = { member: FamilyMember; summary: Summary | null; logs: HealthLog[] };
 
 export default function DashboardPage() {
@@ -550,6 +583,7 @@ export default function DashboardPage() {
   const [error, setError] = useState<string | null>(null);
   const [showAccountMenu, setShowAccountMenu] = useState(false);
   const [selectedMember, setSelectedMember] = useState<FamilyMember | null>(null);
+  const [, startModalTransition] = useTransition();
   const [showAddFamily, setShowAddFamily] = useState(false);
   const [showScoreInfo, setShowScoreInfo] = useState(false);
   const [metricDetail, setMetricDetail] = useState<MetricDetail | null>(null);
@@ -681,19 +715,6 @@ export default function DashboardPage() {
   const personalScore = hasData ? stepsPts + proteinPts + caloriesPts : null;
   const personalTier = scoreTier(personalScore);
 
-  const rankedFamily = useMemo(() => {
-    const rows = [
-      { id: user?.id ?? 0, name: user?.name ?? "You", score: personalScore, isYou: true },
-      ...memberRows.map(({ member, summary: memberSummary }) => ({
-        id: member.id,
-        name: member.name ?? member.label,
-        score: computeScore(memberSummary),
-        isYou: false,
-      })),
-    ];
-    return rows.sort((a, b) => (b.score ?? -1) - (a.score ?? -1));
-  }, [user, personalScore, memberRows]);
-
   const prevWeekAvgs = useMemo(() => rangeAverages(logs, 7, 13), [logs]);
   const prevWeekScore = prevWeekAvgs ? scoreFromAverages(prevWeekAvgs.steps, prevWeekAvgs.protein, prevWeekAvgs.calories) : null;
   const scoreDelta = personalScore !== null && prevWeekScore !== null ? personalScore - prevWeekScore : null;
@@ -703,7 +724,20 @@ export default function DashboardPage() {
       d.setDate(d.getDate() - i);
       return d.toLocaleDateString("en-CA");
     });
-    return last7Dates.filter((date) => logs.some((l) => l.logged_at === date)).length;
+    return last7Dates.filter((date) => logs.some((l) => l.logged_at === date && hasLoggedMetric(l))).length;
+  }, [logs]);
+  const weeklyActivity = useMemo(() => {
+    const loggedDates = new Set(logs.filter(hasLoggedMetric).map((log) => log.logged_at));
+    const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+    return Array.from({ length: 7 }, (_, i) => {
+      const d = new Date();
+      d.setDate(d.getDate() - (6 - i));
+      const key = d.toLocaleDateString("en-CA");
+      return {
+        label: days[d.getDay() === 0 ? 6 : d.getDay() - 1],
+        logged: loggedDates.has(key),
+      };
+    });
   }, [logs]);
   const consistencyMessage = daysLoggedThisWeek === 7
     ? "Amazing consistency! 🎉"
@@ -937,7 +971,7 @@ export default function DashboardPage() {
                       </div>
                     </div>
                     <button
-                      onClick={() => setSelectedMember(member)}
+                      onClick={() => startModalTransition(() => setSelectedMember(member))}
                       style={{
                         width: "100%", marginTop: 18, padding: "10px 0", border: `1.5px solid ${tier.border}`, borderRadius: 14,
                         background: tier.bg, color: tier.textColor, fontSize: 13, fontWeight: 700,
@@ -988,78 +1022,6 @@ export default function DashboardPage() {
               </button>
             </div>
           </div>
-        </div>
-
-        <div style={{ flex: "0 0 360px", minWidth: 300 }}>
-            <div className="db-card db-card-pad" style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 4 }}>
-                <div style={{
-                  width: 44, height: 44, borderRadius: 13, background: "var(--he-orange-bg)",
-                  display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
-                }}>
-                  <Trophy size={22} weight="fill" color="var(--he-orange)" />
-                </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <p style={{ margin: 0, fontSize: 16, fontWeight: 800, color: "#1A2744" }}>Family Ranking</p>
-                  <p style={{ margin: "1px 0 0", fontSize: 12, color: "#9AA0AD", fontWeight: 500 }}>Based on weekly health score</p>
-                </div>
-                <Link href="/dashboard/family-overview" style={{
-                  display: "flex", alignItems: "center", gap: 3, fontSize: 12, fontWeight: 700,
-                  color: "#7C6FF7", textDecoration: "none", flexShrink: 0,
-                }}>
-                  Manage <CaretRight size={11} weight="bold" />
-                </Link>
-              </div>
-
-              {rankedFamily.map((row, i) => {
-                const palette = RANK_PALETTE[i % RANK_PALETTE.length];
-                const medal = ["🥇", "🥈", "🥉"][i];
-                return (
-                  <div
-                    key={row.id}
-                    style={{
-                      display: "flex", flexDirection: "column", gap: 8,
-                      background: palette.bg, borderRadius: 14, padding: "12px 14px",
-                    }}
-                  >
-                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                      <span style={{
-                        width: i === 0 ? 36 : i === 1 ? 32 : 26, height: i === 0 ? 36 : i === 1 ? 32 : 26,
-                        borderRadius: "50%", flexShrink: 0,
-                        display: "flex", alignItems: "center", justifyContent: "center",
-                        fontSize: i === 0 ? 24 : i === 1 ? 21 : medal ? 14 : 11, fontWeight: 800,
-                        background: medal ? "transparent" : "#fff", color: "#9AA0AD",
-                      }}>
-                        {medal ?? i + 1}
-                      </span>
-                      <div style={{
-                        width: 32, height: 32, borderRadius: "50%", flexShrink: 0,
-                        background: palette.accent, color: "#fff",
-                        display: "flex", alignItems: "center", justifyContent: "center",
-                        fontWeight: 800, fontSize: 13,
-                      }}>
-                        {row.name.charAt(0).toUpperCase()}
-                      </div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <p style={{
-                          margin: 0, fontSize: 13.5, fontWeight: 800, color: "#1A2744",
-                          whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
-                        }}>
-                          {row.name}{row.isYou ? " (You)" : ""}
-                        </p>
-                        <p style={{ margin: 0, fontSize: 11.5, fontWeight: 700, color: palette.text }}>{palette.caption}</p>
-                      </div>
-                      <span style={{ flexShrink: 0 }}>
-                        <ScoreText score={row.score} tier={scoreTier(row.score)} size="sm" />
-                      </span>
-                    </div>
-                    <div className="db-bar-track" style={{ margin: 0, height: 5 }}>
-                      <div className="db-bar-fill" style={{ width: `${row.score ?? 0}%`, background: palette.accent }} />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
         </div>
         </div>
 
@@ -1185,20 +1147,15 @@ export default function DashboardPage() {
                 </div>
 
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(7, minmax(0, 1fr))", gap: 10, alignItems: "center" }}>
-                  {weeklySteps.map((d, i) => {
-                    const status = d.value === 0 ? "missed" : goalSteps && d.value >= goalSteps ? "met" : d.value > 0 ? "partial" : "missed";
-                    const colors = status === "met"
-                      ? { bg: "var(--he-green-bg)", border: "#CFEFDC", text: "var(--he-green-deep)" }
-                      : status === "partial"
-                      ? { bg: "var(--he-blue-bg)", border: "#D4E8FF", text: "var(--he-blue-deep)" }
-                      : { bg: "var(--he-coral-bg)", border: "#FFD2D2", text: "var(--he-coral-deep)" };
+                  {weeklyActivity.map((d, i) => {
+                    const colors = d.logged
+                      ? { bg: "var(--he-orange-bg)", border: "#FFD8AE", text: "var(--he-orange-deep)" }
+                      : { bg: "var(--he-blue-bg)", border: "#D4E8FF", text: "var(--he-blue-deep)" };
                     return (
                       <div key={i} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10, minWidth: 0 }}>
                         <span style={{ color: "#5A6170", fontSize: 12, fontWeight: 800 }}>{d.label}</span>
                         <span style={{ width: 48, height: 48, borderRadius: "50%", background: colors.bg, border: `1.5px solid ${colors.border}`, display: "grid", placeItems: "center", color: colors.text, boxShadow: "0 8px 18px rgba(31,28,35,.05)" }}>
-                          {status === "met" && <CheckCircle size={22} weight="bold" />}
-                          {status === "partial" && <Minus size={22} weight="bold" />}
-                          {status === "missed" && <X size={20} weight="bold" />}
+                          {d.logged ? <FEFlame size={22} /> : <Minus size={22} weight="bold" />}
                         </span>
                       </div>
                     );
@@ -1206,9 +1163,8 @@ export default function DashboardPage() {
                 </div>
 
                 <div style={{ borderTop: "1px dashed #ECE8EE", marginTop: 22, paddingTop: 16, display: "flex", justifyContent: "center", gap: 22, flexWrap: "wrap", color: "#7C84A8", fontSize: 12.5, fontWeight: 800 }}>
-                  <span style={{ display: "inline-flex", alignItems: "center", gap: 7 }}><CheckCircle size={17} weight="fill" color="var(--he-green)" /> Goal met</span>
-                  <span style={{ display: "inline-flex", alignItems: "center", gap: 7 }}><Minus size={17} weight="bold" color="var(--he-blue)" /> Partial</span>
-                  <span style={{ display: "inline-flex", alignItems: "center", gap: 7 }}><X size={16} weight="bold" color="var(--he-coral)" /> Missed</span>
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 7 }}><FEFlame size={17} /> Logged</span>
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 7 }}><Minus size={17} weight="bold" color="var(--he-blue)" /> Missed</span>
                 </div>
               </div>
 
