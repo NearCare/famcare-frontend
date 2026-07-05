@@ -58,7 +58,7 @@ export default function ReviewPage() {
           </div>
         </div>
 
-        <section style={{
+        <section className="review-layout" style={{
           display: "grid",
           gridTemplateColumns: "minmax(0, 1fr) 360px",
           gap: 18,
@@ -96,7 +96,7 @@ export default function ReviewPage() {
               </div>
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 10, marginBottom: 18 }}>
+            <div className="review-type-grid" style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 10, marginBottom: 18 }}>
               {feedbackTypes.map((item) => {
                 const active = item.value === type;
                 return (
@@ -153,7 +153,7 @@ export default function ReviewPage() {
                 boxSizing: "border-box",
               }}
             />
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, marginTop: 10 }}>
+            <div className="review-submit-row" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, marginTop: 10 }}>
               <span style={{ color: trimmed.length > 2000 ? "var(--he-coral-deep)" : "#9AA0AD", fontSize: 12, fontWeight: 800 }}>
                 {trimmed.length}/2000
               </span>

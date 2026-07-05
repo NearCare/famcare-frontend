@@ -229,7 +229,7 @@ function SelectedDetail({ log }: { log: HealthLogRow }) {
   const StatusIcon = meta.icon;
 
   return (
-    <aside style={{
+    <aside className="logs-detail-panel" style={{
       background: "#fff",
       border: "1.5px solid var(--he-card-border)",
       borderRadius: 18,
@@ -455,14 +455,14 @@ export default function LogsPage() {
           </div>
         </div>
 
-        <section style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 12, marginBottom: 16 }}>
+        <section className="logs-metric-grid" style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 12, marginBottom: 16 }}>
           <MetricCard icon={<ChatCircleText size={18} weight="bold" />} label="Logs accepted" value={`${totals.logs}`} tone="violet" />
           <MetricCard icon={<FEFlame size={21} />} label="Calories added" value={`${totals.calories.toLocaleString()}`} tone="orange" />
           <MetricCard icon={<Dumbbell size={18} />} label="Protein added" value={`${totals.proteinG}g`} tone="green" />
           <MetricCard icon={<Footprints size={18} />} label="Steps added" value={totals.steps.toLocaleString()} tone="blue" />
         </section>
 
-        <section style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) 380px", gap: 16, alignItems: "start" }}>
+        <section className="logs-layout" style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) 380px", gap: 16, alignItems: "start" }}>
           <div style={{ display: "flex", flexDirection: "column", gap: 16, minWidth: 0 }}>
             {error && (
               <div style={{ background: "var(--he-coral-bg)", color: "var(--he-coral-deep)", border: "1.5px solid #FFD2D2", borderRadius: 14, padding: "12px 14px", fontSize: 13, fontWeight: 800 }}>
@@ -470,12 +470,12 @@ export default function LogsPage() {
               </div>
             )}
             <div style={{ background: "#fff", border: "1.5px solid var(--he-card-border)", borderRadius: 18, boxShadow: "0 12px 32px rgba(31,28,35,.04)", overflow: "hidden" }}>
-              <div style={{ padding: "18px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14, borderBottom: "1px solid #F0EEF5" }}>
+              <div className="logs-card-head" style={{ padding: "18px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14, borderBottom: "1px solid #F0EEF5" }}>
                 <div>
                   <h2 style={{ margin: 0, color: "#1A2744", fontSize: 17, fontWeight: 900 }}>Recent WhatsApp logs</h2>
                   <p style={{ margin: "4px 0 0", color: "#9AA0AD", fontSize: 12.5, fontWeight: 700 }}>Real WhatsApp messages and the values added to totals</p>
                 </div>
-                <label style={{ width: 260, maxWidth: "100%", height: 40, borderRadius: 999, border: "1.5px solid var(--he-card-border)", display: "flex", alignItems: "center", gap: 9, padding: "0 13px", background: "#FAFAFA" }}>
+                <label className="logs-search" style={{ width: 260, maxWidth: "100%", height: 40, borderRadius: 999, border: "1.5px solid var(--he-card-border)", display: "flex", alignItems: "center", gap: 9, padding: "0 13px", background: "#FAFAFA" }}>
                   <MagnifyingGlass size={15} weight="bold" color="#9AA0AD" />
                   <input
                     value={query}
@@ -498,6 +498,7 @@ export default function LogsPage() {
                   const StatusIcon = meta.icon;
                   return (
                     <button
+                      className="logs-row"
                       key={log.id}
                       type="button"
                       onClick={() => setSelectedId(log.id)}
@@ -543,7 +544,7 @@ export default function LogsPage() {
                           )}
                         </div>
                       </div>
-                      <span style={{ justifySelf: "end", display: "inline-flex", alignItems: "center", gap: 6, background: meta.bg, color: meta.color, borderRadius: 999, padding: "7px 10px", fontSize: 11.5, fontWeight: 900 }}>
+                      <span className="logs-row-status" style={{ justifySelf: "end", display: "inline-flex", alignItems: "center", gap: 6, background: meta.bg, color: meta.color, borderRadius: 999, padding: "7px 10px", fontSize: 11.5, fontWeight: 900 }}>
                         <StatusIcon size={14} weight="fill" /> {meta.label}
                       </span>
                     </button>
