@@ -38,6 +38,7 @@ type LogDelta = {
 type HealthLogRow = {
   id: string;
   sortKey: number;
+  loggedAt: string;
   time: string;
   day: string;
   member: string;
@@ -49,6 +50,20 @@ type HealthLogRow = {
   summary: string;
   delta: LogDelta;
 };
+
+type TimeWindowKey = "24h" | "yesterday" | "7d" | "30d" | "90d";
+
+const TIME_WINDOWS: { key: TimeWindowKey; label: string; days: number }[] = [
+  { key: "24h", label: "Last 24 hours", days: 2 },
+  { key: "yesterday", label: "Yesterday", days: 2 },
+  { key: "7d", label: "Last 7 days", days: 7 },
+  { key: "30d", label: "Last 30 days", days: 30 },
+  { key: "90d", label: "Last 90 days", days: 90 },
+];
+
+function getTimeWindow(key: TimeWindowKey) {
+  return TIME_WINDOWS.find((window) => window.key === key) ?? TIME_WINDOWS[2];
+}
 
 function getMemberName(user: User, member?: FamilyMember) {
   if (!member) return user.name?.trim() || "You";
@@ -88,6 +103,7 @@ function eventToRow(event: HealthLogEvent, user: User, member?: FamilyMember): H
   return {
     id: `event-${event.user_id}-${event.id}`,
     sortKey: new Date(event.created_at).getTime() || new Date(`${event.logged_at}T00:00:00`).getTime(),
+    loggedAt: event.logged_at,
     time: timeLabel(event.created_at, event.logged_at),
     day: dayLabel(event.logged_at),
     member: memberName,
@@ -112,6 +128,7 @@ function aggregateToRow(log: HealthLog, user: User, member?: FamilyMember): Heal
   return {
     id: `aggregate-${log.user_id}-${log.id}`,
     sortKey: new Date(`${log.logged_at}T00:00:00`).getTime(),
+    loggedAt: log.logged_at,
     time: dayLabel(log.logged_at),
     day: dayLabel(log.logged_at),
     member: memberName,
@@ -269,13 +286,16 @@ function SelectedDetail({ log }: { log: HealthLogRow }) {
 export default function LogsPage() {
   const [query, setQuery] = useState("");
   const [selectedMember, setSelectedMember] = useState("All");
+  const [timeWindow, setTimeWindow] = useState<TimeWindowKey>("7d");
   const [selectedId, setSelectedId] = useState("");
   const [rows, setRows] = useState<HealthLogRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const selectedWindow = getTimeWindow(timeWindow);
 
   useEffect(() => {
     let cancelled = false;
+    const fetchDays = getTimeWindow(timeWindow).days;
 
     async function loadLogs() {
       try {
@@ -290,8 +310,8 @@ export default function LogsPage() {
         }
 
         const [ownEvents, ownDailyLogs, members] = await Promise.all([
-          getUserLogEvents(user.id, 7).catch(() => []),
-          getUserLogs(user.id, 7).catch(() => []),
+          getUserLogEvents(user.id, fetchDays).catch(() => []),
+          getUserLogs(user.id, fetchDays).catch(() => []),
           getFamilyMembers(token).catch(() => []),
         ]);
 
@@ -299,8 +319,8 @@ export default function LogsPage() {
         const familyRows = await Promise.all(
           activeMembers.map(async (member) => {
             const [events, dailyLogs] = await Promise.all([
-              getMemberLogEvents(member.id, token, 7).catch(() => []),
-              getMemberLogs(member.id, token, 7).catch(() => []),
+              getMemberLogEvents(member.id, token, fetchDays).catch(() => []),
+              getMemberLogs(member.id, token, fetchDays).catch(() => []),
             ]);
             return events.length
               ? events.map((event) => eventToRow(event, user, member))
@@ -326,12 +346,25 @@ export default function LogsPage() {
 
     loadLogs();
     return () => { cancelled = true; };
-  }, []);
+  }, [timeWindow]);
 
   const familyMembers = useMemo(() => ["All", ...Array.from(new Set(rows.map((log) => log.member)))], [rows]);
+  const timeFilteredRows = useMemo(() => {
+    if (timeWindow === "yesterday") {
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      const key = yesterday.toLocaleDateString("en-CA");
+      return rows.filter((log) => log.loggedAt === key);
+    }
+    if (timeWindow === "24h") {
+      const since = Date.now() - 24 * 60 * 60 * 1000;
+      return rows.filter((log) => log.sortKey >= since);
+    }
+    return rows;
+  }, [rows, timeWindow]);
   const memberLogs = useMemo(() => (
-    selectedMember === "All" ? rows : rows.filter((log) => log.member === selectedMember)
-  ), [rows, selectedMember]);
+    selectedMember === "All" ? timeFilteredRows : timeFilteredRows.filter((log) => log.member === selectedMember)
+  ), [selectedMember, timeFilteredRows]);
   const filteredLogs = useMemo(() => {
     const normalized = query.trim().toLowerCase();
     if (!normalized) return memberLogs;
@@ -393,10 +426,32 @@ export default function LogsPage() {
             </div>
           </div>
           <div className="db-top-actions">
-            <div className="db-pill" style={{ cursor: "default" }}>
+            <label className="db-pill" style={{ cursor: "pointer", position: "relative", paddingRight: 14 }}>
               <CalendarBlank size={15} weight="bold" />
-              Last 7 days
-            </div>
+              <select
+                value={timeWindow}
+                onChange={(event) => setTimeWindow(event.target.value as TimeWindowKey)}
+                aria-label="Select logs time window"
+                style={{
+                  appearance: "none",
+                  WebkitAppearance: "none",
+                  border: "none",
+                  outline: "none",
+                  background: "transparent",
+                  color: "inherit",
+                  fontFamily: "inherit",
+                  fontSize: "inherit",
+                  fontWeight: 800,
+                  cursor: "pointer",
+                  paddingRight: 18,
+                }}
+              >
+                {TIME_WINDOWS.map((window) => (
+                  <option key={window.key} value={window.key}>{window.label}</option>
+                ))}
+              </select>
+              <span style={{ color: "#9AA0AD", fontSize: 11, marginLeft: -15, pointerEvents: "none" }}>▾</span>
+            </label>
           </div>
         </div>
 
