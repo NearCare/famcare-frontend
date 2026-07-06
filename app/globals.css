@@ -473,6 +473,7 @@ a {
   .db-grid .db-col:last-child > * { min-width: unset; }
   .db-banner { flex-wrap: wrap; }
   .db-banner .db-pill { margin-left: 0 !important; width: 100%; justify-content: center; }
+  .db-wellness-grid { grid-template-columns: 1fr !important; }
 }
 @media (max-width: 600px) {
   .db-kpi-row { grid-template-columns: repeat(2, 1fr); gap: 10px; }
@@ -514,6 +515,22 @@ a {
   0% { transform: scale(1); opacity: .35; }
   70% { transform: scale(1.7); opacity: 0; }
   100% { transform: scale(1.7); opacity: 0; }
+}
+
+/* ── Home page family card (mobile only) ── */
+@media (max-width: 600px) {
+  .db-home-member-card { padding: 16px 16px 14px !important; border-radius: 18px !important; }
+  .db-home-member-card .hm-avatar { width: 34px !important; height: 34px !important; font-size: 13px !important; }
+  .db-home-member-card .hm-name { font-size: 13px !important; }
+  .db-home-member-card .hm-label { font-size: 10px !important; }
+  .db-home-member-card .hm-badge { font-size: 9px !important; padding: 2px 8px !important; margin-top: 4px !important; }
+  .db-home-member-card .hm-score svg { width: 50px !important; height: 50px !important; }
+  .db-home-member-card .hm-score-label { font-size: 9px !important; }
+  .db-home-member-card .hm-stats { margin-top: 14px !important; gap: 4px !important; }
+  .db-home-member-card .hm-stats svg { width: 16px !important; height: 16px !important; }
+  .db-home-member-card .hm-stat-val { font-size: 12px !important; margin-top: 4px !important; }
+  .db-home-member-card .hm-stat-label { font-size: 9px !important; }
+  .db-home-member-card .hm-btn { margin-top: 12px !important; padding: 8px 0 !important; font-size: 11.5px !important; }
 }
 
 /* ── Logs / Review responsive shells ── */

@@ -7,14 +7,14 @@ export default function PrivacyPolicy() {
     <div style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", background: "#FFFAF9", minHeight: "100vh" }}>
 
       {/* Nav */}
-      <div style={{
+      <div className="lp-nav" style={{
         display: "flex", alignItems: "center", justifyContent: "space-between",
         padding: "0 56px", height: 64, borderBottom: "1px solid #F5EEEE",
         background: "#fff",
       }}>
         <Link href="/" style={{ display: "flex", alignItems: "center", gap: 9, fontSize: 18, fontWeight: 800, color: "#1A2744", textDecoration: "none" }}>
           <img src="/famcare-logo.png" alt="" style={{ width: 36, height: 36, objectFit: "contain", borderRadius: 10 }} />
-          Fam<span style={{ color: "#E85C5C" }}>Care</span>
+          <span>Fam<span style={{ color: "#E85C5C" }}>Care</span></span>
         </Link>
         <Link href="/login" style={{
           padding: "9px 20px", background: "#E85C5C", color: "#fff",
@@ -131,7 +131,7 @@ To exercise any of these rights, contact us via WhatsApp.`,
       </div>
 
       {/* Footer */}
-      <div style={{
+      <div className="lp-footer" style={{
         borderTop: "1px solid #F5EEEE", background: "#fff",
         padding: "20px 56px", display: "flex", alignItems: "center", justifyContent: "space-between",
       }}>

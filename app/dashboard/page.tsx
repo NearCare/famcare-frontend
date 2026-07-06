@@ -833,7 +833,7 @@ export default function DashboardPage() {
                 return (
                   <div
                     key={member.id}
-                    className="fo-member-card"
+                    className="fo-member-card db-home-member-card"
                     role="button"
                     tabIndex={0}
                     onClick={() => startModalTransition(() => setSelectedMember(member))}
@@ -858,8 +858,8 @@ export default function DashboardPage() {
                       filter: "blur(18px)", pointerEvents: "none",
                     }} />
                     <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, position: "relative" }}>
-                      <div style={{ display: "flex", gap: 11 }}>
-                        <div style={{
+                      <div className="hm-head" style={{ display: "flex", gap: 11 }}>
+                        <div className="hm-avatar" style={{
                           width: 42, height: 42, borderRadius: "50%",
                           background: `linear-gradient(150deg, ${tier.ring}, ${tier.textColor})`,
                           color: "#fff", display: "flex", alignItems: "center", justifyContent: "center",
@@ -869,9 +869,9 @@ export default function DashboardPage() {
                           {avatarLetter}
                         </div>
                         <div>
-                          <p style={{ margin: 0, fontWeight: 800, fontSize: 15, color: "#1A2744" }}>{member.name ?? member.label}</p>
-                          <p style={{ margin: 0, fontSize: 11.5, color: "#9AA0AD" }}>{member.label}</p>
-                          <span style={{ display: "inline-flex", alignItems: "center", gap: 5, marginTop: 6, background: tier.bg, color: tier.textColor, fontSize: 10.5, fontWeight: 700, padding: "3px 10px", borderRadius: 99 }}>
+                          <p className="hm-name" style={{ margin: 0, fontWeight: 800, fontSize: 15, color: "#1A2744" }}>{member.name ?? member.label}</p>
+                          <p className="hm-label" style={{ margin: 0, fontSize: 11.5, color: "#9AA0AD" }}>{member.label}</p>
+                          <span className="hm-badge" style={{ display: "inline-flex", alignItems: "center", gap: 5, marginTop: 6, background: tier.bg, color: tier.textColor, fontSize: 10.5, fontWeight: 700, padding: "3px 10px", borderRadius: 99 }}>
                             {score !== null && (
                               score >= 40
                                 ? <CheckCircle size={13} weight="fill" color={tier.ring} />
@@ -881,29 +881,30 @@ export default function DashboardPage() {
                           </span>
                         </div>
                       </div>
-                      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", flexShrink: 0 }}>
+                      <div className="hm-score" style={{ display: "flex", flexDirection: "column", alignItems: "center", flexShrink: 0 }}>
                         <ScoreRing score={score} tier={tier} size={68} />
-                        <span style={{ marginTop: 4, fontSize: 10.5, fontWeight: 700, color: tier.textColor }}>Score</span>
+                        <span className="hm-score-label" style={{ marginTop: 4, fontSize: 10.5, fontWeight: 700, color: tier.textColor }}>Score</span>
                       </div>
                     </div>
-                    <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 6, marginTop: 20, textAlign: "center" }}>
+                    <div className="hm-stats" style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 6, marginTop: 20, textAlign: "center" }}>
                       <div>
                         <div style={{ display: "flex", justifyContent: "center" }}><Flame size={20} color="#FF9F45" /></div>
-                        <p style={{ margin: "6px 0 0", fontSize: 14, fontWeight: 800, color: "#1A2744" }}>{memberTodayCalories != null ? memberTodayCalories.toLocaleString() : "—"}</p>
-                        <p style={{ margin: 0, fontSize: 10, fontWeight: 600, color: "#7C84A8" }}>Cal today</p>
+                        <p className="hm-stat-val" style={{ margin: "6px 0 0", fontSize: 14, fontWeight: 800, color: "#1A2744" }}>{memberTodayCalories != null ? memberTodayCalories.toLocaleString() : "—"}</p>
+                        <p className="hm-stat-label" style={{ margin: 0, fontSize: 10, fontWeight: 600, color: "#7C84A8" }}>Cal today</p>
                       </div>
                       <div>
                         <div style={{ display: "flex", justifyContent: "center" }}><Dumbbell size={20} color="#4F9BF5" /></div>
-                        <p style={{ margin: "6px 0 0", fontSize: 14, fontWeight: 800, color: "#1A2744" }}>{memberTodayProtein != null ? `${memberTodayProtein.toFixed(0)}g` : "—"}</p>
-                        <p style={{ margin: 0, fontSize: 10, fontWeight: 600, color: "#7C84A8" }}>Protein today</p>
+                        <p className="hm-stat-val" style={{ margin: "6px 0 0", fontSize: 14, fontWeight: 800, color: "#1A2744" }}>{memberTodayProtein != null ? `${memberTodayProtein.toFixed(0)}g` : "—"}</p>
+                        <p className="hm-stat-label" style={{ margin: 0, fontSize: 10, fontWeight: 600, color: "#7C84A8" }}>Protein today</p>
                       </div>
                       <div>
                         <div style={{ display: "flex", justifyContent: "center" }}><Footprints size={20} color="#20A865" /></div>
-                        <p style={{ margin: "6px 0 0", fontSize: 14, fontWeight: 800, color: "#1A2744" }}>{memberTodaySteps != null ? memberTodaySteps.toLocaleString() : "—"}</p>
-                        <p style={{ margin: 0, fontSize: 10, fontWeight: 600, color: "#7C84A8" }}>Steps today</p>
+                        <p className="hm-stat-val" style={{ margin: "6px 0 0", fontSize: 14, fontWeight: 800, color: "#1A2744" }}>{memberTodaySteps != null ? memberTodaySteps.toLocaleString() : "—"}</p>
+                        <p className="hm-stat-label" style={{ margin: 0, fontSize: 10, fontWeight: 600, color: "#7C84A8" }}>Steps today</p>
                       </div>
                     </div>
                     <button
+                      className="hm-btn"
                       onClick={(event) => {
                         event.stopPropagation();
                         startModalTransition(() => setSelectedMember(member));
@@ -961,7 +962,7 @@ export default function DashboardPage() {
         </div>
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 11fr) minmax(420px, 9fr)", gap: 16, alignItems: "stretch" }}>
+        <div className="db-wellness-grid" style={{ display: "grid", gridTemplateColumns: "minmax(0, 11fr) minmax(420px, 9fr)", gap: 16, alignItems: "stretch" }}>
           <div className="db-card" style={{ minWidth: 0, padding: "24px 26px 22px", position: "relative", overflow: "hidden" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 22 }}>
               <span style={{ fontSize: 17, fontWeight: 800, color: "#1A2744", fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Your Weekly Score</span>
