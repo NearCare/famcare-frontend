@@ -414,7 +414,7 @@ export async function getMemberLogEvents(memberId: number, token: string, days =
   return data.log_events;
 }
 
-export type ReviewFeedbackType = "feature" | "improvement" | "issue" | "other";
+export type ReviewFeedbackType = "feature" | "improvement" | "issue" | "praise" | "other";
 
 export async function submitReviewFeedback(input: {
   type: ReviewFeedbackType;

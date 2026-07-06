@@ -9,6 +9,7 @@ const feedbackTypes: { value: ReviewFeedbackType; label: string; helper: string 
   { value: "feature", label: "Feature request", helper: "Something you want us to build" },
   { value: "improvement", label: "Improvement", helper: "Something that can feel better" },
   { value: "issue", label: "Issue", helper: "Something broken or confusing" },
+  { value: "praise", label: "Praise", helper: "Doing good, keep going" },
   { value: "other", label: "Other", helper: "Anything else on your mind" },
 ];
 
