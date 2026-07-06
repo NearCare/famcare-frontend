@@ -759,7 +759,7 @@ export default function LogsPage() {
         </section>
 
         <section className="logs-layout" style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) 380px", gap: 16, alignItems: "start" }}>
-          <div style={{ display: "flex", flexDirection: "column", gap: 16, minWidth: 0 }}>
+          <div className="logs-list-pane" style={{ display: "flex", flexDirection: "column", gap: 16, minWidth: 0 }}>
             {error && (
               <div style={{ background: "var(--he-coral-bg)", color: "var(--he-coral-deep)", border: "1.5px solid #FFD2D2", borderRadius: 14, padding: "12px 14px", fontSize: 13, fontWeight: 800 }}>
                 Couldn&apos;t load health logs. {error}

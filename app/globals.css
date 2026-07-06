@@ -519,7 +519,14 @@ a {
 
 /* ── Home page family card (mobile only) ── */
 @media (max-width: 600px) {
-  .db-home-member-card { padding: 16px 16px 14px !important; border-radius: 18px !important; }
+  .db-home-member-card {
+    flex: 0 0 82vw !important;
+    min-width: 276px !important;
+    width: 82vw !important;
+    max-width: 340px !important;
+    padding: 16px 16px 14px !important;
+    border-radius: 18px !important;
+  }
   .db-home-member-card .hm-avatar { width: 34px !important; height: 34px !important; font-size: 13px !important; }
   .db-home-member-card .hm-name { font-size: 13px !important; }
   .db-home-member-card .hm-label { font-size: 10px !important; }
@@ -531,6 +538,38 @@ a {
   .db-home-member-card .hm-stat-val { font-size: 12px !important; margin-top: 4px !important; }
   .db-home-member-card .hm-stat-label { font-size: 9px !important; }
   .db-home-member-card .hm-btn { margin-top: 12px !important; padding: 8px 0 !important; font-size: 11.5px !important; }
+
+  .db-weekly-score-card {
+    padding: 18px 16px !important;
+    border-radius: 18px !important;
+    overflow: visible !important;
+  }
+  .db-weekly-score-body {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 18px !important;
+  }
+  .db-weekly-score-ring {
+    flex: none !important;
+    border-right: none !important;
+    border-bottom: 1px solid var(--he-hairline) !important;
+    padding: 0 0 18px !important;
+    width: 100% !important;
+  }
+  .db-weekly-score-ring svg {
+    width: 118px !important;
+    height: 118px !important;
+  }
+  .db-weekly-score-breakdown {
+    min-width: 0 !important;
+    width: 100% !important;
+  }
+  .db-weekly-score-breakdown > div > div {
+    gap: 8px !important;
+  }
+  .db-weekly-score-breakdown .db-bar-track {
+    min-width: 76px;
+  }
 }
 
 /* ── Home page weekly activity card (mobile only) ── */
@@ -568,7 +607,11 @@ a {
   .logs-layout {
     grid-template-columns: 1fr !important;
   }
+  .logs-list-pane {
+    order: 2;
+  }
   .logs-detail-panel {
+    order: 1;
     position: static !important;
   }
 }
@@ -605,6 +648,7 @@ a {
   }
   .logs-detail-panel {
     padding: 16px !important;
+    border-radius: 16px !important;
   }
 }
 
@@ -631,6 +675,12 @@ a {
     flex-basis: 100% !important;
     min-width: 0 !important;
     width: 100% !important;
+  }
+  .fo-member-card.db-home-member-card {
+    flex-basis: 82vw !important;
+    min-width: 276px !important;
+    width: 82vw !important;
+    max-width: 340px !important;
   }
 }
 

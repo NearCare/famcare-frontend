@@ -963,7 +963,7 @@ export default function DashboardPage() {
         </div>
 
         <div className="db-wellness-grid" style={{ display: "grid", gridTemplateColumns: "minmax(0, 11fr) minmax(420px, 9fr)", gap: 16, alignItems: "stretch" }}>
-          <div className="db-card" style={{ minWidth: 0, padding: "24px 26px 22px", position: "relative", overflow: "hidden" }}>
+          <div className="db-card db-weekly-score-card" style={{ minWidth: 0, padding: "24px 26px 22px", position: "relative", overflow: "hidden" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 22 }}>
               <span style={{ fontSize: 17, fontWeight: 800, color: "#1A2744", fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Your Weekly Score</span>
               <div ref={scoreInfoRef} style={{ position: "relative", display: "flex" }}>
@@ -1007,8 +1007,8 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            <div style={{ display: "flex", gap: 28, flexWrap: "wrap" }}>
-              <div style={{
+            <div className="db-weekly-score-body" style={{ display: "flex", gap: 28, flexWrap: "wrap" }}>
+              <div className="db-weekly-score-ring" style={{
                 display: "flex", flexDirection: "column", alignItems: "center",
                 flex: "0 0 200px", paddingRight: 24, borderRight: "1px solid var(--he-hairline)",
               }}>
@@ -1028,7 +1028,7 @@ export default function DashboardPage() {
                 )}
               </div>
 
-              <div style={{ flex: "1 1 280px", minWidth: 240 }}>
+              <div className="db-weekly-score-breakdown" style={{ flex: "1 1 280px", minWidth: 240 }}>
                 <p style={{ margin: "0 0 14px", fontSize: 13.5, fontWeight: 800, color: "#1A2744" }}>Score Breakdown</p>
                 <div style={{ display: "flex", flexDirection: "column", gap: 13 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
