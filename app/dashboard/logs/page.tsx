@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { type FormEvent, useEffect, useMemo, useState } from "react";
 import {
   CalendarBlank,
   CaretDown,
@@ -20,6 +20,8 @@ import {
   getFamilyMembers,
   getMemberLogEvents,
   getMemberLogs,
+  correctLogValues,
+  markLogIncorrect,
   getUserLogEvents,
   getUserLogs,
   type FamilyMember,
@@ -39,6 +41,9 @@ type LogDelta = {
 
 type HealthLogRow = {
   id: string;
+  userId: number;
+  eventId?: number;
+  aggregateLogId?: number;
   sortKey: number;
   loggedAt: string;
   time: string;
@@ -104,6 +109,8 @@ function eventToRow(event: HealthLogEvent, user: User, member?: FamilyMember): H
   const memberName = getMemberName(user, member);
   return {
     id: `event-${event.user_id}-${event.id}`,
+    userId: event.user_id,
+    eventId: event.id,
     sortKey: new Date(event.created_at).getTime() || new Date(`${event.logged_at}T00:00:00`).getTime(),
     loggedAt: event.logged_at,
     time: timeLabel(event.created_at, event.logged_at),
@@ -129,6 +136,8 @@ function aggregateToRow(log: HealthLog, user: User, member?: FamilyMember): Heal
   const hasNutrition = log.calories != null || log.protein_g != null;
   return {
     id: `aggregate-${log.user_id}-${log.id}`,
+    userId: log.user_id,
+    aggregateLogId: log.id,
     sortKey: new Date(`${log.logged_at}T00:00:00`).getTime(),
     loggedAt: log.logged_at,
     time: dayLabel(log.logged_at),
@@ -169,6 +178,12 @@ function statusMeta(status: LogStatus) {
   if (status === "logged") return { label: "Logged", icon: CheckCircle, color: "var(--he-green-deep)", bg: "var(--he-green-bg)" };
   if (status === "estimated") return { label: "Estimated", icon: WarningCircle, color: "var(--he-orange-deep)", bg: "var(--he-orange-bg)" };
   return { label: "Needs review", icon: XCircle, color: "var(--he-coral-deep)", bg: "var(--he-coral-bg)" };
+}
+
+function statusFromDelta(delta: LogDelta): LogStatus {
+  if (delta.calories != null || delta.proteinG != null) return "estimated";
+  if (delta.steps != null || delta.sleepHours != null) return "logged";
+  return "failed";
 }
 
 function MetricCard({
@@ -220,7 +235,44 @@ function WhatsAppIcon({ size = 16 }: { size?: number }) {
   );
 }
 
-function SelectedDetail({ log }: { log: HealthLogRow }) {
+type EditLogValues = {
+  calories: string;
+  proteinG: string;
+  steps: string;
+  sleepHours: string;
+};
+
+function SelectedDetail({
+  log,
+  busyAction,
+  notice,
+  onSaveValues,
+  onMarkIncorrect,
+}: {
+  log: HealthLogRow;
+  busyAction: "edit" | "incorrect" | null;
+  notice: string | null;
+  onSaveValues: (log: HealthLogRow, values: LogDelta) => Promise<void>;
+  onMarkIncorrect: (log: HealthLogRow) => Promise<void>;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [editValues, setEditValues] = useState<EditLogValues>({
+    calories: "",
+    proteinG: "",
+    steps: "",
+    sleepHours: "",
+  });
+
+  useEffect(() => {
+    setEditing(false);
+    setEditValues({
+      calories: log.delta.calories?.toString() ?? "",
+      proteinG: log.delta.proteinG?.toString() ?? "",
+      steps: log.delta.steps?.toString() ?? "",
+      sleepHours: log.delta.sleepHours?.toString() ?? "",
+    });
+  }, [log.id, log.delta.calories, log.delta.proteinG, log.delta.steps, log.delta.sleepHours]);
+
   const additions = [
     { label: "Calories", value: log.delta.calories ? `+${log.delta.calories} kcal` : "No change", tone: "orange" },
     { label: "Protein", value: log.delta.proteinG ? `+${log.delta.proteinG}g` : "No change", tone: "green" },
@@ -229,6 +281,29 @@ function SelectedDetail({ log }: { log: HealthLogRow }) {
   ];
   const meta = statusMeta(log.status);
   const StatusIcon = meta.icon;
+  const submitting = busyAction != null;
+
+  function updateEditValue(key: keyof EditLogValues, value: string) {
+    setEditValues((current) => ({ ...current, [key]: value }));
+  }
+
+  function optionalNumber(value: string) {
+    const trimmed = value.trim();
+    if (!trimmed) return undefined;
+    const parsed = Number(trimmed);
+    return Number.isFinite(parsed) ? parsed : undefined;
+  }
+
+  async function handleSubmitEdit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    await onSaveValues(log, {
+      calories: optionalNumber(editValues.calories),
+      proteinG: optionalNumber(editValues.proteinG),
+      steps: optionalNumber(editValues.steps),
+      sleepHours: optionalNumber(editValues.sleepHours),
+    });
+    setEditing(false);
+  }
 
   return (
     <aside className="logs-detail-panel" style={{
@@ -274,13 +349,65 @@ function SelectedDetail({ log }: { log: HealthLogRow }) {
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-        <button style={{ height: 42, border: "none", borderRadius: 12, background: "var(--he-coral)", color: "#fff", fontSize: 13, fontWeight: 900, cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 7 }}>
+        <button
+          type="button"
+          onClick={() => setEditing((current) => !current)}
+          disabled={submitting}
+          style={{ height: 42, border: "none", borderRadius: 12, background: "var(--he-coral)", color: "#fff", fontSize: 13, fontWeight: 900, cursor: submitting ? "wait" : "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 7, opacity: submitting ? .72 : 1 }}
+        >
           <PencilSimple size={15} weight="bold" /> Edit values
         </button>
-        <button style={{ height: 42, border: "1.5px solid var(--he-card-border)", borderRadius: 12, background: "#fff", color: "#5A6170", fontSize: 13, fontWeight: 900, cursor: "pointer" }}>
-          Mark incorrect
+        <button
+          type="button"
+          onClick={() => onMarkIncorrect(log)}
+          disabled={submitting}
+          style={{ height: 42, border: "1.5px solid var(--he-card-border)", borderRadius: 12, background: "#fff", color: "#5A6170", fontSize: 13, fontWeight: 900, cursor: submitting ? "wait" : "pointer", opacity: submitting ? .72 : 1 }}
+        >
+          {busyAction === "incorrect" ? "Saving..." : "Mark incorrect"}
         </button>
       </div>
+
+      {notice && (
+        <div style={{ marginTop: 12, borderRadius: 12, padding: "10px 12px", background: "var(--he-green-bg)", color: "var(--he-green-deep)", fontSize: 12.5, fontWeight: 900 }}>
+          {notice}
+        </div>
+      )}
+
+      {editing && (
+        <form onSubmit={handleSubmitEdit} style={{ marginTop: 14, border: "1.5px solid var(--he-card-border)", borderRadius: 14, padding: 12, background: "#FAFAFA" }}>
+          <p style={{ margin: "0 0 10px", color: "#1A2744", fontSize: 13, fontWeight: 900 }}>Correct values</p>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 9 }}>
+            {([
+              ["calories", "Calories"],
+              ["proteinG", "Protein (g)"],
+              ["steps", "Steps"],
+              ["sleepHours", "Sleep (h)"],
+            ] as const).map(([key, label]) => (
+              <label key={key} style={{ display: "grid", gap: 5, color: "#7C84A8", fontSize: 11.5, fontWeight: 900 }}>
+                {label}
+                <input
+                  value={editValues[key]}
+                  onChange={(event) => updateEditValue(key, event.target.value)}
+                  type="number"
+                  min="0"
+                  max={key === "sleepHours" ? 24 : undefined}
+                  step={key === "proteinG" || key === "sleepHours" ? "0.1" : "1"}
+                  placeholder="No change"
+                  style={{ width: "100%", boxSizing: "border-box", height: 38, border: "1.5px solid var(--he-card-border)", borderRadius: 10, outline: "none", padding: "0 10px", color: "#1A2744", fontFamily: "inherit", fontSize: 13, fontWeight: 800, background: "#fff" }}
+                />
+              </label>
+            ))}
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 12 }}>
+            <button type="button" onClick={() => setEditing(false)} disabled={submitting} style={{ height: 38, border: "1.5px solid var(--he-card-border)", borderRadius: 10, background: "#fff", color: "#5A6170", fontFamily: "inherit", fontSize: 12.5, fontWeight: 900, cursor: submitting ? "wait" : "pointer" }}>
+              Cancel
+            </button>
+            <button type="submit" disabled={submitting} style={{ height: 38, border: "none", borderRadius: 10, background: "var(--he-coral)", color: "#fff", fontFamily: "inherit", fontSize: 12.5, fontWeight: 900, cursor: submitting ? "wait" : "pointer" }}>
+              {busyAction === "edit" ? "Saving..." : "Save"}
+            </button>
+          </div>
+        </form>
+      )}
     </aside>
   );
 }
@@ -293,6 +420,8 @@ export default function LogsPage() {
   const [rows, setRows] = useState<HealthLogRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [busyAction, setBusyAction] = useState<"edit" | "incorrect" | null>(null);
+  const [actionNotice, setActionNotice] = useState<string | null>(null);
   const selectedWindow = getTimeWindow(timeWindow);
 
   useEffect(() => {
@@ -382,6 +511,10 @@ export default function LogsPage() {
     }
   }, [filteredLogs, selectedId]);
 
+  useEffect(() => {
+    setActionNotice(null);
+  }, [selectedId]);
+
   const totals = useMemo(() => memberLogs.reduce(
     (acc, log) => ({
       logs: acc.logs + (log.status !== "failed" ? 1 : 0),
@@ -391,6 +524,69 @@ export default function LogsPage() {
     }),
     { logs: 0, calories: 0, proteinG: 0, steps: 0 },
   ), [memberLogs]);
+
+  async function handleSaveValues(log: HealthLogRow, values: LogDelta) {
+    setBusyAction("edit");
+    setActionNotice(null);
+    setError(null);
+    const nextDelta: LogDelta = {
+      calories: values.calories,
+      proteinG: values.proteinG,
+      steps: values.steps,
+      sleepHours: values.sleepHours,
+    };
+    try {
+      await correctLogValues({
+        event_id: log.eventId,
+        log_id: log.aggregateLogId,
+        calories: nextDelta.calories ?? null,
+        protein_g: nextDelta.proteinG ?? null,
+        steps: nextDelta.steps ?? null,
+        sleep_hours: nextDelta.sleepHours ?? null,
+      });
+      setRows((current) => current.map((row) => (
+        row.id === log.id
+          ? {
+              ...row,
+              delta: nextDelta,
+              status: statusFromDelta(nextDelta),
+              summary: "Corrected from dashboard.",
+            }
+          : row
+      )));
+      setActionNotice("Updated. Daily totals now use these corrected values.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to update log values");
+    } finally {
+      setBusyAction(null);
+    }
+  }
+
+  async function handleMarkIncorrect(log: HealthLogRow) {
+    setBusyAction("incorrect");
+    setActionNotice(null);
+    setError(null);
+    try {
+      await markLogIncorrect({
+        event_id: log.eventId,
+        log_id: log.aggregateLogId,
+        log_user_id: log.userId,
+        logged_at: log.loggedAt,
+        source: log.source,
+        raw_message: log.message,
+        summary: log.summary,
+        calories: log.delta.calories ?? null,
+        protein_g: log.delta.proteinG ?? null,
+        steps: log.delta.steps ?? null,
+        sleep_hours: log.delta.sleepHours ?? null,
+      });
+      setActionNotice("Marked incorrect. Saved to the review table for verification.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to mark log incorrect");
+    } finally {
+      setBusyAction(null);
+    }
+  }
 
   if (loading) {
     return (
@@ -575,7 +771,15 @@ export default function LogsPage() {
             </div>
           </div>
 
-          {selected && <SelectedDetail log={selected} />}
+          {selected && (
+            <SelectedDetail
+              log={selected}
+              busyAction={busyAction}
+              notice={actionNotice}
+              onSaveValues={handleSaveValues}
+              onMarkIncorrect={handleMarkIncorrect}
+            />
+          )}
         </section>
       </div>
     </div>

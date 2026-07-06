@@ -431,6 +431,52 @@ export async function submitReviewFeedback(input: {
   });
 }
 
+export type CorrectLogValuesInput = {
+  event_id?: number;
+  log_id?: number;
+  steps: number | null;
+  protein_g: number | null;
+  calories: number | null;
+  sleep_hours: number | null;
+};
+
+export async function correctLogValues(input: CorrectLogValuesInput): Promise<void> {
+  if (MOCK_API) return;
+  const token = typeof window !== "undefined" ? localStorage.getItem("auth_token") : "";
+  if (!token) throw new Error("Please log in again before updating this log.");
+  await authedFetch<{ message: string }>("/api/log-values", token, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+}
+
+export type MarkLogIncorrectInput = {
+  event_id?: number;
+  log_id?: number;
+  log_user_id: number;
+  logged_at: string;
+  source: "text" | "voice";
+  raw_message: string;
+  summary?: string | null;
+  steps: number | null;
+  protein_g: number | null;
+  calories: number | null;
+  sleep_hours: number | null;
+  note?: string | null;
+};
+
+export async function markLogIncorrect(input: MarkLogIncorrectInput): Promise<void> {
+  if (MOCK_API) return;
+  const token = typeof window !== "undefined" ? localStorage.getItem("auth_token") : "";
+  if (!token) throw new Error("Please log in again before marking this log.");
+  await authedFetch<{ message: string }>("/api/log-issues", token, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+}
+
 // ─── Medications ──────────────────────────────────────────────────────────────
 
 export type MedicineSchedule = {
