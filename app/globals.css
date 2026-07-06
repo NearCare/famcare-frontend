@@ -556,7 +556,7 @@ a {
     padding: 0 0 18px !important;
     width: 100% !important;
   }
-  .db-weekly-score-ring svg {
+  .db-weekly-score-ring > svg {
     width: 118px !important;
     height: 118px !important;
   }
