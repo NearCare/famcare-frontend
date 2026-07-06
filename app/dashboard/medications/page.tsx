@@ -28,6 +28,7 @@ import {
   type User,
 } from "@/lib/api";
 import StreakPill from "../components/StreakPill";
+import PageLoader from "../components/PageLoader";
 import { captureEvent, identifyUser } from "@/lib/analytics";
 
 const WA_LINK = "https://wa.me/";
@@ -613,7 +614,17 @@ function StatCard({
 
 export default function MedicationsPage() {
   return (
-    <Suspense fallback={null}>
+    <Suspense fallback={
+      <div className="db-page">
+        <Sidebar />
+        <div className="db-main" style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <PageLoader
+            title="Loading medications..."
+            subtitle="We're loading schedules, reminders, and family medicine data."
+          />
+        </div>
+      </div>
+    }>
       <MedicationsContent />
     </Suspense>
   );
@@ -629,6 +640,7 @@ function MedicationsContent() {
   const [todayDoses, setTodayDoses] = useState<TodayDose[]>([]);
   const [showAddDrawer, setShowAddDrawer] = useState(false);
   const [streak, setStreak] = useState(0);
+  const [initializing, setInitializing] = useState(true);
   const [loadingMedicines, setLoadingMedicines] = useState(false);
   const [savingMedicine, setSavingMedicine] = useState(false);
   const [markingDoseId, setMarkingDoseId] = useState<string | null>(null);
@@ -636,35 +648,41 @@ function MedicationsContent() {
 
   useEffect(() => {
     (async () => {
-      const stored = localStorage.getItem("auth_user");
-      const authUser: User | null = stored ? JSON.parse(stored) : null;
-      if (!authUser) { window.location.href = "/login"; return; }
-      setUser(authUser);
+      try {
+        const stored = localStorage.getItem("auth_user");
+        const authUser: User | null = stored ? JSON.parse(stored) : null;
+        if (!authUser) { window.location.href = "/login"; return; }
+        setUser(authUser);
 
-      const token = localStorage.getItem("auth_token") ?? "";
-      const [members, logs] = await Promise.all([
-        getFamilyMembers(token).catch(() => [] as FamilyMember[]),
-        getUserLogs(authUser.id, 30).catch(() => []),
-      ]);
-      const activeMembers = members.filter((member) => member.status === "active");
-      setStreak(calculateStreak(logs));
-      identifyUser(authUser);
-      captureEvent("medications_viewed", {
-        family_member_count: activeMembers.length,
-        has_family_members: activeMembers.length > 0,
-      });
-      const options: PersonOption[] = [
-        { id: "self", userId: authUser.id, name: authUser.name ?? "You", label: "You" },
-        ...activeMembers
-          .map((member) => ({
-            id: `member-${member.id}`,
-            userId: member.id,
-            name: member.name ?? member.label,
-            label: member.label,
-          })),
-      ];
-      setPeople(options);
-      setSelectedPersonId(options.some((option) => option.id === requestedPersonId) ? requestedPersonId! : options[0]?.id ?? "self");
+        const token = localStorage.getItem("auth_token") ?? "";
+        const [members, logs] = await Promise.all([
+          getFamilyMembers(token).catch(() => [] as FamilyMember[]),
+          getUserLogs(authUser.id, 30).catch(() => []),
+        ]);
+        const activeMembers = members.filter((member) => member.status === "active");
+        setStreak(calculateStreak(logs));
+        identifyUser(authUser);
+        captureEvent("medications_viewed", {
+          family_member_count: activeMembers.length,
+          has_family_members: activeMembers.length > 0,
+        });
+        const options: PersonOption[] = [
+          { id: "self", userId: authUser.id, name: authUser.name ?? "You", label: "You" },
+          ...activeMembers
+            .map((member) => ({
+              id: `member-${member.id}`,
+              userId: member.id,
+              name: member.name ?? member.label,
+              label: member.label,
+            })),
+        ];
+        setPeople(options);
+        setSelectedPersonId(options.some((option) => option.id === requestedPersonId) ? requestedPersonId! : options[0]?.id ?? "self");
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to load medications");
+      } finally {
+        setInitializing(false);
+      }
     })();
   }, [requestedPersonId]);
 
@@ -809,6 +827,20 @@ function MedicationsContent() {
       setMarkingDoseId(null);
     }
   };
+
+  if (initializing) {
+    return (
+      <div className="db-page">
+        <Sidebar />
+        <div className="db-main" style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <PageLoader
+            title="Loading medications..."
+            subtitle="We're loading schedules, reminders, and family medicine data."
+          />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="db-page">

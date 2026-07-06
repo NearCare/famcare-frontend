@@ -73,6 +73,7 @@ function EstimateInfo() {
 import Sidebar from "../components/Sidebar";
 import FamilyMemberModal from "../components/FamilyMemberModal";
 import AddFamilyModal from "../components/AddFamilyModal";
+import PageLoader from "../components/PageLoader";
 import { captureEvent, identifyUser } from "@/lib/analytics";
 
 type MemberRow = { member: FamilyMember; summary: Summary | null; logs: HealthLog[] };
@@ -142,7 +143,10 @@ export default function FamilyOverviewPage() {
       <div className="db-page">
         <Sidebar />
         <div className="db-main" style={{ alignItems: "center", justifyContent: "center", display: "flex" }}>
-          <p style={{ color: "#9AA0AD", fontSize: 14 }}>Loading family overview…</p>
+          <PageLoader
+            title="Loading family overview..."
+            subtitle="We're syncing your family members and latest health totals."
+          />
         </div>
       </div>
     );

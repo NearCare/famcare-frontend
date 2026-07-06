@@ -414,7 +414,7 @@ export async function getMemberLogEvents(memberId: number, token: string, days =
   return data.log_events;
 }
 
-export type ReviewFeedbackType = "feature" | "improvement" | "issue" | "other";
+export type ReviewFeedbackType = "feature" | "improvement" | "issue" | "praise" | "other";
 
 export async function submitReviewFeedback(input: {
   type: ReviewFeedbackType;
@@ -425,6 +425,43 @@ export async function submitReviewFeedback(input: {
   const token = typeof window !== "undefined" ? localStorage.getItem("auth_token") : "";
   if (!token) throw new Error("Please log in again before submitting feedback.");
   await authedFetch<{ message: string }>("/api/review", token, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+}
+
+export type CorrectLogValuesInput = {
+  event_id?: number;
+  log_id?: number;
+  steps: number | null;
+  protein_g: number | null;
+  calories: number | null;
+  sleep_hours: number | null;
+};
+
+export async function correctLogValues(input: CorrectLogValuesInput): Promise<void> {
+  if (MOCK_API) return;
+  const token = typeof window !== "undefined" ? localStorage.getItem("auth_token") : "";
+  if (!token) throw new Error("Please log in again before updating this log.");
+  await authedFetch<{ message: string }>("/api/log-values", token, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+}
+
+export type MarkLogIncorrectInput = {
+  event_id?: number;
+  log_id?: number;
+  note?: string | null;
+};
+
+export async function markLogIncorrect(input: MarkLogIncorrectInput): Promise<void> {
+  if (MOCK_API) return;
+  const token = typeof window !== "undefined" ? localStorage.getItem("auth_token") : "";
+  if (!token) throw new Error("Please log in again before marking this log.");
+  await authedFetch<{ message: string }>("/api/log-issues", token, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(input),

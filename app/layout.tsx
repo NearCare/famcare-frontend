@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { DM_Sans, Plus_Jakarta_Sans } from "next/font/google";
+import Script from "next/script";
 import "./globals.css";
 import Providers from "./providers";
 
@@ -7,6 +8,7 @@ const siteUrl = "https://famcarehealth.com";
 const siteTitle = "FamCare - WhatsApp Medicine Reminders for Parents";
 const siteDescription =
   "FamCare helps families track parents' medicines with WhatsApp reminders, dose confirmations, missed-dose alerts, and daily adherence summaries.";
+const gaMeasurementId = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID;
 
 const dmSans = DM_Sans({
   subsets: ["latin"],
@@ -77,6 +79,22 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${dmSans.variable} ${jakartaSans.variable}`}>
       <body style={{ fontFamily: "var(--font-dm-sans), 'DM Sans', sans-serif" }}>
+        {gaMeasurementId && (
+          <>
+            <Script
+              src={`https://www.googletagmanager.com/gtag/js?id=${gaMeasurementId}`}
+              strategy="afterInteractive"
+            />
+            <Script id="google-analytics" strategy="afterInteractive">
+              {`
+                window.dataLayer = window.dataLayer || [];
+                function gtag(){window.dataLayer.push(arguments);}
+                gtag('js', new Date());
+                gtag('config', '${gaMeasurementId}');
+              `}
+            </Script>
+          </>
+        )}
         <Providers>{children}</Providers>
       </body>
     </html>
