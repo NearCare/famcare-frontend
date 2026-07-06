@@ -204,19 +204,19 @@ function MetricCard({
     <div style={{
       background: "#fff",
       border: "1.5px solid var(--he-card-border)",
-      borderRadius: 14,
-      padding: 14,
-      boxShadow: "0 10px 28px rgba(31,28,35,.04)",
-      minHeight: 84,
+      borderRadius: 12,
+      padding: "10px 12px",
+      boxShadow: "0 2px 8px rgba(31,28,35,.04)",
+      display: "flex",
+      alignItems: "center",
+      gap: 10,
     }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 11 }}>
-        <div style={{ width: 36, height: 36, borderRadius: 12, background: colors.bg, color: colors.color, display: "grid", placeItems: "center", flex: "none" }}>
-          {icon}
-        </div>
-        <div>
-          <p style={{ margin: 0, color: "#1A2744", fontSize: 21, fontWeight: 900, lineHeight: 1 }}>{value}</p>
-          <p style={{ margin: "5px 0 0", color: "#7C84A8", fontSize: 11.5, fontWeight: 800 }}>{label}</p>
-        </div>
+      <div style={{ width: 30, height: 30, borderRadius: 9, background: colors.bg, color: colors.color, display: "grid", placeItems: "center", flex: "none" }}>
+        {icon}
+      </div>
+      <div style={{ minWidth: 0 }}>
+        <p style={{ margin: 0, color: "#1A2744", fontSize: 15, fontWeight: 900, lineHeight: 1 }}>{value}</p>
+        <p style={{ margin: "3px 0 0", color: "#9AA0AD", fontSize: 10.5, fontWeight: 700, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{label}</p>
       </div>
     </div>
   );
