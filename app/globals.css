@@ -533,6 +533,35 @@ a {
   .db-home-member-card .hm-btn { margin-top: 12px !important; padding: 8px 0 !important; font-size: 11.5px !important; }
 }
 
+/* ── Home page weekly activity card (mobile only) ── */
+.wa-day-label-short { display: none; }
+@media (max-width: 600px) {
+  .wa-card { padding: 16px 14px !important; border-radius: 16px !important; }
+  .wa-head { margin-bottom: 14px !important; gap: 10px !important; }
+  .wa-head-ic { width: 36px !important; height: 36px !important; border-radius: 12px !important; }
+  .wa-head-ic svg { width: 18px !important; height: 18px !important; }
+  .wa-title { font-size: 15px !important; }
+  .wa-subtitle { font-size: 11px !important; }
+  .wa-badge { font-size: 10.5px !important; padding: 5px 9px !important; gap: 4px !important; }
+  .wa-badge svg { width: 12px !important; height: 12px !important; }
+  .wa-days { gap: 4px !important; }
+  .wa-day { gap: 5px !important; }
+  .wa-day-label { font-size: 9.5px !important; }
+  .wa-day-label-full { display: none; }
+  .wa-day-label-short { display: inline; }
+  .wa-day-ic { width: 26px !important; height: 26px !important; border-width: 1px !important; }
+  .wa-day-ic svg { width: 13px !important; height: 13px !important; }
+  .wa-legend { margin-top: 14px !important; padding-top: 12px !important; gap: 14px !important; font-size: 10.5px !important; }
+  .wa-legend svg { width: 13px !important; height: 13px !important; }
+
+  .wa-highlights { grid-template-columns: 1fr !important; padding: 12px 14px !important; gap: 10px !important; }
+  .wa-highlight { justify-content: flex-start !important; border-left: none !important; padding-left: 0 !important; }
+  .wa-highlight:not(:first-child) { border-top: 1px solid #DDEFE5 !important; padding-top: 10px !important; }
+  .wa-highlight-ic { width: 34px !important; height: 34px !important; font-size: 15px !important; }
+  .wa-highlight-label { font-size: 10.5px !important; }
+  .wa-highlight-val { font-size: 15px !important; white-space: normal !important; overflow: visible !important; text-overflow: clip !important; }
+}
+
 /* ── Logs / Review responsive shells ── */
 @media (max-width: 1040px) {
   .review-layout,
