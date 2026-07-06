@@ -13,6 +13,7 @@ import {
 } from "@phosphor-icons/react";
 import { Dumbbell, Footprints } from "lucide-react";
 import Sidebar from "../components/Sidebar";
+import PageLoader from "../components/PageLoader";
 import { FEFlame } from "../components/FluentEmoji";
 import {
   getFamilyMembers,
@@ -389,6 +390,20 @@ export default function LogsPage() {
     }),
     { logs: 0, calories: 0, proteinG: 0, steps: 0 },
   ), [memberLogs]);
+
+  if (loading) {
+    return (
+      <div className="db-page">
+        <Sidebar />
+        <div className="db-main" style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <PageLoader
+            title="Loading health logs..."
+            subtitle="We're fetching WhatsApp logs and the values added to totals."
+          />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="db-page">
