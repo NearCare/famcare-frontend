@@ -78,6 +78,10 @@ a {
   100% { opacity: 1; transform: scale(1); }
 }
 
+@keyframes loginSpin {
+  to { transform: rotate(360deg); }
+}
+
 @keyframes dbCheckDraw {
   0%   { stroke-dashoffset: 24; }
   100% { stroke-dashoffset: 0; }
@@ -473,6 +477,7 @@ a {
   .db-grid .db-col:last-child > * { min-width: unset; }
   .db-banner { flex-wrap: wrap; }
   .db-banner .db-pill { margin-left: 0 !important; width: 100%; justify-content: center; }
+  .db-wellness-grid { grid-template-columns: 1fr !important; }
 }
 @media (max-width: 600px) {
   .db-kpi-row { grid-template-columns: repeat(2, 1fr); gap: 10px; }
@@ -516,13 +521,101 @@ a {
   100% { transform: scale(1.7); opacity: 0; }
 }
 
+/* ── Home page family card (mobile only) ── */
+@media (max-width: 600px) {
+  .db-home-member-card {
+    flex: 0 0 82vw !important;
+    min-width: 276px !important;
+    width: 82vw !important;
+    max-width: 340px !important;
+    padding: 16px 16px 14px !important;
+    border-radius: 18px !important;
+  }
+  .db-home-member-card .hm-avatar { width: 34px !important; height: 34px !important; font-size: 13px !important; }
+  .db-home-member-card .hm-name { font-size: 13px !important; }
+  .db-home-member-card .hm-label { font-size: 10px !important; }
+  .db-home-member-card .hm-badge { font-size: 9px !important; padding: 2px 8px !important; margin-top: 4px !important; }
+  .db-home-member-card .hm-score svg { width: 50px !important; height: 50px !important; }
+  .db-home-member-card .hm-score-label { font-size: 9px !important; }
+  .db-home-member-card .hm-stats { margin-top: 14px !important; gap: 4px !important; }
+  .db-home-member-card .hm-stats svg { width: 16px !important; height: 16px !important; }
+  .db-home-member-card .hm-stat-val { font-size: 12px !important; margin-top: 4px !important; }
+  .db-home-member-card .hm-stat-label { font-size: 9px !important; }
+  .db-home-member-card .hm-btn { margin-top: 12px !important; padding: 8px 0 !important; font-size: 11.5px !important; }
+
+  .db-weekly-score-card {
+    padding: 18px 16px !important;
+    border-radius: 18px !important;
+    overflow: visible !important;
+  }
+  .db-weekly-score-body {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 18px !important;
+  }
+  .db-weekly-score-ring {
+    flex: none !important;
+    border-right: none !important;
+    border-bottom: 1px solid var(--he-hairline) !important;
+    padding: 0 0 18px !important;
+    width: 100% !important;
+  }
+  .db-weekly-score-ring > svg {
+    width: 118px !important;
+    height: 118px !important;
+  }
+  .db-weekly-score-breakdown {
+    min-width: 0 !important;
+    width: 100% !important;
+  }
+  .db-weekly-score-breakdown > div > div {
+    gap: 8px !important;
+  }
+  .db-weekly-score-breakdown .db-bar-track {
+    min-width: 76px;
+  }
+}
+
+/* ── Home page weekly activity card (mobile only) ── */
+.wa-day-label-short { display: none; }
+@media (max-width: 600px) {
+  .wa-card { padding: 16px 14px !important; border-radius: 16px !important; }
+  .wa-head { margin-bottom: 14px !important; gap: 10px !important; }
+  .wa-head-ic { width: 36px !important; height: 36px !important; border-radius: 12px !important; }
+  .wa-head-ic svg { width: 18px !important; height: 18px !important; }
+  .wa-title { font-size: 15px !important; }
+  .wa-subtitle { font-size: 11px !important; }
+  .wa-badge { font-size: 10.5px !important; padding: 5px 9px !important; gap: 4px !important; }
+  .wa-badge svg { width: 12px !important; height: 12px !important; }
+  .wa-days { gap: 4px !important; }
+  .wa-day { gap: 5px !important; }
+  .wa-day-label { font-size: 9.5px !important; }
+  .wa-day-label-full { display: none; }
+  .wa-day-label-short { display: inline; }
+  .wa-day-ic { width: 26px !important; height: 26px !important; border-width: 1px !important; }
+  .wa-day-ic svg { width: 13px !important; height: 13px !important; }
+  .wa-legend { margin-top: 14px !important; padding-top: 12px !important; gap: 14px !important; font-size: 10.5px !important; }
+  .wa-legend svg { width: 13px !important; height: 13px !important; }
+
+  .wa-highlights { grid-template-columns: 1fr !important; padding: 12px 14px !important; gap: 10px !important; }
+  .wa-highlight { justify-content: flex-start !important; border-left: none !important; padding-left: 0 !important; }
+  .wa-highlight:not(:first-child) { border-top: 1px solid #DDEFE5 !important; padding-top: 10px !important; }
+  .wa-highlight-ic { width: 34px !important; height: 34px !important; font-size: 15px !important; }
+  .wa-highlight-label { font-size: 10.5px !important; }
+  .wa-highlight-val { font-size: 15px !important; white-space: normal !important; overflow: visible !important; text-overflow: clip !important; }
+}
+
 /* ── Logs / Review responsive shells ── */
 @media (max-width: 1040px) {
   .review-layout,
   .logs-layout {
     grid-template-columns: 1fr !important;
   }
+  .logs-list-pane {
+    order: 2;
+  }
   .logs-detail-panel {
+    order: 1;
     position: static !important;
   }
 }
@@ -559,6 +652,7 @@ a {
   }
   .logs-detail-panel {
     padding: 16px !important;
+    border-radius: 16px !important;
   }
 }
 
@@ -585,6 +679,12 @@ a {
     flex-basis: 100% !important;
     min-width: 0 !important;
     width: 100% !important;
+  }
+  .fo-member-card.db-home-member-card {
+    flex-basis: 82vw !important;
+    min-width: 276px !important;
+    width: 82vw !important;
+    max-width: 340px !important;
   }
 }
 

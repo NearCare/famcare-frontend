@@ -833,7 +833,7 @@ export default function DashboardPage() {
                 return (
                   <div
                     key={member.id}
-                    className="fo-member-card"
+                    className="fo-member-card db-home-member-card"
                     role="button"
                     tabIndex={0}
                     onClick={() => startModalTransition(() => setSelectedMember(member))}
@@ -858,8 +858,8 @@ export default function DashboardPage() {
                       filter: "blur(18px)", pointerEvents: "none",
                     }} />
                     <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, position: "relative" }}>
-                      <div style={{ display: "flex", gap: 11 }}>
-                        <div style={{
+                      <div className="hm-head" style={{ display: "flex", gap: 11 }}>
+                        <div className="hm-avatar" style={{
                           width: 42, height: 42, borderRadius: "50%",
                           background: `linear-gradient(150deg, ${tier.ring}, ${tier.textColor})`,
                           color: "#fff", display: "flex", alignItems: "center", justifyContent: "center",
@@ -869,9 +869,9 @@ export default function DashboardPage() {
                           {avatarLetter}
                         </div>
                         <div>
-                          <p style={{ margin: 0, fontWeight: 800, fontSize: 15, color: "#1A2744" }}>{member.name ?? member.label}</p>
-                          <p style={{ margin: 0, fontSize: 11.5, color: "#9AA0AD" }}>{member.label}</p>
-                          <span style={{ display: "inline-flex", alignItems: "center", gap: 5, marginTop: 6, background: tier.bg, color: tier.textColor, fontSize: 10.5, fontWeight: 700, padding: "3px 10px", borderRadius: 99 }}>
+                          <p className="hm-name" style={{ margin: 0, fontWeight: 800, fontSize: 15, color: "#1A2744" }}>{member.name ?? member.label}</p>
+                          <p className="hm-label" style={{ margin: 0, fontSize: 11.5, color: "#9AA0AD" }}>{member.label}</p>
+                          <span className="hm-badge" style={{ display: "inline-flex", alignItems: "center", gap: 5, marginTop: 6, background: tier.bg, color: tier.textColor, fontSize: 10.5, fontWeight: 700, padding: "3px 10px", borderRadius: 99 }}>
                             {score !== null && (
                               score >= 40
                                 ? <CheckCircle size={13} weight="fill" color={tier.ring} />
@@ -881,29 +881,30 @@ export default function DashboardPage() {
                           </span>
                         </div>
                       </div>
-                      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", flexShrink: 0 }}>
+                      <div className="hm-score" style={{ display: "flex", flexDirection: "column", alignItems: "center", flexShrink: 0 }}>
                         <ScoreRing score={score} tier={tier} size={68} />
-                        <span style={{ marginTop: 4, fontSize: 10.5, fontWeight: 700, color: tier.textColor }}>Score</span>
+                        <span className="hm-score-label" style={{ marginTop: 4, fontSize: 10.5, fontWeight: 700, color: tier.textColor }}>Score</span>
                       </div>
                     </div>
-                    <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 6, marginTop: 20, textAlign: "center" }}>
+                    <div className="hm-stats" style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 6, marginTop: 20, textAlign: "center" }}>
                       <div>
                         <div style={{ display: "flex", justifyContent: "center" }}><Flame size={20} color="#FF9F45" /></div>
-                        <p style={{ margin: "6px 0 0", fontSize: 14, fontWeight: 800, color: "#1A2744" }}>{memberTodayCalories != null ? memberTodayCalories.toLocaleString() : "—"}</p>
-                        <p style={{ margin: 0, fontSize: 10, fontWeight: 600, color: "#7C84A8" }}>Cal today</p>
+                        <p className="hm-stat-val" style={{ margin: "6px 0 0", fontSize: 14, fontWeight: 800, color: "#1A2744" }}>{memberTodayCalories != null ? memberTodayCalories.toLocaleString() : "—"}</p>
+                        <p className="hm-stat-label" style={{ margin: 0, fontSize: 10, fontWeight: 600, color: "#7C84A8" }}>Cal today</p>
                       </div>
                       <div>
                         <div style={{ display: "flex", justifyContent: "center" }}><Dumbbell size={20} color="#4F9BF5" /></div>
-                        <p style={{ margin: "6px 0 0", fontSize: 14, fontWeight: 800, color: "#1A2744" }}>{memberTodayProtein != null ? `${memberTodayProtein.toFixed(0)}g` : "—"}</p>
-                        <p style={{ margin: 0, fontSize: 10, fontWeight: 600, color: "#7C84A8" }}>Protein today</p>
+                        <p className="hm-stat-val" style={{ margin: "6px 0 0", fontSize: 14, fontWeight: 800, color: "#1A2744" }}>{memberTodayProtein != null ? `${memberTodayProtein.toFixed(0)}g` : "—"}</p>
+                        <p className="hm-stat-label" style={{ margin: 0, fontSize: 10, fontWeight: 600, color: "#7C84A8" }}>Protein today</p>
                       </div>
                       <div>
                         <div style={{ display: "flex", justifyContent: "center" }}><Footprints size={20} color="#20A865" /></div>
-                        <p style={{ margin: "6px 0 0", fontSize: 14, fontWeight: 800, color: "#1A2744" }}>{memberTodaySteps != null ? memberTodaySteps.toLocaleString() : "—"}</p>
-                        <p style={{ margin: 0, fontSize: 10, fontWeight: 600, color: "#7C84A8" }}>Steps today</p>
+                        <p className="hm-stat-val" style={{ margin: "6px 0 0", fontSize: 14, fontWeight: 800, color: "#1A2744" }}>{memberTodaySteps != null ? memberTodaySteps.toLocaleString() : "—"}</p>
+                        <p className="hm-stat-label" style={{ margin: 0, fontSize: 10, fontWeight: 600, color: "#7C84A8" }}>Steps today</p>
                       </div>
                     </div>
                     <button
+                      className="hm-btn"
                       onClick={(event) => {
                         event.stopPropagation();
                         startModalTransition(() => setSelectedMember(member));
@@ -961,8 +962,8 @@ export default function DashboardPage() {
         </div>
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 11fr) minmax(420px, 9fr)", gap: 16, alignItems: "stretch" }}>
-          <div className="db-card" style={{ minWidth: 0, padding: "24px 26px 22px", position: "relative", overflow: "hidden" }}>
+        <div className="db-wellness-grid" style={{ display: "grid", gridTemplateColumns: "minmax(0, 11fr) minmax(420px, 9fr)", gap: 16, alignItems: "stretch" }}>
+          <div className="db-card db-weekly-score-card" style={{ minWidth: 0, padding: "24px 26px 22px", position: "relative", overflow: "hidden" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 22 }}>
               <span style={{ fontSize: 17, fontWeight: 800, color: "#1A2744", fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Your Weekly Score</span>
               <div ref={scoreInfoRef} style={{ position: "relative", display: "flex" }}>
@@ -1006,8 +1007,8 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            <div style={{ display: "flex", gap: 28, flexWrap: "wrap" }}>
-              <div style={{
+            <div className="db-weekly-score-body" style={{ display: "flex", gap: 28, flexWrap: "wrap" }}>
+              <div className="db-weekly-score-ring" style={{
                 display: "flex", flexDirection: "column", alignItems: "center",
                 flex: "0 0 200px", paddingRight: 24, borderRight: "1px solid var(--he-hairline)",
               }}>
@@ -1027,7 +1028,7 @@ export default function DashboardPage() {
                 )}
               </div>
 
-              <div style={{ flex: "1 1 280px", minWidth: 240 }}>
+              <div className="db-weekly-score-breakdown" style={{ flex: "1 1 280px", minWidth: 240 }}>
                 <p style={{ margin: "0 0 14px", fontSize: 13.5, fontWeight: 800, color: "#1A2744" }}>Score Breakdown</p>
                 <div style={{ display: "flex", flexDirection: "column", gap: 13 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -1065,32 +1066,35 @@ export default function DashboardPage() {
             <div style={{ height: 1, background: "var(--he-hairline)", margin: "22px 0" }} />
 
             <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr)", gap: 18 }}>
-              <div style={{ border: "1px solid var(--he-card-border)", borderRadius: 20, padding: "20px 22px", background: "#fff", boxShadow: "0 10px 26px rgba(31,28,35,.04)" }}>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, marginBottom: 22 }}>
+              <div className="wa-card" style={{ border: "1px solid var(--he-card-border)", borderRadius: 20, padding: "20px 22px", background: "#fff", boxShadow: "0 10px 26px rgba(31,28,35,.04)" }}>
+                <div className="wa-head" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, marginBottom: 22 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 13 }}>
-                    <span style={{ width: 48, height: 48, borderRadius: 16, background: "var(--he-orange-bg)", display: "grid", placeItems: "center", flex: "none" }}>
+                    <span className="wa-head-ic" style={{ width: 48, height: 48, borderRadius: 16, background: "var(--he-orange-bg)", display: "grid", placeItems: "center", flex: "none" }}>
                       <CalendarBlank size={24} weight="bold" color="var(--he-orange-deep)" />
                     </span>
                     <span>
-                      <span style={{ display: "block", color: "#1A2744", fontSize: 20, fontWeight: 900, fontFamily: "'Plus Jakarta Sans', sans-serif", letterSpacing: "-.3px" }}>7-Day Activity</span>
-                      <span style={{ display: "block", color: "#7C84A8", fontSize: 13.5, fontWeight: 700, marginTop: 2 }}>Your logging this week</span>
+                      <span className="wa-title" style={{ display: "block", color: "#1A2744", fontSize: 20, fontWeight: 900, fontFamily: "'Plus Jakarta Sans', sans-serif", letterSpacing: "-.3px" }}>7-Day Activity</span>
+                      <span className="wa-subtitle" style={{ display: "block", color: "#7C84A8", fontSize: 13.5, fontWeight: 700, marginTop: 2 }}>Your logging this week</span>
                     </span>
                   </div>
-                  <span style={{ display: "inline-flex", alignItems: "center", gap: 7, borderRadius: 999, background: "var(--he-green-bg)", color: "var(--he-green-deep)", padding: "8px 13px", fontSize: 13.5, fontWeight: 900, whiteSpace: "nowrap" }}>
+                  <span className="wa-badge" style={{ display: "inline-flex", alignItems: "center", gap: 7, borderRadius: 999, background: "var(--he-green-bg)", color: "var(--he-green-deep)", padding: "8px 13px", fontSize: 13.5, fontWeight: 900, whiteSpace: "nowrap" }}>
                     <CheckCircle size={16} weight="fill" />
                     {daysLoggedThisWeek}/7 days
                   </span>
                 </div>
 
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(7, minmax(0, 1fr))", gap: 10, alignItems: "center" }}>
+                <div className="wa-days" style={{ display: "grid", gridTemplateColumns: "repeat(7, minmax(0, 1fr))", gap: 10, alignItems: "center" }}>
                   {weeklyActivity.map((d, i) => {
                     const colors = d.logged
                       ? { bg: "var(--he-orange-bg)", border: "#FFD8AE", text: "var(--he-orange-deep)" }
                       : { bg: "var(--he-blue-bg)", border: "#D4E8FF", text: "var(--he-blue-deep)" };
                     return (
-                      <div key={i} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10, minWidth: 0 }}>
-                        <span style={{ color: "#5A6170", fontSize: 12, fontWeight: 800 }}>{d.label}</span>
-                        <span style={{ width: 48, height: 48, borderRadius: "50%", background: colors.bg, border: `1.5px solid ${colors.border}`, display: "grid", placeItems: "center", color: colors.text, boxShadow: "0 8px 18px rgba(31,28,35,.05)" }}>
+                      <div key={i} className="wa-day" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10, minWidth: 0 }}>
+                        <span className="wa-day-label" style={{ color: "#5A6170", fontSize: 12, fontWeight: 800 }}>
+                          <span className="wa-day-label-full">{d.label}</span>
+                          <span className="wa-day-label-short">{d.label.slice(0, 1)}</span>
+                        </span>
+                        <span className="wa-day-ic" style={{ width: 48, height: 48, borderRadius: "50%", background: colors.bg, border: `1.5px solid ${colors.border}`, display: "grid", placeItems: "center", color: colors.text, boxShadow: "0 8px 18px rgba(31,28,35,.05)" }}>
                           {d.logged ? <FEFlame size={22} /> : <Minus size={22} weight="bold" />}
                         </span>
                       </div>
@@ -1098,7 +1102,7 @@ export default function DashboardPage() {
                   })}
                 </div>
 
-                <div style={{ borderTop: "1px dashed #ECE8EE", marginTop: 22, paddingTop: 16, display: "flex", justifyContent: "center", gap: 22, flexWrap: "wrap", color: "#7C84A8", fontSize: 12.5, fontWeight: 800 }}>
+                <div className="wa-legend" style={{ borderTop: "1px dashed #ECE8EE", marginTop: 22, paddingTop: 16, display: "flex", justifyContent: "center", gap: 22, flexWrap: "wrap", color: "#7C84A8", fontSize: 12.5, fontWeight: 800 }}>
                   <span style={{ display: "inline-flex", alignItems: "center", gap: 7 }}><FEFlame size={17} /> Logged</span>
                   <span style={{ display: "inline-flex", alignItems: "center", gap: 7 }}><Minus size={17} weight="bold" color="var(--he-blue)" /> Missed</span>
                 </div>
@@ -1106,7 +1110,7 @@ export default function DashboardPage() {
 
             </div>
 
-            <div style={{
+            <div className="wa-highlights" style={{
               marginTop: 18,
               border: "1px solid #CFEFDC",
               background: "linear-gradient(135deg, #F7FFFA, #FFFFFF)",
@@ -1122,11 +1126,11 @@ export default function DashboardPage() {
                 { icon: "👟", label: "Most steps", value: `${bestDay.value.toLocaleString()} steps`, color: "var(--he-blue-deep)" },
                 { icon: "🔥", label: "Logging streak", value: `${streak} ${streak === 1 ? "day" : "days"}`, color: "var(--he-orange-deep)" },
               ].map((item, index) => (
-                <div key={item.label} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10, minWidth: 0, borderLeft: index === 0 ? "none" : "1px solid #DDEFE5", paddingLeft: index === 0 ? 0 : 14 }}>
-                  <span style={{ width: 44, height: 44, borderRadius: "50%", background: index === 0 ? "var(--he-green-bg)" : index === 1 ? "var(--he-blue-bg)" : "var(--he-orange-bg)", display: "grid", placeItems: "center", fontSize: 20, flex: "none" }}>{item.icon}</span>
+                <div key={item.label} className="wa-highlight" style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10, minWidth: 0, borderLeft: index === 0 ? "none" : "1px solid #DDEFE5", paddingLeft: index === 0 ? 0 : 14 }}>
+                  <span className="wa-highlight-ic" style={{ width: 44, height: 44, borderRadius: "50%", background: index === 0 ? "var(--he-green-bg)" : index === 1 ? "var(--he-blue-bg)" : "var(--he-orange-bg)", display: "grid", placeItems: "center", fontSize: 20, flex: "none" }}>{item.icon}</span>
                   <span style={{ minWidth: 0 }}>
-                    <span style={{ display: "block", color: "#7C84A8", fontSize: 11.5, fontWeight: 800, whiteSpace: "nowrap" }}>{item.label}</span>
-                    <span style={{ display: "block", color: item.color, fontSize: 18, fontWeight: 900, lineHeight: 1.12, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{item.value}</span>
+                    <span className="wa-highlight-label" style={{ display: "block", color: "#7C84A8", fontSize: 11.5, fontWeight: 800, whiteSpace: "nowrap" }}>{item.label}</span>
+                    <span className="wa-highlight-val" style={{ display: "block", color: item.color, fontSize: 18, fontWeight: 900, lineHeight: 1.12, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{item.value}</span>
                   </span>
                 </div>
               ))}

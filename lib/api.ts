@@ -468,6 +468,22 @@ export async function markLogIncorrect(input: MarkLogIncorrectInput): Promise<vo
   });
 }
 
+export type DeleteLogInput = {
+  event_id?: number;
+  log_id?: number;
+};
+
+export async function deleteLog(input: DeleteLogInput): Promise<void> {
+  if (MOCK_API) return;
+  const token = typeof window !== "undefined" ? localStorage.getItem("auth_token") : "";
+  if (!token) throw new Error("Please log in again before deleting this log.");
+  await authedFetch<{ message: string }>("/api/log-values", token, {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+}
+
 // ─── Medications ──────────────────────────────────────────────────────────────
 
 export type MedicineSchedule = {

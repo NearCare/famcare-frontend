@@ -43,7 +43,7 @@ export default function Sidebar() {
       <div className="db-mobile-topbar">
         <span style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 17, fontWeight: 800, fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
           <img src="/famcare-logo.png" alt="" style={{ width: 28, height: 28, objectFit: "contain", borderRadius: 8 }} />
-          Fam<span style={{ color: "#FF6B6B" }}>Care</span>
+          <span>Fam<span style={{ color: "#FF6B6B" }}>Care</span></span>
         </span>
         <button onClick={() => setMobileOpen(!mobileOpen)}
           style={{ background: "none", border: "none", cursor: "pointer", padding: 4, display: "flex", alignItems: "center" }}>

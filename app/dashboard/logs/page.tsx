@@ -9,6 +9,7 @@ import {
   Clock,
   MagnifyingGlass,
   PencilSimple,
+  Trash,
   WarningCircle,
   XCircle,
 } from "@phosphor-icons/react";
@@ -22,6 +23,7 @@ import {
   getMemberLogs,
   correctLogValues,
   markLogIncorrect,
+  deleteLog,
   getUserLogEvents,
   getUserLogs,
   type FamilyMember,
@@ -202,19 +204,19 @@ function MetricCard({
     <div style={{
       background: "#fff",
       border: "1.5px solid var(--he-card-border)",
-      borderRadius: 14,
-      padding: 14,
-      boxShadow: "0 10px 28px rgba(31,28,35,.04)",
-      minHeight: 84,
+      borderRadius: 12,
+      padding: "10px 12px",
+      boxShadow: "0 2px 8px rgba(31,28,35,.04)",
+      display: "flex",
+      alignItems: "center",
+      gap: 10,
     }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 11 }}>
-        <div style={{ width: 36, height: 36, borderRadius: 12, background: colors.bg, color: colors.color, display: "grid", placeItems: "center", flex: "none" }}>
-          {icon}
-        </div>
-        <div>
-          <p style={{ margin: 0, color: "#1A2744", fontSize: 21, fontWeight: 900, lineHeight: 1 }}>{value}</p>
-          <p style={{ margin: "5px 0 0", color: "#7C84A8", fontSize: 11.5, fontWeight: 800 }}>{label}</p>
-        </div>
+      <div style={{ width: 30, height: 30, borderRadius: 9, background: colors.bg, color: colors.color, display: "grid", placeItems: "center", flex: "none" }}>
+        {icon}
+      </div>
+      <div style={{ minWidth: 0 }}>
+        <p style={{ margin: 0, color: "#1A2744", fontSize: 15, fontWeight: 900, lineHeight: 1 }}>{value}</p>
+        <p style={{ margin: "3px 0 0", color: "#9AA0AD", fontSize: 10.5, fontWeight: 700, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{label}</p>
       </div>
     </div>
   );
@@ -248,12 +250,14 @@ function SelectedDetail({
   notice,
   onSaveValues,
   onMarkIncorrect,
+  onDeleteLog,
 }: {
   log: HealthLogRow;
-  busyAction: "edit" | "incorrect" | null;
+  busyAction: "edit" | "incorrect" | "delete" | null;
   notice: string | null;
   onSaveValues: (log: HealthLogRow, values: LogDelta) => Promise<void>;
   onMarkIncorrect: (log: HealthLogRow) => Promise<void>;
+  onDeleteLog: (log: HealthLogRow) => Promise<void>;
 }) {
   const [editing, setEditing] = useState(false);
   const [editValues, setEditValues] = useState<EditLogValues>({
@@ -263,10 +267,12 @@ function SelectedDetail({
     sleepHours: "",
   });
   const [editError, setEditError] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   useEffect(() => {
     setEditing(false);
     setEditError(null);
+    setConfirmDelete(false);
     setEditValues({
       calories: log.delta.calories?.toString() ?? "",
       proteinG: log.delta.proteinG?.toString() ?? "",
@@ -387,6 +393,45 @@ function SelectedDetail({
         </button>
       </div>
 
+      {confirmDelete ? (
+        <div style={{ marginTop: 10, background: "#FFF4F4", border: "1px solid #FFD7D7", borderRadius: 14, padding: 14 }}>
+          <p style={{ margin: 0, color: "#2C2F3A", fontSize: 13, fontWeight: 800 }}>Delete this log entry?</p>
+          <p style={{ margin: "5px 0 0", color: "#7A8099", fontSize: 12, lineHeight: 1.45 }}>
+            This removes it from daily totals and can&apos;t be undone.
+          </p>
+          <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 14 }}>
+            <button
+              type="button"
+              onClick={() => setConfirmDelete(false)}
+              disabled={submitting}
+              style={{ border: "1px solid #E7E4EE", borderRadius: 999, background: "#fff", color: "#5A5F6E", padding: "9px 14px", fontSize: 12, fontWeight: 800, cursor: submitting ? "not-allowed" : "pointer" }}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={async () => {
+                await onDeleteLog(log);
+                setConfirmDelete(false);
+              }}
+              disabled={submitting}
+              style={{ border: "none", borderRadius: 999, background: submitting ? "#F3A0A0" : "#E85C5C", color: "#fff", padding: "9px 14px", fontSize: 12, fontWeight: 900, cursor: submitting ? "not-allowed" : "pointer" }}
+            >
+              {busyAction === "delete" ? "Deleting..." : "Delete"}
+            </button>
+          </div>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setConfirmDelete(true)}
+          disabled={submitting}
+          style={{ marginTop: 10, width: "100%", height: 42, border: "1.5px solid #FFD7D7", borderRadius: 12, background: "#FFF4F4", color: "#E85C5C", fontSize: 13, fontWeight: 900, cursor: submitting ? "wait" : "pointer", opacity: submitting ? .72 : 1, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 7 }}
+        >
+          <Trash size={15} weight="bold" /> Delete log
+        </button>
+      )}
+
       {notice && (
         <div style={{ marginTop: 12, borderRadius: 12, padding: "10px 12px", background: "var(--he-green-bg)", color: "var(--he-green-deep)", fontSize: 12.5, fontWeight: 900 }}>
           {notice}
@@ -445,7 +490,7 @@ export default function LogsPage() {
   const [rows, setRows] = useState<HealthLogRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [busyAction, setBusyAction] = useState<"edit" | "incorrect" | null>(null);
+  const [busyAction, setBusyAction] = useState<"edit" | "incorrect" | "delete" | null>(null);
   const [actionNotice, setActionNotice] = useState<string | null>(null);
   const selectedWindow = getTimeWindow(timeWindow);
 
@@ -609,6 +654,24 @@ export default function LogsPage() {
     }
   }
 
+  async function handleDeleteLog(log: HealthLogRow) {
+    setBusyAction("delete");
+    setActionNotice(null);
+    setError(null);
+    try {
+      await deleteLog({
+        event_id: log.eventId,
+        log_id: log.aggregateLogId,
+      });
+      setRows((current) => current.filter((row) => row.id !== log.id));
+      setSelectedId("");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to delete log");
+    } finally {
+      setBusyAction(null);
+    }
+  }
+
   if (loading) {
     return (
       <div className="db-page">
@@ -696,7 +759,7 @@ export default function LogsPage() {
         </section>
 
         <section className="logs-layout" style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) 380px", gap: 16, alignItems: "start" }}>
-          <div style={{ display: "flex", flexDirection: "column", gap: 16, minWidth: 0 }}>
+          <div className="logs-list-pane" style={{ display: "flex", flexDirection: "column", gap: 16, minWidth: 0 }}>
             {error && (
               <div style={{ background: "var(--he-coral-bg)", color: "var(--he-coral-deep)", border: "1.5px solid #FFD2D2", borderRadius: 14, padding: "12px 14px", fontSize: 13, fontWeight: 800 }}>
                 Couldn&apos;t load health logs. {error}
@@ -799,6 +862,7 @@ export default function LogsPage() {
               notice={actionNotice}
               onSaveValues={handleSaveValues}
               onMarkIncorrect={handleMarkIncorrect}
+              onDeleteLog={handleDeleteLog}
             />
           )}
         </section>
