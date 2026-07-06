@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   CalendarBlank,
+  CaretDown,
   ChatCircleText,
   CheckCircle,
   Clock,
@@ -411,7 +412,35 @@ export default function LogsPage() {
       <div className="db-main">
         <div className="db-topbar">
           <div>
-            <h1 className="db-greeting">Health Logs</h1>
+            <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
+              <h1 className="db-greeting">Health Logs</h1>
+              <label className="db-pill" style={{ cursor: "pointer", position: "relative", paddingRight: 12, minHeight: 46 }}>
+                <CalendarBlank size={17} weight="bold" />
+                <select
+                  value={timeWindow}
+                  onChange={(event) => setTimeWindow(event.target.value as TimeWindowKey)}
+                  aria-label="Select logs time window"
+                  style={{
+                    appearance: "none",
+                    WebkitAppearance: "none",
+                    border: "none",
+                    outline: "none",
+                    background: "transparent",
+                    color: "inherit",
+                    fontFamily: "inherit",
+                    fontSize: "inherit",
+                    fontWeight: 800,
+                    cursor: "pointer",
+                    paddingRight: 8,
+                  }}
+                >
+                  {TIME_WINDOWS.map((window) => (
+                    <option key={window.key} value={window.key}>{window.label}</option>
+                  ))}
+                </select>
+                <CaretDown size={18} weight="bold" color="#68708A" style={{ flex: "none", pointerEvents: "none" }} />
+              </label>
+            </div>
             <p className="db-subtitle">Review what was logged and how it updated daily totals.</p>
             <div style={{ display: "inline-flex", alignItems: "center", gap: 5, background: "#fff", border: "1.5px solid var(--he-card-border)", borderRadius: 999, padding: 4, marginTop: 12, boxShadow: "0 8px 22px rgba(31,28,35,.04)", maxWidth: "100%", overflowX: "auto" }}>
               {familyMembers.map((member) => {
@@ -439,34 +468,6 @@ export default function LogsPage() {
                 );
               })}
             </div>
-          </div>
-          <div className="db-top-actions">
-            <label className="db-pill" style={{ cursor: "pointer", position: "relative", paddingRight: 14 }}>
-              <CalendarBlank size={15} weight="bold" />
-              <select
-                value={timeWindow}
-                onChange={(event) => setTimeWindow(event.target.value as TimeWindowKey)}
-                aria-label="Select logs time window"
-                style={{
-                  appearance: "none",
-                  WebkitAppearance: "none",
-                  border: "none",
-                  outline: "none",
-                  background: "transparent",
-                  color: "inherit",
-                  fontFamily: "inherit",
-                  fontSize: "inherit",
-                  fontWeight: 800,
-                  cursor: "pointer",
-                  paddingRight: 18,
-                }}
-              >
-                {TIME_WINDOWS.map((window) => (
-                  <option key={window.key} value={window.key}>{window.label}</option>
-                ))}
-              </select>
-              <span style={{ color: "#9AA0AD", fontSize: 11, marginLeft: -15, pointerEvents: "none" }}>▾</span>
-            </label>
           </div>
         </div>
 
