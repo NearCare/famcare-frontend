@@ -15,6 +15,7 @@ const structuredData = {
       "@type": "Organization",
       "@id": "https://famcarehealth.com/#organization",
       name: "FamCare",
+      alternateName: "FamCareHealth",
       url: "https://famcarehealth.com",
       logo: "https://famcarehealth.com/family-sunset.png",
     },
@@ -22,6 +23,7 @@ const structuredData = {
       "@type": "SoftwareApplication",
       "@id": "https://famcarehealth.com/#software",
       name: "FamCare",
+      alternateName: "FamCareHealth",
       url: "https://famcarehealth.com",
       applicationCategory: "HealthApplication",
       operatingSystem: "Web, WhatsApp",
@@ -695,7 +697,7 @@ export default function LandingPage() {
         display: "flex", alignItems: "center", justifyContent: "space-between",
         background: "#fff",
       }}>
-        <span style={{ fontSize: 13, color: "#6B7A9A" }}>© 2026 FamCare. All rights reserved.</span>
+        <span style={{ fontSize: 13, color: "#6B7A9A" }}>© 2026 FamCare (famcarehealth.com). All rights reserved.</span>
         <div className="lp-footer-links" style={{ display: "flex", gap: 18, flexWrap: "wrap", justifyContent: "center" }}>
           {useCases.map((item) => (
             <Link key={item.href} href={item.href} style={{ fontSize: 13, color: "#6B7A9A", textDecoration: "none" }}>
