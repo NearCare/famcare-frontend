@@ -78,6 +78,10 @@ a {
   100% { opacity: 1; transform: scale(1); }
 }
 
+@keyframes loginSpin {
+  to { transform: rotate(360deg); }
+}
+
 @keyframes dbCheckDraw {
   0%   { stroke-dashoffset: 24; }
   100% { stroke-dashoffset: 0; }

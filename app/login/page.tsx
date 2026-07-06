@@ -6,12 +6,33 @@ import { sendOtp, verifyOtp } from "@/lib/api";
 
 type Step = "phone" | "otp";
 
+function ButtonLoader({ label }: { label: string }) {
+  return (
+    <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+      <span
+        aria-hidden="true"
+        style={{
+          width: 15,
+          height: 15,
+          borderRadius: "50%",
+          border: "2px solid rgba(255,255,255,.45)",
+          borderTopColor: "#fff",
+          animation: "loginSpin .8s linear infinite",
+          flex: "none",
+        }}
+      />
+      {label}
+    </span>
+  );
+}
+
 export default function LoginPage() {
   const router = useRouter();
   const [step, setStep] = useState<Step>("phone");
   const [phone, setPhone] = useState("");
   const [otp, setOtp] = useState("");
   const [loading, setLoading] = useState(false);
+  const [redirecting, setRedirecting] = useState(false);
   const [error, setError] = useState("");
   const [resendTimer, setResendTimer] = useState(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -20,6 +41,11 @@ export default function LoginPage() {
   useEffect(() => {
     if (step === "otp") otpInputRef.current?.focus();
   }, [step]);
+
+  useEffect(() => {
+    router.prefetch("/dashboard");
+    router.prefetch("/onboarding/name");
+  }, [router]);
 
   function startResendTimer() {
     setResendTimer(30);
@@ -63,18 +89,23 @@ export default function LoginPage() {
     if (otp.trim().length !== 6) return setError("OTP must be 6 digits");
 
     setLoading(true);
+    let keepLoading = false;
     try {
       const auth = await verifyOtp(phone, otp.trim());
       // Save session to localStorage
       localStorage.setItem("auth_token", auth.token);
       localStorage.setItem("auth_user", JSON.stringify(auth.user));
-      router.push(auth.user.name ? "/dashboard" : "/onboarding/name");
+      setRedirecting(true);
+      keepLoading = true;
+      router.replace(auth.user.name ? "/dashboard" : "/onboarding/name");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Verification failed");
     } finally {
-      setLoading(false);
+      if (!keepLoading) setLoading(false);
     }
   }
+
+  const busy = loading || redirecting;
 
   return (
     <div className="login-page" style={{ display: "flex", height: "100vh", padding: 20, gap: 20, alignItems: "stretch", overflow: "hidden" }}>
@@ -206,16 +237,16 @@ export default function LoginPage() {
 
               <button
                 type="submit"
-                disabled={loading || phone.length !== 10}
+                disabled={busy || phone.length !== 10}
                 style={{
                   marginTop: 4, width: "100%", padding: 14,
-                  background: loading || phone.length !== 10 ? "#F0A0A0" : "#E85C5C", color: "#fff",
+                  background: busy || phone.length !== 10 ? "#F0A0A0" : "#E85C5C", color: "#fff",
                   border: "none", borderRadius: 8, fontSize: 15, fontWeight: 600,
-                  fontFamily: "inherit", cursor: loading || phone.length !== 10 ? "not-allowed" : "pointer",
+                  fontFamily: "inherit", cursor: busy || phone.length !== 10 ? "not-allowed" : "pointer",
                   transition: "background .2s",
                 }}
               >
-                {loading ? "Sending…" : "Get OTP on WhatsApp"}
+                {loading ? <ButtonLoader label="Sending…" /> : "Get OTP on WhatsApp"}
               </button>
             </form>
           </>
@@ -259,24 +290,25 @@ export default function LoginPage() {
 
               <button
                 type="submit"
-                disabled={loading || otp.length !== 6}
+                disabled={busy || otp.length !== 6}
                 style={{
                   marginTop: 4, width: "100%", padding: 14,
-                  background: loading || otp.length !== 6 ? "#F0A0A0" : "#E85C5C", color: "#fff",
+                  background: busy || otp.length !== 6 ? "#F0A0A0" : "#E85C5C", color: "#fff",
                   border: "none", borderRadius: 8, fontSize: 15, fontWeight: 600,
-                  fontFamily: "inherit", cursor: loading || otp.length !== 6 ? "not-allowed" : "pointer",
+                  fontFamily: "inherit", cursor: busy || otp.length !== 6 ? "not-allowed" : "pointer",
                 }}
               >
-                {loading ? "Verifying…" : "Verify & Log In"}
+                {redirecting ? <ButtonLoader label="Opening dashboard…" /> : loading ? <ButtonLoader label="Verifying…" /> : "Verify & Log In"}
               </button>
 
               <button
                 type="button"
                 onClick={() => { setStep("phone"); setOtp(""); setError(""); setResendTimer(0); if (timerRef.current) clearInterval(timerRef.current); }}
+                disabled={busy}
                 style={{
                   width: "100%", padding: 13, border: "1.5px solid #EDE6E6", borderRadius: 8,
                   background: "#fff", fontSize: 14, fontWeight: 500, fontFamily: "inherit",
-                  color: "#6B7A9A", cursor: "pointer",
+                  color: "#6B7A9A", cursor: busy ? "not-allowed" : "pointer", opacity: busy ? .7 : 1,
                 }}
               >
                 ← Change number
@@ -300,8 +332,8 @@ export default function LoginPage() {
                     catch (e) { setError(e instanceof Error ? e.message : "Failed"); }
                     finally { setLoading(false); }
                   }}
-                  disabled={loading}
-                  style={{ color: "#E85C5C", fontWeight: 600, background: "none", border: "none", cursor: loading ? "not-allowed" : "pointer", fontSize: 13, padding: 0 }}
+                  disabled={busy}
+                  style={{ color: "#E85C5C", fontWeight: 600, background: "none", border: "none", cursor: busy ? "not-allowed" : "pointer", fontSize: 13, padding: 0 }}
                 >
                   Resend OTP
                 </button>
