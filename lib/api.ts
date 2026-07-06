@@ -454,15 +454,6 @@ export async function correctLogValues(input: CorrectLogValuesInput): Promise<vo
 export type MarkLogIncorrectInput = {
   event_id?: number;
   log_id?: number;
-  log_user_id: number;
-  logged_at: string;
-  source: "text" | "voice";
-  raw_message: string;
-  summary?: string | null;
-  steps: number | null;
-  protein_g: number | null;
-  calories: number | null;
-  sleep_hours: number | null;
   note?: string | null;
 };
 

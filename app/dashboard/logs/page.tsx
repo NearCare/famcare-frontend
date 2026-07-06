@@ -262,9 +262,11 @@ function SelectedDetail({
     steps: "",
     sleepHours: "",
   });
+  const [editError, setEditError] = useState<string | null>(null);
 
   useEffect(() => {
     setEditing(false);
+    setEditError(null);
     setEditValues({
       calories: log.delta.calories?.toString() ?? "",
       proteinG: log.delta.proteinG?.toString() ?? "",
@@ -284,24 +286,42 @@ function SelectedDetail({
   const submitting = busyAction != null;
 
   function updateEditValue(key: keyof EditLogValues, value: string) {
+    setEditError(null);
     setEditValues((current) => ({ ...current, [key]: value }));
   }
 
-  function optionalNumber(value: string) {
+  function parseOptionalNumber(value: string) {
     const trimmed = value.trim();
-    if (!trimmed) return undefined;
+    if (!trimmed) return { ok: true as const, value: undefined };
     const parsed = Number(trimmed);
-    return Number.isFinite(parsed) ? parsed : undefined;
+    return Number.isFinite(parsed)
+      ? { ok: true as const, value: parsed }
+      : { ok: false as const };
   }
 
   async function handleSubmitEdit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    await onSaveValues(log, {
-      calories: optionalNumber(editValues.calories),
-      proteinG: optionalNumber(editValues.proteinG),
-      steps: optionalNumber(editValues.steps),
-      sleepHours: optionalNumber(editValues.sleepHours),
-    });
+    const parsed = {
+      calories: parseOptionalNumber(editValues.calories),
+      proteinG: parseOptionalNumber(editValues.proteinG),
+      steps: parseOptionalNumber(editValues.steps),
+      sleepHours: parseOptionalNumber(editValues.sleepHours),
+    };
+    if (Object.values(parsed).some((result) => !result.ok)) {
+      setEditError("Enter valid numbers only.");
+      return;
+    }
+    const nextValues = {
+      calories: parsed.calories.value,
+      proteinG: parsed.proteinG.value,
+      steps: parsed.steps.value,
+      sleepHours: parsed.sleepHours.value,
+    };
+    if (Object.values(nextValues).every((value) => value == null)) {
+      setEditError("Add at least one value before saving.");
+      return;
+    }
+    await onSaveValues(log, nextValues);
     setEditing(false);
   }
 
@@ -398,6 +418,11 @@ function SelectedDetail({
               </label>
             ))}
           </div>
+          {editError && (
+            <div style={{ marginTop: 10, color: "var(--he-coral-deep)", fontSize: 12, fontWeight: 900 }}>
+              {editError}
+            </div>
+          )}
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 12 }}>
             <button type="button" onClick={() => setEditing(false)} disabled={submitting} style={{ height: 38, border: "1.5px solid var(--he-card-border)", borderRadius: 10, background: "#fff", color: "#5A6170", fontFamily: "inherit", fontSize: 12.5, fontWeight: 900, cursor: submitting ? "wait" : "pointer" }}>
               Cancel
@@ -503,7 +528,7 @@ export default function LogsPage() {
       [log.member, log.message, log.status, log.summary].some((value) => value.toLowerCase().includes(normalized)),
     );
   }, [memberLogs, query]);
-  const selected = filteredLogs.find((log) => log.id === selectedId) ?? filteredLogs[0] ?? rows[0];
+  const selected = filteredLogs.length ? (filteredLogs.find((log) => log.id === selectedId) ?? filteredLogs[0]) : undefined;
 
   useEffect(() => {
     if (filteredLogs.length && !filteredLogs.some((log) => log.id === selectedId)) {
@@ -535,6 +560,11 @@ export default function LogsPage() {
       steps: values.steps,
       sleepHours: values.sleepHours,
     };
+    if (Object.values(nextDelta).every((value) => value == null)) {
+      setBusyAction(null);
+      setError("Add at least one value before saving.");
+      return;
+    }
     try {
       await correctLogValues({
         event_id: log.eventId,
@@ -570,15 +600,6 @@ export default function LogsPage() {
       await markLogIncorrect({
         event_id: log.eventId,
         log_id: log.aggregateLogId,
-        log_user_id: log.userId,
-        logged_at: log.loggedAt,
-        source: log.source,
-        raw_message: log.message,
-        summary: log.summary,
-        calories: log.delta.calories ?? null,
-        protein_g: log.delta.proteinG ?? null,
-        steps: log.delta.steps ?? null,
-        sleep_hours: log.delta.sleepHours ?? null,
       });
       setActionNotice("Marked incorrect. Saved to the review table for verification.");
     } catch (err) {
@@ -705,7 +726,7 @@ export default function LogsPage() {
                   </div>
                 )}
                 {!loading && filteredLogs.map((log) => {
-                  const selectedRow = log.id === selected.id;
+                  const selectedRow = log.id === selected?.id;
                   const meta = statusMeta(log.status);
                   const StatusIcon = meta.icon;
                   return (
