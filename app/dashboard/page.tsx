@@ -1264,13 +1264,20 @@ export default function DashboardPage() {
         <AddFamilyModal
           onClose={() => setShowAddFamily(false)}
           onAdded={(member) => {
-            setMemberRows((rows) => [...rows, { member, summary: null, logs: [] }]);
+            setMemberRows((rows) => {
+              const idx = rows.findIndex((r) => r.member.id === member.id);
+              if (idx === -1) return [...rows, { member, summary: null, logs: [] }];
+              const next = [...rows];
+              next[idx] = { ...next[idx], member };
+              return next;
+            });
             captureEvent("family_member_added", {
               member_id: member.id,
               member_status: member.status,
               member_type: member.type,
             });
           }}
+          onActivated={() => loadDashboard(true)}
         />
       )}
 

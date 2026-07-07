@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { CheckCircle, Warning, Sparkle, CaretRight, UserPlus, Trophy, Info } from "@phosphor-icons/react";
 import { Flame, Dumbbell, Footprints } from "lucide-react";
 import {
@@ -87,42 +87,45 @@ export default function FamilyOverviewPage() {
   const [selectedMember, setSelectedMember] = useState<FamilyMember | null>(null);
   const [showAddFamily, setShowAddFamily] = useState(false);
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const stored = localStorage.getItem("auth_user");
-        const authUser: User | null = stored ? JSON.parse(stored) : null;
-        if (!authUser) { window.location.href = "/login"; return; }
-        setUser(authUser);
-        const token = localStorage.getItem("auth_token") ?? "";
+  const loadFamilyOverview = useCallback(async (silent = false) => {
+    try {
+      if (!silent) setLoading(true);
+      const stored = localStorage.getItem("auth_user");
+      const authUser: User | null = stored ? JSON.parse(stored) : null;
+      if (!authUser) { window.location.href = "/login"; return; }
+      setUser(authUser);
+      const token = localStorage.getItem("auth_token") ?? "";
 
-        const [members, mySummary] = await Promise.all([
-          getFamilyMembers(token).catch(() => [] as FamilyMember[]),
-          getUserSummary(authUser.id).catch(() => null),
-        ]);
-        setPersonalSummary(mySummary);
+      const [members, mySummary] = await Promise.all([
+        getFamilyMembers(token).catch(() => [] as FamilyMember[]),
+        getUserSummary(authUser.id).catch(() => null),
+      ]);
+      setPersonalSummary(mySummary);
 
-        const activeMembers = members.filter((m) => m.status === "active");
-        identifyUser(authUser);
-        captureEvent("family_overview_viewed", {
-          family_member_count: activeMembers.length,
-          has_family_members: activeMembers.length > 0,
-        });
-        const rows = await Promise.all(
-          activeMembers.map(async (member) => ({
-            member,
-            summary: await getMemberSummary(member.id, token).catch(() => null),
-            logs: await getMemberLogs(member.id, token, 7).catch(() => []),
-          }))
-        );
-        setMemberRows(rows);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to load data");
-      } finally {
-        setLoading(false);
-      }
-    })();
+      const activeMembers = members.filter((m) => m.status === "active");
+      identifyUser(authUser);
+      captureEvent("family_overview_viewed", {
+        family_member_count: activeMembers.length,
+        has_family_members: activeMembers.length > 0,
+      });
+      const rows = await Promise.all(
+        activeMembers.map(async (member) => ({
+          member,
+          summary: await getMemberSummary(member.id, token).catch(() => null),
+          logs: await getMemberLogs(member.id, token, 7).catch(() => []),
+        }))
+      );
+      setMemberRows(rows);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load data");
+    } finally {
+      if (!silent) setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    loadFamilyOverview();
+  }, [loadFamilyOverview]);
 
   const rankedFamily = useMemo(() => {
     const rows = [
@@ -451,7 +454,13 @@ export default function FamilyOverviewPage() {
         <AddFamilyModal
           onClose={() => setShowAddFamily(false)}
           onAdded={(member) => {
-            setMemberRows((rows) => [...rows, { member, summary: null, logs: [] }]);
+            setMemberRows((rows) => {
+              const idx = rows.findIndex((r) => r.member.id === member.id);
+              if (idx === -1) return [...rows, { member, summary: null, logs: [] }];
+              const next = [...rows];
+              next[idx] = { ...next[idx], member };
+              return next;
+            });
             captureEvent("family_member_added", {
               member_id: member.id,
               member_status: member.status,
@@ -459,6 +468,7 @@ export default function FamilyOverviewPage() {
               source: "family_overview",
             });
           }}
+          onActivated={() => loadFamilyOverview(true)}
         />
       )}
     </div>

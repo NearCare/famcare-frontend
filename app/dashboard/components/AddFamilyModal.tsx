@@ -39,7 +39,12 @@ export default function AddFamilyModal({ onClose, onAdded, onActivated }: Props)
     try {
       const invite = await inviteFamilyMember(phone, label.trim(), type, token);
       setSentMember(invite.member);
-      onAdded(invite.member);
+      // OTP flow adds the card only once verified (handleVerifyOtp) — adding it
+      // here too would show a duplicate card for the same person. The "sent"
+      // (WhatsApp YES) flow still shows a pending card while waiting.
+      if (invite.method !== "otp") {
+        onAdded(invite.member);
+      }
       setStep(invite.method === "otp" ? "otp" : "sent");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to send invite");
