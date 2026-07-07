@@ -504,6 +504,19 @@ a {
   transition: transform .22s var(--he-ease), box-shadow .22s var(--he-ease);
 }
 .fo-member-card:hover { transform: translateY(-4px); box-shadow: var(--he-shadow-pop); }
+.fo-member-card.is-selected-profile {
+  animation: selected-profile-border 6s linear infinite;
+}
+@keyframes selected-profile-border {
+  0% { background-position: 0 0, 0% 50%; }
+  50% { background-position: 0 0, 100% 50%; }
+  100% { background-position: 0 0, 0% 50%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .fo-member-card.is-selected-profile {
+    animation: none;
+  }
+}
 .db-profile-carousel {
   scrollbar-width: thin;
   scrollbar-color: rgba(255, 107, 107, .55) rgba(255, 107, 107, .10);

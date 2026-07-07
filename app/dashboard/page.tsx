@@ -868,7 +868,7 @@ export default function DashboardPage() {
                 return (
                   <div
                     key={cardId}
-                    className="fo-member-card db-home-member-card"
+                    className={`fo-member-card db-home-member-card${isSelectedCard ? " is-selected-profile" : ""}`}
                     role="button"
                     tabIndex={0}
                     aria-pressed={isSelectedCard}
@@ -882,8 +882,11 @@ export default function DashboardPage() {
                     style={{
                       flex: "0 0 300px", minWidth: 300,
                       background:
-                        `linear-gradient(165deg, ${tier.bg} 0%, #fff 55%) padding-box, linear-gradient(135deg, ${tier.border}, ${tier.ring}) border-box`,
-                      borderRadius: 24, border: isSelectedCard ? `2px solid ${tier.ring}` : "1.5px solid transparent",
+                        isSelectedCard
+                          ? `linear-gradient(165deg, ${tier.bg} 0%, #fff 55%) padding-box, linear-gradient(120deg, var(--he-coral), var(--he-orange), var(--he-green), var(--he-coral)) border-box`
+                          : `linear-gradient(165deg, ${tier.bg} 0%, #fff 55%) padding-box, linear-gradient(135deg, ${tier.border}, ${tier.ring}) border-box`,
+                      backgroundSize: isSelectedCard ? "100% 100%, 260% 260%" : undefined,
+                      borderRadius: 24, border: isSelectedCard ? "2px solid transparent" : "1.5px solid transparent",
                       boxShadow: isSelectedCard ? `0 14px 34px ${tier.ring}2e` : "0 4px 16px rgba(26,20,20,.05)", padding: "22px 22px 20px",
                       cursor: "pointer",
                       scrollSnapAlign: "start",
