@@ -504,6 +504,32 @@ a {
   transition: transform .22s var(--he-ease), box-shadow .22s var(--he-ease);
 }
 .fo-member-card:hover { transform: translateY(-4px); box-shadow: var(--he-shadow-pop); }
+.db-profile-carousel {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 107, 107, .55) rgba(255, 107, 107, .10);
+  -webkit-overflow-scrolling: touch;
+}
+.db-profile-carousel::-webkit-scrollbar { height: 10px; }
+.db-profile-carousel::-webkit-scrollbar-track {
+  background: rgba(255, 107, 107, .10);
+  border-radius: 999px;
+  margin: 0 10px;
+}
+.db-profile-carousel::-webkit-scrollbar-thumb {
+  background: linear-gradient(90deg, var(--he-coral), var(--he-orange));
+  border: 2px solid #fff;
+  border-radius: 999px;
+}
+.db-profile-carousel::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(90deg, var(--he-coral-deep), var(--he-orange-deep));
+}
+.fo-metric-tile > div:first-child > div:first-child {
+  min-width: 0;
+}
+.fo-metric-tile > div:first-child > div:first-child > span {
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
 .fo-metric-tile { transition: transform .2s var(--he-ease), box-shadow .2s var(--he-ease); }
 .fo-metric-tile:hover { transform: translateY(-3px); box-shadow: var(--he-shadow-pop); }
 .fo-score-spotlight { position: relative; overflow: hidden; }
