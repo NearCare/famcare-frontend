@@ -606,8 +606,6 @@ export default function DashboardPage() {
   const goalSteps = user?.goal_steps ?? null;
   const goalSleep = user?.goal_sleep_hours ?? null;
 
-  const stepsAvgPct = goalSteps ? Math.min(Math.round((stepsAvg / goalSteps) * 100), 100) : undefined;
-
   const todayIST = new Date().toLocaleDateString("en-CA");
   const yesterdayDate = new Date(); yesterdayDate.setDate(yesterdayDate.getDate() - 1);
   const yesterdayIST = yesterdayDate.toLocaleDateString("en-CA");
