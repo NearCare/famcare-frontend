@@ -892,8 +892,8 @@ export default function DashboardPage() {
                         isSelectedCard
                           ? `linear-gradient(165deg, ${tier.bg} 0%, #fff 55%)`
                           : `linear-gradient(165deg, ${tier.bg} 0%, #fff 55%) padding-box, linear-gradient(135deg, ${tier.border}, ${tier.ring}) border-box`,
-                      borderRadius: 24, border: isSelectedCard ? "3px solid transparent" : "1.5px solid transparent",
-                      boxShadow: isSelectedCard ? `0 16px 38px ${tier.ring}38` : "0 4px 16px rgba(26,20,20,.05)", padding: "22px 22px 20px",
+                      borderRadius: 24, border: isSelectedCard ? "none" : "1.5px solid transparent",
+                      boxShadow: "0 4px 16px rgba(26,20,20,.05)", padding: "22px 22px 20px",
                       cursor: "pointer",
                       scrollSnapAlign: "start",
                       transform: isSelectedCard ? "translateY(-2px)" : undefined,
