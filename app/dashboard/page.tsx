@@ -858,6 +858,13 @@ export default function DashboardPage() {
                 const memberTodaySteps = memberTodayLog?.steps ?? null;
                 const cardId = isSelf ? "self" : `member-${member.id}`;
                 const isSelectedCard = selectedCardId === cardId;
+                const selectedTone = tier.label === "All good"
+                  ? "good"
+                  : tier.label === "Needs attention"
+                  ? "attention"
+                  : tier.label === "Action required"
+                  ? "danger"
+                  : "neutral";
                 const selectProfile = () => {
                   setSelectedCardId(cardId);
                   captureEvent("dashboard_profile_selected", {
@@ -868,7 +875,7 @@ export default function DashboardPage() {
                 return (
                   <div
                     key={cardId}
-                    className={`fo-member-card db-home-member-card${isSelectedCard ? " is-selected-profile" : ""}`}
+                    className={`fo-member-card db-home-member-card${isSelectedCard ? ` is-selected-profile selected-profile-${selectedTone}` : ""}`}
                     role="button"
                     tabIndex={0}
                     aria-pressed={isSelectedCard}
@@ -883,11 +890,10 @@ export default function DashboardPage() {
                       flex: "0 0 300px", minWidth: 300,
                       background:
                         isSelectedCard
-                          ? `linear-gradient(165deg, ${tier.bg} 0%, #fff 55%) padding-box, linear-gradient(120deg, ${tier.border}, ${tier.ring}, ${tier.textColor}, ${tier.ring}, ${tier.border}) border-box`
+                          ? `linear-gradient(165deg, ${tier.bg} 0%, #fff 55%)`
                           : `linear-gradient(165deg, ${tier.bg} 0%, #fff 55%) padding-box, linear-gradient(135deg, ${tier.border}, ${tier.ring}) border-box`,
-                      backgroundSize: isSelectedCard ? "100% 100%, 260% 260%" : undefined,
-                      borderRadius: 24, border: isSelectedCard ? "2px solid transparent" : "1.5px solid transparent",
-                      boxShadow: isSelectedCard ? `0 14px 34px ${tier.ring}2e` : "0 4px 16px rgba(26,20,20,.05)", padding: "22px 22px 20px",
+                      borderRadius: 24, border: isSelectedCard ? "3px solid transparent" : "1.5px solid transparent",
+                      boxShadow: isSelectedCard ? `0 16px 38px ${tier.ring}38` : "0 4px 16px rgba(26,20,20,.05)", padding: "22px 22px 20px",
                       cursor: "pointer",
                       scrollSnapAlign: "start",
                       transform: isSelectedCard ? "translateY(-2px)" : undefined,
