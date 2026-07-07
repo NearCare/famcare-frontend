@@ -883,7 +883,7 @@ export default function DashboardPage() {
                       flex: "0 0 300px", minWidth: 300,
                       background:
                         isSelectedCard
-                          ? `linear-gradient(165deg, ${tier.bg} 0%, #fff 55%) padding-box, linear-gradient(120deg, var(--he-coral), var(--he-orange), var(--he-green), var(--he-coral)) border-box`
+                          ? `linear-gradient(165deg, ${tier.bg} 0%, #fff 55%) padding-box, linear-gradient(120deg, ${tier.border}, ${tier.ring}, ${tier.textColor}, ${tier.ring}, ${tier.border}) border-box`
                           : `linear-gradient(165deg, ${tier.bg} 0%, #fff 55%) padding-box, linear-gradient(135deg, ${tier.border}, ${tier.ring}) border-box`,
                       backgroundSize: isSelectedCard ? "100% 100%, 260% 260%" : undefined,
                       borderRadius: 24, border: isSelectedCard ? "2px solid transparent" : "1.5px solid transparent",
