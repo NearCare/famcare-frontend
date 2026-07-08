@@ -9,19 +9,23 @@ import {
   CaretRight,
   CheckCircle,
   Info,
+  PencilSimple,
   Pill,
   Plus,
+  Trash,
   X,
 } from "@phosphor-icons/react";
 import Sidebar from "../components/Sidebar";
 import {
   calculateStreak,
   createMedicine,
+  deleteMedicine,
   getFamilyMembers,
   getMedicines,
   getTodayMedicineDoses,
   getUserLogs,
   markMedicineDose,
+  updateMedicine,
   type FamilyMember,
   type Medicine,
   type TodayDose,
@@ -63,10 +67,12 @@ type MedicineForm = {
   personId: string;
   name: string;
   strength: string;
-  form: "Tablet" | "Ointment" | "Syrup" | "Injection";
+  dose: string;
+  form: "Tablet" | "Capsule" | "Syrup" | "Injection";
   dayPart: DayPart;
   times: ScheduledTime[];
   startDate: string;
+  endDate: string;
   daysOfWeek: number[];
   reminders: boolean;
 };
@@ -92,10 +98,12 @@ const defaultForm = (personId: string): MedicineForm => ({
   personId,
   name: "",
   strength: "",
+  dose: "",
   form: "Tablet",
   dayPart: "Morning",
   times: [],
   startDate: todayISO(),
+  endDate: "",
   daysOfWeek: [0, 1, 2, 3, 4, 5, 6],
   reminders: true,
 });
@@ -106,6 +114,18 @@ const DEFAULT_TIMES_BY_DAY_PART: Record<DayPart, string> = {
   Evening: "18:00",
   Night: "21:00",
 };
+
+function normalizeQuarterHourTime(value: string) {
+  const [hourPart = "0", minutePart = "0"] = value.split(":");
+  const hour = Number(hourPart);
+  const minute = Number(minutePart);
+  if (!Number.isFinite(hour) || !Number.isFinite(minute)) return value;
+
+  const roundedMinute = Math.round(minute / 15) * 15;
+  const normalizedHour = (hour + Math.floor(roundedMinute / 60)) % 24;
+  const normalizedMinute = roundedMinute % 60;
+  return `${String(normalizedHour).padStart(2, "0")}:${String(normalizedMinute).padStart(2, "0")}`;
+}
 
 const WEEK_DAYS: WeekDay[] = [
   { value: 0, label: "Sunday", short: "Sun" },
@@ -124,6 +144,41 @@ function displayName(person: PersonOption | undefined) {
 
 function toApiForm(form: MedicineForm["form"]) {
   return form.toLowerCase();
+}
+
+function toUiForm(form: string): MedicineForm["form"] {
+  if (form === "capsule") return "Capsule";
+  if (form === "syrup") return "Syrup";
+  if (form === "injection") return "Injection";
+  return "Tablet";
+}
+
+function dayPartForTime(time: string): DayPart {
+  const hour = Number(time.split(":")[0] ?? 0);
+  if (hour < 12) return "Morning";
+  if (hour < 17) return "Afternoon";
+  if (hour < 21) return "Evening";
+  return "Night";
+}
+
+function formFromMedicine(medicine: Medicine, personId: string): MedicineForm {
+  const firstSchedule = medicine.schedules[0];
+  return {
+    personId,
+    name: medicine.name,
+    strength: medicine.strength ?? "",
+    dose: medicine.dose === "As prescribed" ? "" : medicine.dose,
+    form: toUiForm(medicine.form),
+    dayPart: firstSchedule ? dayPartForTime(firstSchedule.time_of_day) : "Morning",
+    times: medicine.schedules.map((schedule) => ({
+      dayPart: dayPartForTime(schedule.time_of_day),
+      time: schedule.time_of_day.slice(0, 5),
+    })),
+    startDate: medicine.start_date,
+    endDate: medicine.end_date ?? "",
+    daysOfWeek: firstSchedule?.days_of_week ?? [0, 1, 2, 3, 4, 5, 6],
+    reminders: medicine.schedules.every((schedule) => schedule.reminder_enabled),
+  };
 }
 
 function formatTiming(timing: string | null) {
@@ -167,16 +222,27 @@ function FieldLabel({ children }: { children: React.ReactNode }) {
   );
 }
 
+function FieldError({ children }: { children?: React.ReactNode }) {
+  if (!children) return null;
+  return (
+    <p style={{ margin: "7px 0 0", color: "var(--he-coral-deep)", fontSize: 11.5, fontWeight: 800 }}>
+      {children}
+    </p>
+  );
+}
+
 function TextField({
   value,
   onChange,
   placeholder,
   type = "text",
+  error = false,
 }: {
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
   type?: string;
+  error?: boolean;
 }) {
   return (
     <input
@@ -187,10 +253,10 @@ function TextField({
       style={{
         width: "100%",
         height: 42,
-        border: "1.5px solid var(--he-card-border)",
+        border: `1.5px solid ${error ? "var(--he-coral)" : "var(--he-card-border)"}`,
         borderRadius: 12,
         padding: "0 13px",
-        background: "#FAF9FA",
+        background: error ? "var(--he-coral-bg)" : "#FAF9FA",
         color: "var(--he-ink-1)",
         fontFamily: "inherit",
         fontSize: 13.5,
@@ -319,19 +385,34 @@ function FancySelect({
 function AddMedicineDrawer({
   people,
   initialPersonId,
+  initialForm,
+  mode = "add",
   saving,
   onClose,
   onSave,
 }: {
   people: PersonOption[];
   initialPersonId: string;
+  initialForm?: MedicineForm;
+  mode?: "add" | "edit";
   saving: boolean;
   onClose: () => void;
   onSave: (form: MedicineForm) => Promise<void>;
 }) {
-  const [form, setForm] = useState<MedicineForm>(() => defaultForm(initialPersonId));
+  const [form, setForm] = useState<MedicineForm>(() => initialForm ?? defaultForm(initialPersonId));
+  const [submitted, setSubmitted] = useState(false);
   const selectedPerson = people.find((person) => person.id === form.personId);
-  const canSave = form.personId && form.name.trim() && form.times.length > 0 && form.daysOfWeek.length > 0;
+  const invalidDateRange = Boolean(form.endDate && form.startDate && form.endDate < form.startDate);
+  const errors = {
+    personId: !form.personId ? "Choose who this medicine is for." : "",
+    name: !form.name.trim() ? "Enter the medicine name." : "",
+    dose: !form.dose.trim() ? "Enter the dose, e.g. 1 tablet." : "",
+    times: form.times.length === 0 ? "Add at least one reminder time." : "",
+    daysOfWeek: form.daysOfWeek.length === 0 ? "Choose at least one repeat day." : "",
+    startDate: !form.startDate ? "Choose a start date." : "",
+    endDate: invalidDateRange ? "End date cannot be before start date." : "",
+  };
+  const canSave = Object.values(errors).every((message) => !message);
   const personOptions = people.map((person) => ({
     value: person.id,
     label: `${person.name} ${person.label === "You" ? "(You)" : ""}`,
@@ -342,11 +423,13 @@ function AddMedicineDrawer({
   };
 
   const save = () => {
+    setSubmitted(true);
     if (!canSave || saving) return;
     void onSave({
       ...form,
       name: form.name.trim(),
       strength: form.strength.trim(),
+      dose: form.dose.trim(),
     });
   };
 
@@ -394,7 +477,7 @@ function AddMedicineDrawer({
 	            <Pill size={21} weight="bold" color="var(--he-coral)" />
 	          </div>
           <div style={{ flex: 1 }}>
-            <h2 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: "var(--he-ink-1)", letterSpacing: "-.4px" }}>Add Medicine</h2>
+            <h2 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: "var(--he-ink-1)", letterSpacing: "-.4px" }}>{mode === "edit" ? "Edit Medicine" : "Add Medicine"}</h2>
             <p style={{ margin: "4px 0 0", fontSize: 13, fontWeight: 500, color: "var(--he-ink-3)", lineHeight: 1.5 }}>
               Set reminders for {displayName(selectedPerson)}.
             </p>
@@ -413,12 +496,14 @@ function AddMedicineDrawer({
               onChange={(nextValue) => update("personId", nextValue)}
               tone="green"
             />
+            <FieldError>{submitted && errors.personId}</FieldError>
           </div>
 
           <div className="med-form-grid">
             <div>
               <FieldLabel>Medicine name</FieldLabel>
-              <TextField value={form.name} onChange={(value) => update("name", value)} placeholder="e.g. Metformin" />
+              <TextField value={form.name} onChange={(value) => update("name", value)} placeholder="e.g. Metformin" error={submitted && Boolean(errors.name)} />
+              <FieldError>{submitted && errors.name}</FieldError>
             </div>
             <div>
               <FieldLabel>Strength</FieldLabel>
@@ -427,9 +512,15 @@ function AddMedicineDrawer({
           </div>
 
           <div>
+            <FieldLabel>Dose</FieldLabel>
+            <TextField value={form.dose} onChange={(value) => update("dose", value)} placeholder="e.g. 1 tablet after breakfast" error={submitted && Boolean(errors.dose)} />
+            <FieldError>{submitted && errors.dose}</FieldError>
+          </div>
+
+          <div>
             <FieldLabel>Form</FieldLabel>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8 }}>
-              {(["Tablet", "Ointment", "Syrup", "Injection"] as MedicineForm["form"][]).map((option) => {
+              {(["Tablet", "Capsule", "Syrup", "Injection"] as MedicineForm["form"][]).map((option) => {
                 const active = form.form === option;
                 return (
                   <button
@@ -489,10 +580,11 @@ function AddMedicineDrawer({
                   <span style={{ minWidth: 76, color: "var(--he-blue-deep)", fontSize: 12, fontWeight: 800 }}>{schedule.dayPart}</span>
                   <input
                     type="time"
+                    step={900}
                     value={schedule.time}
                     onChange={(e) => {
                       const next = [...form.times];
-                      next[index] = { ...schedule, time: e.target.value };
+                      next[index] = { ...schedule, time: normalizeQuarterHourTime(e.target.value) };
                       update("times", next);
                     }}
                     style={{ height: 34, border: "1px solid #CFE4FF", borderRadius: 10, background: "#fff", padding: "0 10px", color: "var(--he-blue-deep)", fontWeight: 800, fontFamily: "inherit", flex: 1 }}
@@ -512,6 +604,7 @@ function AddMedicineDrawer({
               >
                 + Schedule {form.dayPart.toLowerCase()} time
               </button>
+              <FieldError>{submitted && errors.times}</FieldError>
             </div>
           </div>
 
@@ -547,11 +640,20 @@ function AddMedicineDrawer({
             <p style={{ margin: "7px 0 0", fontSize: 11.5, color: "var(--he-ink-3)", fontWeight: 600 }}>
               Medicines stay ongoing until you remove them.
             </p>
+            <FieldError>{submitted && errors.daysOfWeek}</FieldError>
           </div>
 
-          <div>
-            <FieldLabel>Start date</FieldLabel>
-            <TextField type="date" value={form.startDate} onChange={(value) => update("startDate", value)} />
+          <div className="med-form-grid">
+            <div>
+              <FieldLabel>Start date</FieldLabel>
+              <TextField type="date" value={form.startDate} onChange={(value) => update("startDate", value)} error={submitted && Boolean(errors.startDate)} />
+              <FieldError>{submitted && errors.startDate}</FieldError>
+            </div>
+            <div>
+              <FieldLabel>End date</FieldLabel>
+              <TextField type="date" value={form.endDate} onChange={(value) => update("endDate", value)} error={submitted && Boolean(errors.endDate)} />
+              <FieldError>{submitted && errors.endDate}</FieldError>
+            </div>
           </div>
 
           <label style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14, border: "1px solid var(--he-hairline)", borderRadius: 14, padding: "13px 14px", cursor: "pointer" }}>
@@ -574,7 +676,7 @@ function AddMedicineDrawer({
             Cancel
           </button>
           <button onClick={save} disabled={!canSave || saving} style={{ flex: 1.4, height: 44, border: "none", borderRadius: 13, background: canSave && !saving ? "linear-gradient(150deg, #38D184, var(--he-green))" : "#BDE8CF", color: "#fff", fontFamily: "inherit", fontSize: 13.5, fontWeight: 800, cursor: canSave && !saving ? "pointer" : "not-allowed", boxShadow: canSave && !saving ? "0 8px 18px rgba(32,168,101,.24)" : "none" }}>
-            {saving ? "Saving..." : "Save Medicine"}
+            {saving ? "Saving..." : mode === "edit" ? "Save Changes" : "Save Medicine"}
           </button>
         </div>
       </section>
@@ -640,10 +742,12 @@ function MedicationsContent() {
   const [medicines, setMedicines] = useState<Medicine[]>([]);
   const [todayDoses, setTodayDoses] = useState<TodayDose[]>([]);
   const [showAddDrawer, setShowAddDrawer] = useState(false);
+  const [editingMedicine, setEditingMedicine] = useState<Medicine | null>(null);
   const [streak, setStreak] = useState(0);
   const [initializing, setInitializing] = useState(true);
   const [loadingMedicines, setLoadingMedicines] = useState(false);
   const [savingMedicine, setSavingMedicine] = useState(false);
+  const [deletingMedicineId, setDeletingMedicineId] = useState<number | null>(null);
   const [markingDoseId, setMarkingDoseId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -748,10 +852,19 @@ function MedicationsContent() {
   }));
 
   const openAdd = () => {
+    setEditingMedicine(null);
     captureEvent("medicine_add_opened", {
       patient_type: selectedPersonId === "self" ? "self" : "family",
     });
     setShowAddDrawer(true);
+  };
+
+  const openEdit = (medicine: Medicine) => {
+    setEditingMedicine(medicine);
+    setShowAddDrawer(true);
+    captureEvent("medicine_edit_opened", {
+      medicine_id: medicine.id,
+    });
   };
   const refreshMedicinesFor = async (patientUserId: number) => {
     const token = localStorage.getItem("auth_token") ?? "";
@@ -774,36 +887,65 @@ function MedicationsContent() {
     setSavingMedicine(true);
     setError(null);
     try {
-      await createMedicine({
+      const payload = {
         patient_user_id: person.userId,
         name: form.name,
         strength: form.strength || null,
         form: toApiForm(form.form),
-        dose: "As prescribed",
+        dose: form.dose,
         timing: "anytime",
         start_date: form.startDate,
-        end_date: null,
+        end_date: form.endDate || null,
         notes: null,
         schedules: form.times.map((schedule) => ({
           time_of_day: schedule.time,
           days_of_week: form.daysOfWeek,
           reminder_enabled: form.reminders,
-          reminder_offset_minutes: 15,
+          reminder_offset_minutes: 0,
         })),
-      }, token);
-      captureEvent("medicine_added", {
-        patient_type: form.personId === "self" ? "self" : "family",
-        schedules_count: form.times.length,
-        reminders_enabled: form.reminders,
-        days_count: form.daysOfWeek.length,
-      });
+      };
+      if (editingMedicine) {
+        await updateMedicine(editingMedicine.id, payload, token);
+        captureEvent("medicine_updated", {
+          medicine_id: editingMedicine.id,
+          schedules_count: form.times.length,
+          reminders_enabled: form.reminders,
+          days_count: form.daysOfWeek.length,
+        });
+      } else {
+        await createMedicine(payload, token);
+        captureEvent("medicine_added", {
+          patient_type: form.personId === "self" ? "self" : "family",
+          schedules_count: form.times.length,
+          reminders_enabled: form.reminders,
+          days_count: form.daysOfWeek.length,
+        });
+      }
       setSelectedPersonId(form.personId);
       setShowAddDrawer(false);
+      setEditingMedicine(null);
       await refreshMedicinesFor(person.userId);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to save medicine");
     } finally {
       setSavingMedicine(false);
+    }
+  };
+
+  const archiveMedicine = async (medicine: Medicine) => {
+    const confirmed = window.confirm(`Delete ${medicine.name}? Reminders for this medicine will stop.`);
+    if (!confirmed) return;
+    const token = localStorage.getItem("auth_token") ?? "";
+    setDeletingMedicineId(medicine.id);
+    setError(null);
+    try {
+      await deleteMedicine(medicine.id, token);
+      captureEvent("medicine_deleted", { medicine_id: medicine.id });
+      await refreshSelectedMedicines();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to delete medicine");
+    } finally {
+      setDeletingMedicineId(null);
     }
   };
 
@@ -999,9 +1141,57 @@ function MedicationsContent() {
             )}
 
             {hasMedicines && (
-              <button style={{ width: "100%", height: 44, marginTop: 12, border: "1.5px solid var(--he-card-border)", background: "#fff", borderRadius: 13, fontFamily: "inherit", fontSize: 13.5, fontWeight: 800, color: "var(--he-ink-1)", cursor: "pointer", display: "flex", justifyContent: "center", alignItems: "center", gap: 8 }}>
-                View All Medicines <CaretRight size={14} weight="bold" />
-              </button>
+              <div style={{ marginTop: 18, paddingTop: 16, borderTop: "1px solid var(--he-hairline)" }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 10 }}>
+                  <h3 style={{ margin: 0, fontSize: 16, fontWeight: 900, color: "var(--he-ink-1)" }}>All medicines</h3>
+                  <span style={{ color: "var(--he-ink-3)", fontSize: 12, fontWeight: 800 }}>{activeMedicines.length} active</span>
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
+                  {activeMedicines.map((medicine) => {
+                    const nextTimes = medicine.schedules.map((schedule) => formatTimeLabel(schedule.time_of_day)).join(", ");
+                    return (
+                      <div
+                        key={medicine.id}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 12,
+                          border: "1.5px solid var(--he-card-border)",
+                          borderRadius: 14,
+                          padding: "11px 12px",
+                          background: "#fff",
+                        }}
+                      >
+                        <div style={{ width: 42, height: 42, borderRadius: 13, background: "var(--he-coral-bg)", display: "grid", placeItems: "center", flex: "none" }}>
+                          <Pill size={20} weight="bold" color="var(--he-coral)" />
+                        </div>
+                        <div style={{ minWidth: 0, flex: 1 }}>
+                          <p style={{ margin: 0, fontSize: 14, fontWeight: 900, color: "var(--he-ink-1)" }}>
+                            {medicine.name}{medicine.strength ? ` ${medicine.strength}` : ""}
+                          </p>
+                          <p style={{ margin: "3px 0 0", fontSize: 12, fontWeight: 700, color: "var(--he-ink-3)" }}>
+                            {medicine.dose} • {nextTimes || "No reminder time"}
+                            {medicine.end_date ? ` • until ${medicine.end_date}` : ""}
+                          </p>
+                        </div>
+                        <button
+                          onClick={() => openEdit(medicine)}
+                          style={{ border: "1.5px solid var(--he-blue-bg-2)", borderRadius: 11, background: "var(--he-blue-bg)", color: "var(--he-blue-deep)", height: 36, padding: "0 11px", display: "inline-flex", alignItems: "center", gap: 6, fontFamily: "inherit", fontSize: 12, fontWeight: 900, cursor: "pointer" }}
+                        >
+                          <PencilSimple size={14} weight="bold" /> Edit
+                        </button>
+                        <button
+                          onClick={() => archiveMedicine(medicine)}
+                          disabled={deletingMedicineId === medicine.id}
+                          style={{ border: "1.5px solid #FFD7D7", borderRadius: 11, background: "#fff", color: "var(--he-coral-deep)", height: 36, padding: "0 11px", display: "inline-flex", alignItems: "center", gap: 6, fontFamily: "inherit", fontSize: 12, fontWeight: 900, cursor: deletingMedicineId === medicine.id ? "wait" : "pointer", opacity: deletingMedicineId === medicine.id ? .65 : 1 }}
+                        >
+                          <Trash size={14} weight="bold" /> {deletingMedicineId === medicine.id ? "Deleting" : "Delete"}
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
             )}
           </section>
         </section>
@@ -1011,8 +1201,13 @@ function MedicationsContent() {
         <AddMedicineDrawer
           people={people}
           initialPersonId={selectedPersonId}
+          initialForm={editingMedicine && selectedPerson ? formFromMedicine(editingMedicine, selectedPerson.id) : undefined}
+          mode={editingMedicine ? "edit" : "add"}
           saving={savingMedicine}
-          onClose={() => setShowAddDrawer(false)}
+          onClose={() => {
+            setShowAddDrawer(false);
+            setEditingMedicine(null);
+          }}
           onSave={saveMedicine}
         />
       )}

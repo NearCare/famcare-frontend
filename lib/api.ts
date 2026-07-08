@@ -611,6 +611,10 @@ export type CreateMedicineInput = {
   schedules: MedicineScheduleInput[];
 };
 
+export type UpdateMedicineInput = Partial<Omit<CreateMedicineInput, "patient_user_id">> & {
+  is_active?: boolean;
+};
+
 export type TodayDose = {
   id: string;
   medicine: Medicine;
@@ -644,6 +648,20 @@ export async function createMedicine(input: CreateMedicineInput, token: string):
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(input),
+  });
+}
+
+export async function updateMedicine(medicineId: number, input: UpdateMedicineInput, token: string): Promise<Medicine> {
+  return authedFetch<Medicine>(`/api/medicines/${medicineId}`, token, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+}
+
+export async function deleteMedicine(medicineId: number, token: string): Promise<void> {
+  await authedFetch<{ archived: boolean }>(`/api/medicines/${medicineId}`, token, {
+    method: "DELETE",
   });
 }
 
