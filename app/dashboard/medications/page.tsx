@@ -30,8 +30,9 @@ import {
 import StreakPill from "../components/StreakPill";
 import PageLoader from "../components/PageLoader";
 import { captureEvent, identifyUser } from "@/lib/analytics";
+import { FAMCARE_WHATSAPP_LINK } from "@/lib/whatsapp";
 
-const WA_LINK = "https://wa.me/";
+const WA_LINK = FAMCARE_WHATSAPP_LINK;
 
 type PersonOption = {
   id: string;

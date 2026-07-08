@@ -1,5 +1,7 @@
 "use client";
 
+import { FAMCARE_WHATSAPP_LINK } from "@/lib/whatsapp";
+
 /** Shown on the dashboard when a user has zero health logs. */
 export default function EmptyState({ userName }: { userName?: string }) {
   const greeting = userName ? `Hey ${userName}!` : "Hey there!";
@@ -54,7 +56,7 @@ export default function EmptyState({ userName }: { userName?: string }) {
 
       {/* WhatsApp CTA */}
       <a
-        href="https://wa.me/14155238886"
+        href={FAMCARE_WHATSAPP_LINK}
         target="_blank"
         rel="noopener noreferrer"
         style={{

@@ -28,6 +28,7 @@ import EmptyState from "./components/EmptyState";
 import Sidebar from "./components/Sidebar";
 import AddFamilyModal from "./components/AddFamilyModal";
 import StreakPill from "./components/StreakPill";
+import { FAMCARE_WHATSAPP_LINK } from "@/lib/whatsapp";
 import PageLoader from "./components/PageLoader";
 import { captureEvent, identifyUser } from "@/lib/analytics";
 
@@ -487,7 +488,7 @@ function getGreeting(): string {
   return "Good evening";
 }
 
-const WA_LINK = "https://wa.me/14155238886";
+const WA_LINK = FAMCARE_WHATSAPP_LINK;
 
 const WaIcon = ({ size = 16 }: { size?: number }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="white">

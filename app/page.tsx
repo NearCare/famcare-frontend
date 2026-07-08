@@ -7,6 +7,7 @@ import {
   ChatDots, ChartBar, Heart, UserCircle, Info,
 } from "@phosphor-icons/react";
 import { FEShoe, FETarget } from "./dashboard/components/FluentEmoji";
+import { FAMCARE_WHATSAPP_LINK } from "@/lib/whatsapp";
 
 const structuredData = {
   "@context": "https://schema.org",
@@ -705,7 +706,7 @@ export default function LandingPage() {
             </Link>
           ))}
           <Link href="/privacy" style={{ fontSize: 13, color: "#6B7A9A", textDecoration: "none" }}>Privacy Policy</Link>
-          <a href="https://wa.me/14155238886" target="_blank" rel="noopener noreferrer" style={{ fontSize: 13, color: "#6B7A9A", textDecoration: "none" }}>Contact</a>
+          <a href={FAMCARE_WHATSAPP_LINK} target="_blank" rel="noopener noreferrer" style={{ fontSize: 13, color: "#6B7A9A", textDecoration: "none" }}>Contact</a>
         </div>
       </div>
     </div>
