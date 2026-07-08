@@ -2,7 +2,7 @@
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useState, useEffect, useRef } from "react";
-import { sendOtp, verifyOtp } from "@/lib/api";
+import { getCurrentUser, sendOtp, verifyOtp } from "@/lib/api";
 
 type Step = "phone" | "otp";
 
@@ -26,11 +26,60 @@ function ButtonLoader({ label }: { label: string }) {
   );
 }
 
+function SessionLoader() {
+  return (
+    <div
+      className="login-page"
+      style={{
+        minHeight: "100vh",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: 24,
+        background: "linear-gradient(145deg,#FFF8F6 0%,#FFFFFF 52%,#F2FFF8 100%)",
+      }}
+    >
+      <div
+        style={{
+          width: "min(360px, 100%)",
+          borderRadius: 20,
+          border: "1px solid #F0E4E4",
+          background: "#fff",
+          boxShadow: "0 18px 50px rgba(26,20,20,.10)",
+          padding: 28,
+          textAlign: "center",
+        }}
+      >
+        <img src="/famcare-logo.png" alt="" style={{ width: 54, height: 54, objectFit: "contain", borderRadius: 14 }} />
+        <div
+          aria-hidden="true"
+          style={{
+            width: 30,
+            height: 30,
+            borderRadius: "50%",
+            border: "3px solid rgba(232,92,92,.22)",
+            borderTopColor: "#E85C5C",
+            animation: "loginSpin .8s linear infinite",
+            margin: "18px auto 0",
+          }}
+        />
+        <h1 style={{ margin: "18px 0 6px", fontSize: 22, lineHeight: 1.2, color: "#1A2744" }}>
+          Opening your dashboard
+        </h1>
+        <p style={{ margin: 0, fontSize: 14, lineHeight: 1.5, color: "#6B7A9A" }}>
+          Checking your saved FamCare session.
+        </p>
+      </div>
+    </div>
+  );
+}
+
 export default function LoginPage() {
   const router = useRouter();
   const [step, setStep] = useState<Step>("phone");
   const [phone, setPhone] = useState("");
   const [otp, setOtp] = useState("");
+  const [checkingSession, setCheckingSession] = useState(true);
   const [loading, setLoading] = useState(false);
   const [redirecting, setRedirecting] = useState(false);
   const [error, setError] = useState("");
@@ -45,6 +94,45 @@ export default function LoginPage() {
   useEffect(() => {
     router.prefetch("/dashboard");
     router.prefetch("/onboarding/name");
+  }, [router]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function resumeSavedSession() {
+      const token = localStorage.getItem("auth_token");
+      if (!token) {
+        setCheckingSession(false);
+        return;
+      }
+
+      try {
+        const authUser = await getCurrentUser(token);
+        if (cancelled) return;
+
+        if (!authUser) {
+          localStorage.removeItem("auth_token");
+          localStorage.removeItem("auth_user");
+          setCheckingSession(false);
+          return;
+        }
+
+        localStorage.setItem("auth_user", JSON.stringify(authUser));
+        setRedirecting(true);
+        router.replace(authUser.name ? "/dashboard" : "/onboarding/name");
+      } catch {
+        if (!cancelled) {
+          setError("Couldn't check your saved session. Please log in again if the dashboard does not open.");
+          setCheckingSession(false);
+        }
+      }
+    }
+
+    resumeSavedSession();
+
+    return () => {
+      cancelled = true;
+    };
   }, [router]);
 
   function startResendTimer() {
@@ -106,6 +194,8 @@ export default function LoginPage() {
   }
 
   const busy = loading || redirecting;
+
+  if (checkingSession || redirecting) return <SessionLoader />;
 
   return (
     <div className="login-page" style={{ display: "flex", height: "100vh", padding: 20, gap: 20, alignItems: "stretch", overflow: "hidden" }}>

@@ -202,6 +202,36 @@ export type AuthResponse = {
   user: User;
 };
 
+export async function getCurrentUser(token?: string): Promise<User | null> {
+  if (MOCK_API) return MOCK_USER;
+  const sessionToken =
+    token ?? (typeof window !== "undefined" ? localStorage.getItem("auth_token") ?? "" : "");
+  if (!sessionToken) return null;
+
+  let res: Response;
+  try {
+    res = await fetch(`${BASE_URL}/auth/me`, {
+      headers: {
+        Accept: "application/json",
+        Authorization: `Bearer ${sessionToken}`,
+      },
+      cache: "no-store",
+    });
+  } catch (err) {
+    logRequestFailure("getCurrentUser", "/auth/me", { error: err });
+    throw err;
+  }
+
+  if (res.status === 401 || res.status === 403) return null;
+
+  if (!res.ok) {
+    logRequestFailure("getCurrentUser", "/auth/me", { status: res.status });
+    throw new Error(`Session check failed: ${res.status} ${res.statusText}`);
+  }
+
+  return res.json() as Promise<User>;
+}
+
 /**
  * Sends a 6-digit OTP to the given WhatsApp number.
  * Phone must include country code, e.g. "+919876543210"
