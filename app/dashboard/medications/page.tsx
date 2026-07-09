@@ -192,6 +192,12 @@ function formatTimeLabel(timeOfDay: string) {
   return `${hour12.toString().padStart(2, "0")}:${minute.toString().padStart(2, "0")} ${period}`;
 }
 
+function isDateInMedicineRange(dateKey: string, medicine: Medicine) {
+  if (medicine.start_date && dateKey < medicine.start_date) return false;
+  if (medicine.end_date && dateKey > medicine.end_date) return false;
+  return true;
+}
+
 const QUARTER_HOUR_TIME_OPTIONS = Array.from({ length: 24 * 4 }, (_, index) => {
   const totalMinutes = index * 15;
   const hour = Math.floor(totalMinutes / 60);
@@ -771,6 +777,8 @@ function MedicationsContent() {
   const [loadingMedicines, setLoadingMedicines] = useState(false);
   const [savingMedicine, setSavingMedicine] = useState(false);
   const [deletingMedicineId, setDeletingMedicineId] = useState<number | null>(null);
+  const [pendingDeleteMedicine, setPendingDeleteMedicine] = useState<Medicine | null>(null);
+  const [showCalendar, setShowCalendar] = useState(false);
   const [markingDoseId, setMarkingDoseId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -858,6 +866,37 @@ function MedicationsContent() {
     value: person.id,
     label: `${person.name} ${person.label === "You" ? "(You)" : ""}`,
   }));
+  const calendarDays = useMemo(() => {
+    const today = new Date();
+    return Array.from({ length: 7 }, (_, index) => {
+      const date = new Date(today);
+      date.setDate(today.getDate() + index);
+      const dateKey = date.toLocaleDateString("en-CA");
+      const weekDay = date.getDay();
+      const items = activeMedicines
+        .flatMap((medicine) =>
+          medicine.schedules
+            .filter((schedule) => {
+              const days = schedule.days_of_week ?? [0, 1, 2, 3, 4, 5, 6];
+              return days.includes(weekDay) && isDateInMedicineRange(dateKey, medicine);
+            })
+            .map((schedule) => ({
+              id: `${medicine.id}-${schedule.id}-${dateKey}`,
+              name: medicine.name,
+              dose: medicine.dose,
+              time: formatTimeLabel(schedule.time_of_day),
+            }))
+        )
+        .sort((a, b) => a.time.localeCompare(b.time));
+
+      return {
+        key: dateKey,
+        label: index === 0 ? "Today" : date.toLocaleDateString("en-IN", { weekday: "short" }),
+        date: date.toLocaleDateString("en-IN", { day: "numeric", month: "short" }),
+        items,
+      };
+    });
+  }, [activeMedicines]);
 
   const scheduleRows: ScheduleRow[] = todayDoses.map((dose, index) => ({
     id: dose.id,
@@ -956,8 +995,6 @@ function MedicationsContent() {
   };
 
   const archiveMedicine = async (medicine: Medicine) => {
-    const confirmed = window.confirm(`Delete ${medicine.name}? Reminders for this medicine will stop.`);
-    if (!confirmed) return;
     const token = localStorage.getItem("auth_token") ?? "";
     setDeletingMedicineId(medicine.id);
     setError(null);
@@ -965,6 +1002,7 @@ function MedicationsContent() {
       await deleteMedicine(medicine.id, token);
       captureEvent("medicine_deleted", { medicine_id: medicine.id });
       await refreshSelectedMedicines();
+      setPendingDeleteMedicine(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to delete medicine");
     } finally {
@@ -1069,13 +1107,68 @@ function MedicationsContent() {
           </div>
 
           <section className="med-schedule-card">
-            <div className="med-schedule-head">
+            <div className="med-schedule-head" style={{ marginBottom: 14 }}>
               <h3 style={{ margin: 0, fontSize: 17, fontWeight: 800, color: "var(--he-ink-1)" }}>Today&apos;s Schedule</h3>
-              <button className="db-pill" style={{ height: 38, boxShadow: "none" }}>
+              <button
+                type="button"
+                onClick={() => setShowCalendar((current) => !current)}
+                className="db-pill"
+                aria-expanded={showCalendar}
+                style={{
+                  height: 38,
+                  boxShadow: "none",
+                  borderColor: showCalendar ? "var(--he-green)" : "var(--he-card-border)",
+                  color: showCalendar ? "var(--he-green-deep)" : "var(--he-ink-2)",
+                  background: showCalendar ? "var(--he-green-bg)" : "#fff",
+                }}
+              >
                 <CalendarBlank size={15} weight="bold" />
-                View Calendar
+                {showCalendar ? "Hide Calendar" : "View Calendar"}
               </button>
             </div>
+
+            {showCalendar && (
+              <div style={{
+                marginBottom: 16,
+                border: "1.5px solid var(--he-green-bg-2)",
+                borderRadius: 18,
+                background: "linear-gradient(135deg, #F7FFFA, #FFFFFF)",
+                padding: 14,
+              }}>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(7, minmax(0, 1fr))", gap: 9 }}>
+                  {calendarDays.map((day) => (
+                    <div key={day.key} style={{
+                      minWidth: 0,
+                      border: "1px solid var(--he-card-border)",
+                      borderRadius: 14,
+                      background: day.label === "Today" ? "var(--he-green-bg)" : "#fff",
+                      padding: 10,
+                      minHeight: 124,
+                    }}>
+                      <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 6, marginBottom: 8 }}>
+                        <span style={{ color: "var(--he-ink-1)", fontSize: 12.5, fontWeight: 950 }}>{day.label}</span>
+                        <span style={{ color: "var(--he-ink-3)", fontSize: 10.5, fontWeight: 800 }}>{day.date}</span>
+                      </div>
+                      {day.items.length === 0 ? (
+                        <p style={{ margin: "18px 0 0", color: "var(--he-ink-3)", fontSize: 11.5, fontWeight: 750 }}>No dose</p>
+                      ) : (
+                        <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
+                          {day.items.slice(0, 3).map((item) => (
+                            <div key={item.id} style={{ borderRadius: 10, background: "#fff", border: "1px solid #E8F4ED", padding: "7px 8px" }}>
+                              <div style={{ color: "var(--he-green-deep)", fontSize: 11.5, fontWeight: 950 }}>{item.time}</div>
+                              <div style={{ color: "var(--he-ink-1)", fontSize: 11.5, fontWeight: 850, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{item.name}</div>
+                            </div>
+                          ))}
+                          {day.items.length > 3 && (
+                            <span style={{ color: "var(--he-ink-3)", fontSize: 10.5, fontWeight: 850 }}>+{day.items.length - 3} more</span>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {error && (
               <div style={{ marginBottom: 12, border: "1px solid #FFD2D2", background: "#FFF5F5", color: "var(--he-coral-deep)", borderRadius: 12, padding: "10px 12px", fontSize: 12.5, fontWeight: 800 }}>
@@ -1204,7 +1297,7 @@ function MedicationsContent() {
                           <PencilSimple size={14} weight="bold" /> Edit
                         </button>
                         <button
-                          onClick={() => archiveMedicine(medicine)}
+                          onClick={() => setPendingDeleteMedicine(medicine)}
                           disabled={deletingMedicineId === medicine.id}
                           style={{ border: "1.5px solid #FFD7D7", borderRadius: 11, background: "#fff", color: "var(--he-coral-deep)", height: 36, padding: "0 11px", display: "inline-flex", alignItems: "center", gap: 6, fontFamily: "inherit", fontSize: 12, fontWeight: 900, cursor: deletingMedicineId === medicine.id ? "wait" : "pointer", opacity: deletingMedicineId === medicine.id ? .65 : 1 }}
                         >
@@ -1233,6 +1326,97 @@ function MedicationsContent() {
           }}
           onSave={saveMedicine}
         />
+      )}
+
+      {pendingDeleteMedicine && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="delete-medicine-title"
+          onClick={() => {
+            if (deletingMedicineId == null) setPendingDeleteMedicine(null);
+          }}
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 90,
+            background: "rgba(18, 22, 28, .42)",
+            backdropFilter: "blur(5px)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 20,
+          }}
+        >
+          <div
+            onClick={(event) => event.stopPropagation()}
+            style={{
+              width: "min(460px, 100%)",
+              borderRadius: 24,
+              border: "1px solid rgba(255, 107, 107, .22)",
+              background: "#fff",
+              boxShadow: "0 24px 70px rgba(31, 28, 35, .24)",
+              padding: 24,
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "flex-start", gap: 14 }}>
+              <div style={{ width: 46, height: 46, borderRadius: 16, background: "var(--he-coral-bg)", color: "var(--he-coral-deep)", display: "grid", placeItems: "center", flex: "none" }}>
+                <Trash size={22} weight="bold" />
+              </div>
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <h3 id="delete-medicine-title" style={{ margin: 0, color: "var(--he-ink-1)", fontSize: 22, fontWeight: 950, letterSpacing: "-.4px" }}>
+                  Delete {pendingDeleteMedicine.name}?
+                </h3>
+                <p style={{ margin: "8px 0 0", color: "var(--he-ink-3)", fontSize: 14, fontWeight: 700, lineHeight: 1.6 }}>
+                  Reminders for this medicine will stop. You can add it again later if needed.
+                </p>
+              </div>
+            </div>
+
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 24 }}>
+              <button
+                type="button"
+                onClick={() => setPendingDeleteMedicine(null)}
+                disabled={deletingMedicineId != null}
+                style={{
+                  height: 44,
+                  padding: "0 18px",
+                  borderRadius: 14,
+                  border: "1.5px solid var(--he-card-border)",
+                  background: "#fff",
+                  color: "var(--he-ink-2)",
+                  fontFamily: "inherit",
+                  fontSize: 14,
+                  fontWeight: 900,
+                  cursor: deletingMedicineId == null ? "pointer" : "not-allowed",
+                  opacity: deletingMedicineId == null ? 1 : .65,
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => archiveMedicine(pendingDeleteMedicine)}
+                disabled={deletingMedicineId != null}
+                style={{
+                  height: 44,
+                  padding: "0 18px",
+                  borderRadius: 14,
+                  border: "none",
+                  background: "var(--he-coral)",
+                  color: "#fff",
+                  fontFamily: "inherit",
+                  fontSize: 14,
+                  fontWeight: 950,
+                  cursor: deletingMedicineId == null ? "pointer" : "wait",
+                  boxShadow: "0 10px 24px rgba(255, 107, 107, .24)",
+                }}
+              >
+                {deletingMedicineId === pendingDeleteMedicine.id ? "Deleting..." : "Delete medicine"}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
