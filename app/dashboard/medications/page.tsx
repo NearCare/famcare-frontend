@@ -612,9 +612,9 @@ function AddMedicineDrawer({
                   <button
                     onClick={() => removeScheduleTime(index)}
                     aria-label={`Remove time ${index + 1}`}
-                    style={{ height: 34, border: "1px solid #FFD7D7", borderRadius: 10, background: "#fff", color: "var(--he-coral-deep)", padding: "0 10px", fontFamily: "inherit", fontSize: 12, fontWeight: 800, cursor: "pointer" }}
+                    style={{ width: 34, height: 34, border: "1px solid #FFD7D7", borderRadius: 10, background: "#fff", color: "var(--he-coral-deep)", display: "grid", placeItems: "center", cursor: "pointer" }}
                   >
-                    Remove
+                    <Trash size={15} weight="bold" />
                   </button>
                 </div>
               ))}
