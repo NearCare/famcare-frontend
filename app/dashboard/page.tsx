@@ -596,7 +596,7 @@ export default function DashboardPage() {
   const handleFoodReminderToggle = useCallback(async () => {
     const token = localStorage.getItem("auth_token") ?? "";
     if (!token || savingFoodReminder) return;
-    const nextEnabled = !(foodReminderPreference?.enabled ?? false);
+    const nextEnabled = !(foodReminderPreference?.enabled ?? true);
     setSavingFoodReminder(true);
     const previous = foodReminderPreference;
     setFoodReminderPreference((current) => ({
@@ -666,15 +666,20 @@ export default function DashboardPage() {
   const todayProtein = todayLog?.protein_g ?? 0;
   const todayCalories = todayLog?.calories ?? 0;
   const todaySteps = todayLog?.steps ?? 0;
+  const todaySleep = todayLog?.sleep_hours ?? null;
   const yesterdayProtein = yesterdayLog?.protein_g ?? 0;
   const yesterdayCalories = yesterdayLog?.calories ?? 0;
   const yesterdaySteps = yesterdayLog?.steps ?? 0;
+  const yesterdaySleep = yesterdayLog?.sleep_hours ?? null;
   const proteinTodayPct = goalProtein ? Math.min(Math.round((todayProtein / goalProtein) * 100), 100) : undefined;
   const caloriesTodayPct = goalCalories ? Math.min(Math.round((todayCalories / goalCalories) * 100), 100) : undefined;
   const stepsTodayPct = goalSteps ? Math.min(Math.round((todaySteps / goalSteps) * 100), 100) : undefined;
+  const sleepTodayPct = goalSleep && todaySleep != null ? Math.min(Math.round((todaySleep / goalSleep) * 100), 100) : undefined;
   const proteinVsYesterday = todayProtein - yesterdayProtein;
   const caloriesVsYesterday = todayCalories - yesterdayCalories;
   const stepsVsYesterday = todaySteps - yesterdaySteps;
+  const sleepVsYesterday = todaySleep != null && yesterdaySleep != null ? todaySleep - yesterdaySleep : null;
+  const hasWeeklySleep = sleepSeries.some((value) => value > 0);
 
   const stepsAvgPctForScore = Math.min(Math.round((stepsAvg / (goalSteps ?? 10000)) * 100), 100);
   const proteinPctForScore = Math.min(Math.round((proteinAvg / (goalProtein ?? 50)) * 100), 100);
@@ -774,6 +779,7 @@ export default function DashboardPage() {
   }
 
   const displayName = user.name ?? "there";
+  const foodReminderEnabled = foodReminderPreference?.enabled ?? true;
   const avatarLetter = user.name
     ? user.name.charAt(0).toUpperCase()
     : user.phone.slice(-4, -3) || "U";
@@ -811,16 +817,16 @@ export default function DashboardPage() {
               type="button"
               onClick={handleFoodReminderToggle}
               disabled={savingFoodReminder}
-              aria-pressed={foodReminderPreference?.enabled ?? false}
+              aria-pressed={foodReminderEnabled}
               className="db-pill"
               style={{
-                border: `1px solid ${(foodReminderPreference?.enabled ?? false) ? "#BDEFD3" : "#E9E5EA"}`,
-                background: (foodReminderPreference?.enabled ?? false) ? "var(--he-green-bg)" : "#fff",
-                color: (foodReminderPreference?.enabled ?? false) ? "var(--he-green-deep)" : "#7C84A8",
+                border: `1px solid ${foodReminderEnabled ? "#BDEFD3" : "#E9E5EA"}`,
+                background: foodReminderEnabled ? "var(--he-green-bg)" : "#fff",
+                color: foodReminderEnabled ? "var(--he-green-deep)" : "#7C84A8",
                 cursor: savingFoodReminder ? "wait" : "pointer",
                 opacity: savingFoodReminder ? 0.72 : 1,
               }}
-              title={(foodReminderPreference?.enabled ?? false)
+              title={foodReminderEnabled
                 ? "Breakfast, lunch, and dinner logging reminders are on"
                 : "Turn on breakfast, lunch, and dinner logging reminders"}
             >
@@ -830,12 +836,12 @@ export default function DashboardPage() {
                 marginLeft: 2,
                 padding: "2px 7px",
                 borderRadius: 999,
-                background: (foodReminderPreference?.enabled ?? false) ? "#fff" : "#F5F2F5",
+                background: foodReminderEnabled ? "#fff" : "#F5F2F5",
                 fontSize: 10.5,
                 fontWeight: 900,
-                color: (foodReminderPreference?.enabled ?? false) ? "var(--he-green-deep)" : "#9AA0AD",
+                color: foodReminderEnabled ? "var(--he-green-deep)" : "#9AA0AD",
               }}>
-                {(foodReminderPreference?.enabled ?? false) ? "On" : "Off"}
+                {foodReminderEnabled ? "On" : "Off"}
               </span>
             </button>
             <a href={WA_LINK} target="_blank" rel="noopener noreferrer" className="db-pill cta">
@@ -1292,15 +1298,21 @@ export default function DashboardPage() {
                 onSetGoal={selectedProfileIsSelf ? () => setShowGoals(true) : undefined}
               />
               <MetricTile
-                icon={<FEMoon size={16} />} label={`${selectedProfilePossessive} Sleep`}
+                icon={<FEMoon size={16} />} label={`${selectedProfilePossessive} Sleep today`}
                 color="#8B7FE8" deepColor="#6A5BD0" chipBg="#E4E0FB" stripBg="var(--he-violet-bg)"
-                value={sleepAvg ? sleepAvg.toFixed(1) : "—"} unit="hrs"
+                value={todaySleep != null ? todaySleep.toFixed(1) : "—"} unit="hrs"
                 goalText={goalSleep ? `of ${goalSleep}h goal` : undefined}
-                pct={goalSleep ? Math.min(Math.round((sleepAvg / goalSleep) * 100), 100) : undefined}
-                deltaDown={false}
-                deltaText={sleepAvg ? `avg last 7 days` : "No data yet"}
+                pct={sleepTodayPct}
+                deltaDown={(sleepVsYesterday ?? 0) < 0}
+                deltaText={
+                  todaySleep == null
+                    ? "No sleep logged today"
+                    : sleepVsYesterday == null
+                    ? "Logged today"
+                    : `${Math.abs(sleepVsYesterday).toFixed(1)}h vs yesterday`
+                }
                 sparkline={sleepSeries}
-                onClick={sleepAvg ? () => setMetricDetail({ label: "Sleep", data: weeklySleep, color: "#8B7FE8", unit: "hrs", goal: goalSleep ?? undefined, decimals: 1 }) : undefined}
+                onClick={hasWeeklySleep ? () => setMetricDetail({ label: "Sleep", data: weeklySleep, color: "#8B7FE8", unit: "hrs", goal: goalSleep ?? undefined, decimals: 1 }) : undefined}
                 onSetGoal={selectedProfileIsSelf ? () => setShowGoals(true) : undefined}
               />
               <div className="db-card" style={{
