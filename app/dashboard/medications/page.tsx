@@ -119,6 +119,8 @@ const DEFAULT_TIMES_BY_DAY_PART: Record<DayPart, string> = {
   Night: "22:00",
 };
 
+const DAY_PARTS: DayPart[] = ["Morning", "Afternoon", "Evening", "Night"];
+
 const WEEK_DAYS: WeekDay[] = [
   { value: 0, label: "Sunday", short: "Sun" },
   { value: 1, label: "Monday", short: "Mon" },
@@ -216,10 +218,11 @@ function toneColors(tone: string) {
   return { bg: "var(--he-green-bg)", text: "var(--he-green-deep)", border: "#CFEFDC" };
 }
 
-function FieldLabel({ children }: { children: React.ReactNode }) {
+function FieldLabel({ children, required = false }: { children: React.ReactNode; required?: boolean }) {
   return (
     <label style={{ display: "block", fontSize: 12, fontWeight: 800, color: "var(--he-ink-2)", marginBottom: 7 }}>
       {children}
+      {required && <span style={{ color: "var(--he-coral-deep)", marginLeft: 3 }}>*</span>}
     </label>
   );
 }
@@ -434,8 +437,21 @@ function AddMedicineDrawer({
     });
   };
 
-  const addScheduleTime = () => {
-    update("times", [...form.times, { dayPart: form.dayPart, time: DEFAULT_TIMES_BY_DAY_PART[form.dayPart] }]);
+  const addScheduleTime = (dayPart: DayPart = form.dayPart) => {
+    update("times", [...form.times, { dayPart, time: DEFAULT_TIMES_BY_DAY_PART[dayPart] }]);
+  };
+
+  const selectDayPart = (dayPart: DayPart) => {
+    setForm((current) => {
+      const hasTime = current.times.some((schedule) => schedule.dayPart === dayPart);
+      return {
+        ...current,
+        dayPart,
+        times: hasTime
+          ? current.times
+          : [...current.times, { dayPart, time: DEFAULT_TIMES_BY_DAY_PART[dayPart] }],
+      };
+    });
   };
 
   const removeScheduleTime = (index: number) => {
@@ -497,7 +513,7 @@ function AddMedicineDrawer({
 
         <div style={{ padding: 24, overflowY: "auto", display: "flex", flexDirection: "column", gap: 18 }}>
           <div>
-            <FieldLabel>Who is this medicine for?</FieldLabel>
+            <FieldLabel required>Who is this medicine for?</FieldLabel>
             <FancySelect
               value={form.personId}
               options={personOptions}
@@ -509,19 +525,19 @@ function AddMedicineDrawer({
 
           <div className="med-form-grid">
             <div>
-              <FieldLabel>Medicine name</FieldLabel>
+              <FieldLabel required>Medicine name</FieldLabel>
               <TextField value={form.name} onChange={(value) => update("name", value)} placeholder="e.g. Metformin" error={submitted && Boolean(errors.name)} />
               <FieldError>{submitted && errors.name}</FieldError>
             </div>
             <div>
-              <FieldLabel>Dose</FieldLabel>
+              <FieldLabel required>Dose</FieldLabel>
               <TextField value={form.dose} onChange={(value) => update("dose", value)} placeholder="e.g. 1 tablet" error={submitted && Boolean(errors.dose)} />
               <FieldError>{submitted && errors.dose}</FieldError>
             </div>
           </div>
 
           <div>
-            <FieldLabel>Form</FieldLabel>
+            <FieldLabel required>Form</FieldLabel>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8 }}>
               {(["Tablet", "Capsule", "Syrup", "Injection"] as MedicineForm["form"][]).map((option) => {
                 const active = form.form === option;
@@ -549,24 +565,26 @@ function AddMedicineDrawer({
           </div>
 
           <div>
-            <FieldLabel>Reminder times</FieldLabel>
+            <FieldLabel required>Reminder times</FieldLabel>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8, marginBottom: 10 }}>
-              {(["Morning", "Afternoon", "Evening", "Night"] as DayPart[]).map((option) => {
-                const active = form.dayPart === option;
+              {DAY_PARTS.map((option) => {
+                const hasReminder = form.times.some((schedule) => schedule.dayPart === option);
+                const selected = form.dayPart === option;
                 return (
                   <button
                     key={option}
-                    onClick={() => update("dayPart", option)}
+                    onClick={() => selectDayPart(option)}
                     style={{
                       height: 36,
-                      border: `1.5px solid ${active ? "var(--he-green)" : "var(--he-card-border)"}`,
+                      border: `1.5px solid ${selected ? "var(--he-green-deep)" : hasReminder ? "var(--he-green)" : "var(--he-card-border)"}`,
                       borderRadius: 11,
-                      background: active ? "var(--he-green-bg)" : "#fff",
-                      color: active ? "var(--he-green-deep)" : "var(--he-ink-2)",
+                      background: hasReminder ? "var(--he-green-bg)" : "#fff",
+                      color: hasReminder ? "var(--he-green-deep)" : "var(--he-ink-2)",
                       fontFamily: "inherit",
                       fontSize: 11.5,
                       fontWeight: 800,
                       cursor: "pointer",
+                      boxShadow: selected ? "0 0 0 3px rgba(32, 168, 101, .12)" : "none",
                     }}
                   >
                     {option}
@@ -607,7 +625,7 @@ function AddMedicineDrawer({
               ))}
               {selectedTimes.length === 0 && (
                 <button
-                  onClick={addScheduleTime}
+                  onClick={() => addScheduleTime()}
                   style={{ height: 40, border: "1.5px dashed var(--he-green)", borderRadius: 12, background: "#fff", color: "var(--he-green-deep)", padding: "0 12px", fontFamily: "inherit", fontSize: 12.5, fontWeight: 800, cursor: "pointer" }}
                 >
                   + Schedule {form.dayPart.toLowerCase()} time
@@ -618,7 +636,7 @@ function AddMedicineDrawer({
           </div>
 
           <div>
-            <FieldLabel>Repeat on</FieldLabel>
+            <FieldLabel required>Repeat on</FieldLabel>
             <label style={{ display: "inline-flex", alignItems: "center", gap: 8, marginBottom: 10, color: "var(--he-ink-2)", fontSize: 12.5, fontWeight: 800, cursor: "pointer" }}>
               <input type="checkbox" checked={weeklySelected} onChange={toggleWeekly} />
               Weekly
@@ -658,7 +676,7 @@ function AddMedicineDrawer({
 
           <div className="med-form-grid">
             <div>
-              <FieldLabel>Start date</FieldLabel>
+              <FieldLabel required>Start date</FieldLabel>
               <TextField type="date" value={form.startDate} onChange={(value) => update("startDate", value)} error={submitted && Boolean(errors.startDate)} />
               <FieldError>{submitted && errors.startDate}</FieldError>
             </div>
