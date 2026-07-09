@@ -13,6 +13,7 @@ import {
   Pill,
   Plus,
   Trash,
+  WhatsappLogo,
   X,
 } from "@phosphor-icons/react";
 import Sidebar from "../components/Sidebar";
@@ -668,7 +669,7 @@ function AddMedicineDrawer({
           <label style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14, border: "1px solid var(--he-hairline)", borderRadius: 14, padding: "13px 14px", cursor: "pointer" }}>
             <span style={{ display: "flex", alignItems: "center", gap: 10 }}>
               <span style={{ width: 32, height: 32, borderRadius: 10, background: "var(--he-orange-bg)", display: "grid", placeItems: "center" }}>
-                <Bell size={16} weight="bold" color="var(--he-orange-deep)" />
+                <WhatsappLogo size={17} weight="fill" color="#25D366" />
               </span>
               <span>
                 <span style={{ display: "block", fontSize: 13, fontWeight: 800, color: "var(--he-ink-1)" }}>WhatsApp reminder</span>
