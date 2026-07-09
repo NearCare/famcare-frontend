@@ -14,6 +14,8 @@ import {
   getFamilyMembers,
   getMemberSummary,
   getMemberLogs,
+  getFoodReminderPreference,
+  updateFoodReminderPreference,
   updateUserGoals,
   logsToWeeklyMetric,
   calculateStreak,
@@ -22,6 +24,7 @@ import {
   type HealthLog,
   type Summary,
   type FamilyMember,
+  type FoodReminderPreference,
 } from "@/lib/api";
 import { scoreTier, computeScore, scoreFromAverages, ScoreRing } from "./components/Score";
 import EmptyState from "./components/EmptyState";
@@ -511,6 +514,8 @@ export default function DashboardPage() {
   const [showScoreInfo, setShowScoreInfo] = useState(false);
   const [metricDetail, setMetricDetail] = useState<MetricDetail | null>(null);
   const [showGoals, setShowGoals] = useState(false);
+  const [foodReminderPreference, setFoodReminderPreference] = useState<FoodReminderPreference | null>(null);
+  const [savingFoodReminder, setSavingFoodReminder] = useState(false);
   const accountMenuRef = useRef<HTMLDivElement>(null);
   const scoreInfoRef = useRef<HTMLDivElement>(null);
 
@@ -560,6 +565,11 @@ export default function DashboardPage() {
       ]);
       setLogs(fetchedLogs);
       setSummary(fetchedSummary);
+      getFoodReminderPreference(token)
+        .then(setFoodReminderPreference)
+        .catch((err) => {
+          console.warn("[Dashboard] Failed to load food reminder preference", err);
+        });
 
       const activeMembers = members.filter((m) => m.status === "active");
       identifyUser(authUser);
@@ -582,6 +592,32 @@ export default function DashboardPage() {
       if (!silent) setLoading(false);
     }
   }, []);
+
+  const handleFoodReminderToggle = useCallback(async () => {
+    const token = localStorage.getItem("auth_token") ?? "";
+    if (!token || savingFoodReminder) return;
+    const nextEnabled = !(foodReminderPreference?.enabled ?? false);
+    setSavingFoodReminder(true);
+    const previous = foodReminderPreference;
+    setFoodReminderPreference((current) => ({
+      user_id: current?.user_id ?? user?.id ?? 0,
+      enabled: nextEnabled,
+      activated: current?.activated || nextEnabled,
+      breakfast_time: current?.breakfast_time ?? "09:00",
+      lunch_time: current?.lunch_time ?? "14:00",
+      dinner_time: current?.dinner_time ?? "21:00",
+    }));
+    try {
+      const updated = await updateFoodReminderPreference(nextEnabled, token);
+      setFoodReminderPreference(updated);
+      captureEvent("food_reminder_preference_updated", { enabled: updated.enabled });
+    } catch (err) {
+      setFoodReminderPreference(previous);
+      setError(err instanceof Error ? err.message : "Failed to update food reminder preference");
+    } finally {
+      setSavingFoodReminder(false);
+    }
+  }, [foodReminderPreference, savingFoodReminder, user?.id]);
 
   useEffect(() => {
     (async () => {
@@ -771,6 +807,37 @@ export default function DashboardPage() {
               {new Date().toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
             </div>
             <StreakPill streak={streak} />
+            <button
+              type="button"
+              onClick={handleFoodReminderToggle}
+              disabled={savingFoodReminder}
+              aria-pressed={foodReminderPreference?.enabled ?? false}
+              className="db-pill"
+              style={{
+                border: `1px solid ${(foodReminderPreference?.enabled ?? false) ? "#BDEFD3" : "#E9E5EA"}`,
+                background: (foodReminderPreference?.enabled ?? false) ? "var(--he-green-bg)" : "#fff",
+                color: (foodReminderPreference?.enabled ?? false) ? "var(--he-green-deep)" : "#7C84A8",
+                cursor: savingFoodReminder ? "wait" : "pointer",
+                opacity: savingFoodReminder ? 0.72 : 1,
+              }}
+              title={(foodReminderPreference?.enabled ?? false)
+                ? "Breakfast, lunch, and dinner logging reminders are on"
+                : "Turn on breakfast, lunch, and dinner logging reminders"}
+            >
+              <FEWheat size={15} />
+              Food reminders
+              <span style={{
+                marginLeft: 2,
+                padding: "2px 7px",
+                borderRadius: 999,
+                background: (foodReminderPreference?.enabled ?? false) ? "#fff" : "#F5F2F5",
+                fontSize: 10.5,
+                fontWeight: 900,
+                color: (foodReminderPreference?.enabled ?? false) ? "var(--he-green-deep)" : "#9AA0AD",
+              }}>
+                {(foodReminderPreference?.enabled ?? false) ? "On" : "Off"}
+              </span>
+            </button>
             <a href={WA_LINK} target="_blank" rel="noopener noreferrer" className="db-pill cta">
               <WaIcon size={15} />
               Log via WhatsApp

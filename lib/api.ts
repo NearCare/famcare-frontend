@@ -140,6 +140,15 @@ export type Summary = {
   last_logged: string | null;
 };
 
+export type FoodReminderPreference = {
+  user_id: number;
+  enabled: boolean;
+  activated: boolean;
+  breakfast_time: string;
+  lunch_time: string;
+  dinner_time: string;
+};
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 /**
@@ -503,6 +512,41 @@ export async function submitReviewFeedback(input: {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(input),
+  });
+}
+
+export async function getFoodReminderPreference(token: string): Promise<FoodReminderPreference> {
+  if (MOCK_API) {
+    return {
+      user_id: MOCK_USER.id,
+      enabled: true,
+      activated: true,
+      breakfast_time: "09:00",
+      lunch_time: "14:00",
+      dinner_time: "21:00",
+    };
+  }
+  return authedFetch<FoodReminderPreference>("/api/food-reminders/preference", token);
+}
+
+export async function updateFoodReminderPreference(
+  enabled: boolean,
+  token: string,
+): Promise<FoodReminderPreference> {
+  if (MOCK_API) {
+    return {
+      user_id: MOCK_USER.id,
+      enabled,
+      activated: enabled,
+      breakfast_time: "09:00",
+      lunch_time: "14:00",
+      dinner_time: "21:00",
+    };
+  }
+  return authedFetch<FoodReminderPreference>("/api/food-reminders/preference", token, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ enabled }),
   });
 }
 
