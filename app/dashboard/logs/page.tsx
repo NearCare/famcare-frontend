@@ -492,7 +492,6 @@ export default function LogsPage() {
   const [error, setError] = useState<string | null>(null);
   const [busyAction, setBusyAction] = useState<"edit" | "incorrect" | "delete" | null>(null);
   const [actionNotice, setActionNotice] = useState<string | null>(null);
-  const selectedWindow = getTimeWindow(timeWindow);
 
   useEffect(() => {
     let cancelled = false;

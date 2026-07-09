@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   CheckCircle, Warning, Sparkle, CaretRight, Info, TrendUp, Minus, X,
   Star, CalendarBlank, CalendarCheck, SignOut, UserPlus,
@@ -26,9 +26,9 @@ import {
 import { scoreTier, computeScore, scoreFromAverages, ScoreRing } from "./components/Score";
 import EmptyState from "./components/EmptyState";
 import Sidebar from "./components/Sidebar";
-import FamilyMemberModal from "./components/FamilyMemberModal";
 import AddFamilyModal from "./components/AddFamilyModal";
 import StreakPill from "./components/StreakPill";
+import { FAMCARE_WHATSAPP_LINK } from "@/lib/whatsapp";
 import PageLoader from "./components/PageLoader";
 import { captureEvent, identifyUser } from "@/lib/analytics";
 
@@ -71,7 +71,7 @@ type MetricDetail = {
   decimals?: number;
 };
 
-function MetricDetailFloater({ detail, onClose, onSetGoal }: { detail: MetricDetail; onClose: () => void; onSetGoal: () => void }) {
+function MetricDetailFloater({ detail, onClose, onSetGoal }: { detail: MetricDetail; onClose: () => void; onSetGoal?: () => void }) {
   const [chartReady, setChartReady] = useState(false);
 
   useEffect(() => {
@@ -124,16 +124,18 @@ function MetricDetailFloater({ detail, onClose, onSetGoal }: { detail: MetricDet
               <p style={{ margin: 0, fontSize: 12, color: "#9AA0AD", fontWeight: 500 }}>
                 Last 7 days{detail.goal ? ` · Goal: ${detail.goal.toLocaleString()} ${detail.unit}/day` : ""}
               </p>
-              <button
-                onClick={(e) => { e.stopPropagation(); onClose(); onSetGoal(); }}
-                style={{
-                  padding: "2px 8px", border: "1.5px solid #E0DCF0", borderRadius: 20,
-                  background: "none", cursor: "pointer", fontSize: 10.5, fontWeight: 700,
-                  color: "#7C6FF7", fontFamily: "inherit", lineHeight: 1.5,
-                }}
-              >
-                {detail.goal ? "Edit goal" : "Set goal"}
-              </button>
+              {onSetGoal && (
+                <button
+                  onClick={(e) => { e.stopPropagation(); onClose(); onSetGoal(); }}
+                  style={{
+                    padding: "2px 8px", border: "1.5px solid #E0DCF0", borderRadius: 20,
+                    background: "none", cursor: "pointer", fontSize: 10.5, fontWeight: 700,
+                    color: "#7C6FF7", fontFamily: "inherit", lineHeight: 1.5,
+                  }}
+                >
+                  {detail.goal ? "Edit goal" : "Set goal"}
+                </button>
+              )}
             </div>
           </div>
           <button
@@ -381,7 +383,7 @@ function MetricTile({
 
       {goalText ? (
         <p style={{ margin: "1px 0 0", fontSize: 10.5, color: "#9AA0AD", fontWeight: 500 }}>{goalText}</p>
-      ) : (
+      ) : onSetGoal ? (
         <button
           onClick={(e) => { e.stopPropagation(); onSetGoal?.(); }}
           style={{
@@ -393,6 +395,8 @@ function MetricTile({
         >
           + Set goal
         </button>
+      ) : (
+        <div style={{ marginTop: 2, height: 18 }} />
       )}
 
       {pct !== undefined ? (
@@ -484,7 +488,7 @@ function getGreeting(): string {
   return "Good evening";
 }
 
-const WA_LINK = "https://wa.me/14155238886";
+const WA_LINK = FAMCARE_WHATSAPP_LINK;
 
 const WaIcon = ({ size = 16 }: { size?: number }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="white">
@@ -502,8 +506,7 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showAccountMenu, setShowAccountMenu] = useState(false);
-  const [selectedMember, setSelectedMember] = useState<FamilyMember | null>(null);
-  const [, startModalTransition] = useTransition();
+  const [selectedCardId, setSelectedCardId] = useState("self");
   const [showAddFamily, setShowAddFamily] = useState(false);
   const [showScoreInfo, setShowScoreInfo] = useState(false);
   const [metricDetail, setMetricDetail] = useState<MetricDetail | null>(null);
@@ -586,33 +589,44 @@ export default function DashboardPage() {
     })();
   }, [loadDashboard]);
 
-  const weeklySteps = useMemo(() => logsToWeeklyMetric(logs, "steps"), [logs]);
-  const weeklyProtein = useMemo(() => logsToWeeklyMetric(logs, "protein_g"), [logs]);
-  const weeklyCalories = useMemo(() => logsToWeeklyMetric(logs, "calories"), [logs]);
-  const weeklySleep = useMemo(() => logsToWeeklyMetric(logs, "sleep_hours"), [logs]);
-  const streak = useMemo(() => calculateStreak(logs), [logs]);
+  const selectedMemberRow = useMemo(() => {
+    if (selectedCardId === "self") return null;
+    return memberRows.find(({ member }) => `member-${member.id}` === selectedCardId) ?? null;
+  }, [memberRows, selectedCardId]);
+  const selectedProfileLogs = selectedMemberRow?.logs ?? logs;
+  const selectedProfileSummary = selectedMemberRow?.summary ?? summary;
+  const selectedProfileIsSelf = selectedCardId === "self" || !selectedMemberRow;
+  const selectedProfileName = selectedProfileIsSelf
+    ? user?.name ?? "You"
+    : selectedMemberRow.member.name ?? selectedMemberRow.member.label;
+  const selectedProfilePossessive = selectedProfileIsSelf ? "Your" : `${selectedProfileName}'s`;
+  const selectedProfileSubject = selectedProfileIsSelf ? "You" : selectedProfileName;
+
+  const weeklySteps = useMemo(() => logsToWeeklyMetric(selectedProfileLogs, "steps"), [selectedProfileLogs]);
+  const weeklyProtein = useMemo(() => logsToWeeklyMetric(selectedProfileLogs, "protein_g"), [selectedProfileLogs]);
+  const weeklyCalories = useMemo(() => logsToWeeklyMetric(selectedProfileLogs, "calories"), [selectedProfileLogs]);
+  const weeklySleep = useMemo(() => logsToWeeklyMetric(selectedProfileLogs, "sleep_hours"), [selectedProfileLogs]);
+  const streak = useMemo(() => calculateStreak(selectedProfileLogs), [selectedProfileLogs]);
   const proteinSeries = useMemo(() => weeklyProtein.map((d) => d.value), [weeklyProtein]);
   const caloriesSeries = useMemo(() => weeklyCalories.map((d) => d.value), [weeklyCalories]);
   const stepsSeries = useMemo(() => weeklySteps.map((d) => d.value), [weeklySteps]);
   const sleepSeries = useMemo(() => weeklySleep.map((d) => d.value), [weeklySleep]);
-  const hasData = !!summary?.last_logged;
-  const proteinAvg = summary?.avg_protein_g ?? 0;
-  const caloriesAvg = summary?.avg_calories ?? 0;
-  const stepsAvg = summary?.avg_steps ?? 0;
-  const sleepAvg = summary?.avg_sleep_hours ?? 0;
+  const hasData = !!selectedProfileSummary?.last_logged;
+  const proteinAvg = selectedProfileSummary?.avg_protein_g ?? 0;
+  const caloriesAvg = selectedProfileSummary?.avg_calories ?? 0;
+  const stepsAvg = selectedProfileSummary?.avg_steps ?? 0;
+  const sleepAvg = selectedProfileSummary?.avg_sleep_hours ?? 0;
 
   const goalProtein = user?.goal_protein_g ?? null;
   const goalCalories = user?.goal_calories ?? null;
   const goalSteps = user?.goal_steps ?? null;
   const goalSleep = user?.goal_sleep_hours ?? null;
 
-  const stepsAvgPct = goalSteps ? Math.min(Math.round((stepsAvg / goalSteps) * 100), 100) : undefined;
-
   const todayIST = new Date().toLocaleDateString("en-CA");
   const yesterdayDate = new Date(); yesterdayDate.setDate(yesterdayDate.getDate() - 1);
   const yesterdayIST = yesterdayDate.toLocaleDateString("en-CA");
-  const todayLog = logs.find((l) => l.logged_at === todayIST);
-  const yesterdayLog = logs.find((l) => l.logged_at === yesterdayIST);
+  const todayLog = selectedProfileLogs.find((l) => l.logged_at === todayIST);
+  const yesterdayLog = selectedProfileLogs.find((l) => l.logged_at === yesterdayIST);
   const todayProtein = todayLog?.protein_g ?? 0;
   const todayCalories = todayLog?.calories ?? 0;
   const todaySteps = todayLog?.steps ?? 0;
@@ -635,7 +649,7 @@ export default function DashboardPage() {
   const personalScore = hasData ? stepsPts + proteinPts + caloriesPts : null;
   const personalTier = scoreTier(personalScore);
 
-  const prevWeekAvgs = useMemo(() => rangeAverages(logs, 7, 13), [logs]);
+  const prevWeekAvgs = useMemo(() => rangeAverages(selectedProfileLogs, 7, 13), [selectedProfileLogs]);
   const prevWeekScore = prevWeekAvgs ? scoreFromAverages(prevWeekAvgs.steps, prevWeekAvgs.protein, prevWeekAvgs.calories) : null;
   const scoreDelta = personalScore !== null && prevWeekScore !== null ? personalScore - prevWeekScore : null;
   const daysLoggedThisWeek = useMemo(() => {
@@ -644,10 +658,10 @@ export default function DashboardPage() {
       d.setDate(d.getDate() - i);
       return d.toLocaleDateString("en-CA");
     });
-    return last7Dates.filter((date) => logs.some((l) => l.logged_at === date && hasLoggedMetric(l))).length;
-  }, [logs]);
+    return last7Dates.filter((date) => selectedProfileLogs.some((l) => l.logged_at === date && hasLoggedMetric(l))).length;
+  }, [selectedProfileLogs]);
   const weeklyActivity = useMemo(() => {
-    const loggedDates = new Set(logs.filter(hasLoggedMetric).map((log) => log.logged_at));
+    const loggedDates = new Set(selectedProfileLogs.filter(hasLoggedMetric).map((log) => log.logged_at));
     const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
     return Array.from({ length: 7 }, (_, i) => {
       const d = new Date();
@@ -658,7 +672,7 @@ export default function DashboardPage() {
         logged: loggedDates.has(key),
       };
     });
-  }, [logs]);
+  }, [selectedProfileLogs]);
   const consistencyMessage = daysLoggedThisWeek === 7
     ? "Amazing consistency! 🎉"
     : daysLoggedThisWeek >= 5
@@ -727,6 +741,19 @@ export default function DashboardPage() {
   const avatarLetter = user.name
     ? user.name.charAt(0).toUpperCase()
     : user.phone.slice(-4, -3) || "U";
+  const selfMember: FamilyMember = {
+    id: user.id,
+    phone: user.phone,
+    name: user.name,
+    label: "You",
+    type: "self",
+    status: "active",
+    created_at: user.created_at,
+  };
+  const homeMemberRows = [
+    { member: selfMember, summary, logs, isSelf: true },
+    ...memberRows.map((row) => ({ ...row, isSelf: false })),
+  ];
 
   return (
     <div className="db-page">
@@ -821,8 +848,8 @@ export default function DashboardPage() {
                 </Link>
               )}
             </div>
-            <div style={{ display: "flex", alignItems: "stretch", gap: 16, overflowX: "auto", padding: "10px 4px 12px" }}>
-              {memberRows.map(({ member, summary: memberSummary, logs: memberLogs }) => {
+            <div className="db-profile-carousel" style={{ display: "flex", alignItems: "stretch", gap: 16, overflowX: "auto", padding: "12px 8px 18px", scrollSnapType: "x proximity" }}>
+              {homeMemberRows.map(({ member, summary: memberSummary, logs: memberLogs, isSelf }) => {
                 const score = computeScore(memberSummary);
                 const tier = scoreTier(score);
                 const avatarLetter = (member.name ?? member.label).charAt(0).toUpperCase();
@@ -830,26 +857,47 @@ export default function DashboardPage() {
                 const memberTodayCalories = memberTodayLog?.calories ?? null;
                 const memberTodayProtein = memberTodayLog?.protein_g ?? null;
                 const memberTodaySteps = memberTodayLog?.steps ?? null;
+                const cardId = isSelf ? "self" : `member-${member.id}`;
+                const isSelectedCard = selectedCardId === cardId;
+                const selectedTone = tier.label === "All good"
+                  ? "good"
+                  : tier.label === "Needs attention"
+                  ? "attention"
+                  : tier.label === "Action required"
+                  ? "danger"
+                  : "neutral";
+                const selectProfile = () => {
+                  setSelectedCardId(cardId);
+                  captureEvent("dashboard_profile_selected", {
+                    profile_type: isSelf ? "self" : "family",
+                    member_id: isSelf ? undefined : member.id,
+                  });
+                };
                 return (
                   <div
-                    key={member.id}
-                    className="fo-member-card db-home-member-card"
+                    key={cardId}
+                    className={`fo-member-card db-home-member-card${isSelectedCard ? ` is-selected-profile selected-profile-${selectedTone}` : ""}`}
                     role="button"
                     tabIndex={0}
-                    onClick={() => startModalTransition(() => setSelectedMember(member))}
+                    aria-pressed={isSelectedCard}
+                    onClick={selectProfile}
                     onKeyDown={(event) => {
                       if (event.key === "Enter" || event.key === " ") {
                         event.preventDefault();
-                        startModalTransition(() => setSelectedMember(member));
+                        selectProfile();
                       }
                     }}
                     style={{
                       flex: "0 0 300px", minWidth: 300,
                       background:
-                        `linear-gradient(165deg, ${tier.bg} 0%, #fff 55%) padding-box, linear-gradient(135deg, ${tier.border}, ${tier.ring}) border-box`,
-                      borderRadius: 24, border: "1.5px solid transparent",
+                        isSelectedCard
+                          ? `linear-gradient(165deg, ${tier.bg} 0%, #fff 55%)`
+                          : `linear-gradient(165deg, ${tier.bg} 0%, #fff 55%) padding-box, linear-gradient(135deg, ${tier.border}, ${tier.ring}) border-box`,
+                      borderRadius: 24, border: isSelectedCard ? "none" : "1.5px solid transparent",
                       boxShadow: "0 4px 16px rgba(26,20,20,.05)", padding: "22px 22px 20px",
                       cursor: "pointer",
+                      scrollSnapAlign: "start",
+                      transform: isSelectedCard ? "translateY(-2px)" : undefined,
                     }}
                   >
                     <div style={{
@@ -869,8 +917,8 @@ export default function DashboardPage() {
                           {avatarLetter}
                         </div>
                         <div>
-                          <p className="hm-name" style={{ margin: 0, fontWeight: 800, fontSize: 15, color: "#1A2744" }}>{member.name ?? member.label}</p>
-                          <p className="hm-label" style={{ margin: 0, fontSize: 11.5, color: "#9AA0AD" }}>{member.label}</p>
+                          <p className="hm-name" style={{ margin: 0, fontWeight: 800, fontSize: 15, color: "#1A2744" }}>{isSelf ? displayName : member.name ?? member.label}</p>
+                          <p className="hm-label" style={{ margin: 0, fontSize: 11.5, color: "#9AA0AD" }}>{isSelf ? "You" : member.label}</p>
                           <span className="hm-badge" style={{ display: "inline-flex", alignItems: "center", gap: 5, marginTop: 6, background: tier.bg, color: tier.textColor, fontSize: 10.5, fontWeight: 700, padding: "3px 10px", borderRadius: 99 }}>
                             {score !== null && (
                               score >= 40
@@ -907,7 +955,7 @@ export default function DashboardPage() {
                       className="hm-btn"
                       onClick={(event) => {
                         event.stopPropagation();
-                        startModalTransition(() => setSelectedMember(member));
+                        selectProfile();
                       }}
                       style={{
                         width: "100%", marginTop: 18, padding: "10px 0", border: `1.5px solid ${tier.border}`, borderRadius: 14,
@@ -916,7 +964,7 @@ export default function DashboardPage() {
                         fontFamily: "'Plus Jakarta Sans', sans-serif",
                       }}
                     >
-                      View Details <CaretRight size={13} weight="bold" />
+                      {isSelectedCard ? "Selected" : "View profile"} <CaretRight size={13} weight="bold" />
                     </button>
                   </div>
                 );
@@ -965,7 +1013,7 @@ export default function DashboardPage() {
         <div className="db-wellness-grid" style={{ display: "grid", gridTemplateColumns: "minmax(0, 11fr) minmax(420px, 9fr)", gap: 16, alignItems: "stretch" }}>
           <div className="db-card db-weekly-score-card" style={{ minWidth: 0, padding: "24px 26px 22px", position: "relative", overflow: "hidden" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 22 }}>
-              <span style={{ fontSize: 17, fontWeight: 800, color: "#1A2744", fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Your Weekly Score</span>
+              <span style={{ fontSize: 17, fontWeight: 800, color: "#1A2744", fontFamily: "'Plus Jakarta Sans', sans-serif" }}>{selectedProfilePossessive} Weekly Score</span>
               <div ref={scoreInfoRef} style={{ position: "relative", display: "flex" }}>
                 <button
                   onClick={() => setShowScoreInfo(v => !v)}
@@ -1074,7 +1122,7 @@ export default function DashboardPage() {
                     </span>
                     <span>
                       <span className="wa-title" style={{ display: "block", color: "#1A2744", fontSize: 20, fontWeight: 900, fontFamily: "'Plus Jakarta Sans', sans-serif", letterSpacing: "-.3px" }}>7-Day Activity</span>
-                      <span className="wa-subtitle" style={{ display: "block", color: "#7C84A8", fontSize: 13.5, fontWeight: 700, marginTop: 2 }}>Your logging this week</span>
+                      <span className="wa-subtitle" style={{ display: "block", color: "#7C84A8", fontSize: 13.5, fontWeight: 700, marginTop: 2 }}>{selectedProfilePossessive} logging this week</span>
                     </span>
                   </div>
                   <span className="wa-badge" style={{ display: "inline-flex", alignItems: "center", gap: 7, borderRadius: 999, background: "var(--he-green-bg)", color: "var(--he-green-deep)", padding: "8px 13px", fontSize: 13.5, fontWeight: 900, whiteSpace: "nowrap" }}>
@@ -1139,7 +1187,7 @@ export default function DashboardPage() {
 
           <div style={{ minWidth: 0, display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 10, alignContent: "start" }}>
               <MetricTile
-                icon={<FEProtein size={16} />} label="Protein today"
+                icon={<FEProtein size={16} />} label={`${selectedProfilePossessive} Protein today`}
                 color="var(--he-coral)" deepColor="var(--he-coral-deep)" chipBg="var(--he-coral-bg-2)" stripBg="var(--he-coral-bg)"
                 value={todayProtein ? todayProtein.toFixed(0) : "—"} unit="g"
                 goalText={goalProtein ? `of ${goalProtein}g goal` : undefined}
@@ -1148,11 +1196,11 @@ export default function DashboardPage() {
                 deltaText={`${Math.abs(proteinVsYesterday).toFixed(0)}g vs yesterday`}
                 sparkline={proteinSeries}
                 onClick={() => setMetricDetail({ label: "Protein", data: weeklyProtein, color: "#FF6B6B", unit: "g", goal: goalProtein ?? undefined, decimals: 0 })}
-                onSetGoal={() => setShowGoals(true)}
+                onSetGoal={selectedProfileIsSelf ? () => setShowGoals(true) : undefined}
                 estimated
               />
               <MetricTile
-                icon={<FEWheat size={16} />} label="Calories today"
+                icon={<FEWheat size={16} />} label={`${selectedProfilePossessive} Calories today`}
                 color="var(--he-orange)" deepColor="var(--he-orange-deep)" chipBg="var(--he-orange-bg-2)" stripBg="var(--he-orange-bg)"
                 value={todayCalories ? todayCalories.toLocaleString() : "—"} unit="kcal"
                 goalText={goalCalories ? `of ${goalCalories.toLocaleString()} kcal goal` : undefined}
@@ -1161,11 +1209,11 @@ export default function DashboardPage() {
                 deltaText={`${Math.abs(caloriesVsYesterday).toLocaleString()} kcal vs yesterday`}
                 sparkline={caloriesSeries}
                 onClick={() => setMetricDetail({ label: "Calories", data: weeklyCalories, color: "#FF9F45", unit: "kcal", goal: goalCalories ?? undefined })}
-                onSetGoal={() => setShowGoals(true)}
+                onSetGoal={selectedProfileIsSelf ? () => setShowGoals(true) : undefined}
                 estimated
               />
               <MetricTile
-                icon={<FEShoe size={16} />} label="Steps today"
+                icon={<FEShoe size={16} />} label={`${selectedProfilePossessive} Steps today`}
                 color="var(--he-green)" deepColor="var(--he-green-deep)" chipBg="var(--he-green-bg-2)" stripBg="var(--he-green-bg)"
                 value={todaySteps ? todaySteps.toLocaleString() : "—"}
                 goalText={goalSteps ? `of ${goalSteps.toLocaleString()} steps goal` : undefined}
@@ -1174,10 +1222,10 @@ export default function DashboardPage() {
                 deltaText={`${Math.abs(stepsVsYesterday).toLocaleString()} vs yesterday`}
                 sparkline={stepsSeries}
                 onClick={() => setMetricDetail({ label: "Steps", data: weeklySteps, color: "#2FBE76", unit: "steps", goal: goalSteps ?? undefined })}
-                onSetGoal={() => setShowGoals(true)}
+                onSetGoal={selectedProfileIsSelf ? () => setShowGoals(true) : undefined}
               />
               <MetricTile
-                icon={<FEMoon size={16} />} label="Sleep"
+                icon={<FEMoon size={16} />} label={`${selectedProfilePossessive} Sleep`}
                 color="#8B7FE8" deepColor="#6A5BD0" chipBg="#E4E0FB" stripBg="var(--he-violet-bg)"
                 value={sleepAvg ? sleepAvg.toFixed(1) : "—"} unit="hrs"
                 goalText={goalSleep ? `of ${goalSleep}h goal` : undefined}
@@ -1186,7 +1234,7 @@ export default function DashboardPage() {
                 deltaText={sleepAvg ? `avg last 7 days` : "No data yet"}
                 sparkline={sleepSeries}
                 onClick={sleepAvg ? () => setMetricDetail({ label: "Sleep", data: weeklySleep, color: "#8B7FE8", unit: "hrs", goal: goalSleep ?? undefined, decimals: 1 }) : undefined}
-                onSetGoal={() => setShowGoals(true)}
+                onSetGoal={selectedProfileIsSelf ? () => setShowGoals(true) : undefined}
               />
               <div className="db-card" style={{
                 gridColumn: "1 / -1",
@@ -1222,7 +1270,7 @@ export default function DashboardPage() {
             </div>
             <div>
               <p style={{ margin: 0, fontSize: 13.5, fontWeight: 800, color: "#1A2744" }}>
-                You logged {daysLoggedThisWeek} of 7 days this week
+                {selectedProfileSubject} logged {daysLoggedThisWeek} of 7 days this week
               </p>
               <p style={{ margin: "1px 0 0", fontSize: 12, color: "#5A5F6E", fontWeight: 500 }}>{consistencyMessage}</p>
             </div>
@@ -1248,29 +1296,24 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {selectedMember && (
-        <FamilyMemberModal
-          member={selectedMember}
-          onClose={() => setSelectedMember(null)}
-          onRemoved={(memberId) => {
-            setMemberRows((rows) => rows.filter(({ member }) => member.id !== memberId));
-            captureEvent("family_member_removed", { member_id: memberId });
-            setSelectedMember(null);
-          }}
-        />
-      )}
-
       {showAddFamily && (
         <AddFamilyModal
           onClose={() => setShowAddFamily(false)}
           onAdded={(member) => {
-            setMemberRows((rows) => [...rows, { member, summary: null, logs: [] }]);
+            setMemberRows((rows) => {
+              const idx = rows.findIndex((r) => r.member.id === member.id);
+              if (idx === -1) return [...rows, { member, summary: null, logs: [] }];
+              const next = [...rows];
+              next[idx] = { ...next[idx], member };
+              return next;
+            });
             captureEvent("family_member_added", {
               member_id: member.id,
               member_status: member.status,
               member_type: member.type,
             });
           }}
+          onActivated={() => loadDashboard(true)}
         />
       )}
 
@@ -1278,7 +1321,7 @@ export default function DashboardPage() {
         <MetricDetailFloater
           detail={metricDetail}
           onClose={() => setMetricDetail(null)}
-          onSetGoal={() => setShowGoals(true)}
+          onSetGoal={selectedProfileIsSelf ? () => setShowGoals(true) : undefined}
         />
       )}
 

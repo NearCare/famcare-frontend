@@ -1,0 +1,2 @@
+export const FAMCARE_WHATSAPP_NUMBER = "919972480348";
+export const FAMCARE_WHATSAPP_LINK = `https://wa.me/${FAMCARE_WHATSAPP_NUMBER}`;

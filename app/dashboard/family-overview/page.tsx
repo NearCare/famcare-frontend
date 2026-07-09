@@ -1,11 +1,12 @@
 "use client";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { CheckCircle, Warning, Sparkle, CaretRight, UserPlus, Trophy, Info } from "@phosphor-icons/react";
 import { Flame, Dumbbell, Footprints } from "lucide-react";
 import {
   getFamilyMembers,
   getMemberLogs,
   getMemberSummary,
+  getUserLogs,
   getUserSummary,
   type User,
   type HealthLog,
@@ -81,48 +82,54 @@ type MemberRow = { member: FamilyMember; summary: Summary | null; logs: HealthLo
 export default function FamilyOverviewPage() {
   const [user, setUser] = useState<User | null>(null);
   const [personalSummary, setPersonalSummary] = useState<Summary | null>(null);
+  const [personalLogs, setPersonalLogs] = useState<HealthLog[]>([]);
   const [memberRows, setMemberRows] = useState<MemberRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedMember, setSelectedMember] = useState<FamilyMember | null>(null);
   const [showAddFamily, setShowAddFamily] = useState(false);
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const stored = localStorage.getItem("auth_user");
-        const authUser: User | null = stored ? JSON.parse(stored) : null;
-        if (!authUser) { window.location.href = "/login"; return; }
-        setUser(authUser);
-        const token = localStorage.getItem("auth_token") ?? "";
+  const loadFamilyOverview = useCallback(async (silent = false) => {
+    try {
+      if (!silent) setLoading(true);
+      const stored = localStorage.getItem("auth_user");
+      const authUser: User | null = stored ? JSON.parse(stored) : null;
+      if (!authUser) { window.location.href = "/login"; return; }
+      setUser(authUser);
+      const token = localStorage.getItem("auth_token") ?? "";
 
-        const [members, mySummary] = await Promise.all([
-          getFamilyMembers(token).catch(() => [] as FamilyMember[]),
-          getUserSummary(authUser.id).catch(() => null),
-        ]);
-        setPersonalSummary(mySummary);
+      const [members, mySummary, myLogs] = await Promise.all([
+        getFamilyMembers(token).catch(() => [] as FamilyMember[]),
+        getUserSummary(authUser.id).catch(() => null),
+        getUserLogs(authUser.id, 7).catch(() => [] as HealthLog[]),
+      ]);
+      setPersonalSummary(mySummary);
+      setPersonalLogs(myLogs);
 
-        const activeMembers = members.filter((m) => m.status === "active");
-        identifyUser(authUser);
-        captureEvent("family_overview_viewed", {
-          family_member_count: activeMembers.length,
-          has_family_members: activeMembers.length > 0,
-        });
-        const rows = await Promise.all(
-          activeMembers.map(async (member) => ({
-            member,
-            summary: await getMemberSummary(member.id, token).catch(() => null),
-            logs: await getMemberLogs(member.id, token, 7).catch(() => []),
-          }))
-        );
-        setMemberRows(rows);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to load data");
-      } finally {
-        setLoading(false);
-      }
-    })();
+      const activeMembers = members.filter((m) => m.status === "active");
+      identifyUser(authUser);
+      captureEvent("family_overview_viewed", {
+        family_member_count: activeMembers.length,
+        has_family_members: activeMembers.length > 0,
+      });
+      const rows = await Promise.all(
+        activeMembers.map(async (member) => ({
+          member,
+          summary: await getMemberSummary(member.id, token).catch(() => null),
+          logs: await getMemberLogs(member.id, token, 7).catch(() => []),
+        }))
+      );
+      setMemberRows(rows);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load data");
+    } finally {
+      if (!silent) setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    loadFamilyOverview();
+  }, [loadFamilyOverview]);
 
   const rankedFamily = useMemo(() => {
     const rows = [
@@ -137,6 +144,25 @@ export default function FamilyOverviewPage() {
     return rows.sort((a, b) => (b.score ?? -1) - (a.score ?? -1));
   }, [user, personalSummary, memberRows]);
   const todayIST = new Date().toLocaleDateString("en-CA");
+  const overviewRows = useMemo(() => {
+    if (!user) return [];
+    const selfMember: FamilyMember = {
+      id: user.id,
+      phone: user.phone,
+      name: user.name,
+      label: "You",
+      type: "self",
+      status: "active",
+      created_at: user.created_at,
+    };
+    return [
+      { member: selfMember, summary: personalSummary, logs: personalLogs, isSelf: true },
+      ...memberRows.map((row) => ({ ...row, isSelf: false })),
+    ];
+  }, [user, personalSummary, personalLogs, memberRows]);
+  const openSelfProfile = () => {
+    window.location.href = "/dashboard";
+  };
 
   if (loading) {
     return (
@@ -180,7 +206,7 @@ export default function FamilyOverviewPage() {
           )}
         </div>
 
-        {memberRows.length === 0 ? (
+        {overviewRows.length === 0 ? (
           <div style={{ display: "flex", alignItems: "stretch", gap: 16, flexWrap: "wrap" }}>
             <div className="db-card db-card-pad" style={{
               flex: "1 1 420px",
@@ -233,7 +259,7 @@ export default function FamilyOverviewPage() {
           </div>
         ) : (
           <div style={{ display: "flex", alignItems: "stretch", gap: 16, flexWrap: "wrap" }}>
-              {memberRows.map(({ member, summary: memberSummary, logs }) => {
+              {overviewRows.map(({ member, summary: memberSummary, logs, isSelf }) => {
                 const score = computeScore(memberSummary);
                 const tier = scoreTier(score);
                 const avatarLetter = (member.name ?? member.label).charAt(0).toUpperCase();
@@ -243,15 +269,16 @@ export default function FamilyOverviewPage() {
                 const todaySteps = todayLog?.steps ?? null;
                 return (
                 <div
-                  key={member.id}
+                  key={isSelf ? `self-${member.id}` : `member-${member.id}`}
                   className="fo-member-card"
                   role="button"
                   tabIndex={0}
-                  onClick={() => setSelectedMember(member)}
+                  onClick={() => isSelf ? openSelfProfile() : setSelectedMember(member)}
                   onKeyDown={(event) => {
                     if (event.key === "Enter" || event.key === " ") {
                       event.preventDefault();
-                      setSelectedMember(member);
+                      if (isSelf) openSelfProfile();
+                      else setSelectedMember(member);
                     }
                   }}
                   style={{
@@ -280,8 +307,8 @@ export default function FamilyOverviewPage() {
                         {avatarLetter}
                       </div>
                       <div>
-                        <p style={{ margin: 0, fontWeight: 800, fontSize: 15, color: "#1A2744" }}>{member.name ?? member.label}</p>
-                        <p style={{ margin: 0, fontSize: 11.5, color: "#9AA0AD" }}>{member.label}</p>
+                        <p style={{ margin: 0, fontWeight: 800, fontSize: 15, color: "#1A2744" }}>{isSelf ? user.name ?? "You" : member.name ?? member.label}</p>
+                        <p style={{ margin: 0, fontSize: 11.5, color: "#9AA0AD" }}>{isSelf ? "You" : member.label}</p>
                         <span style={{ display: "inline-flex", alignItems: "center", gap: 5, marginTop: 6, background: tier.bg, color: tier.textColor, fontSize: 10.5, fontWeight: 700, padding: "3px 10px", borderRadius: 99 }}>
                           {score !== null && (
                             score >= 40
@@ -317,7 +344,8 @@ export default function FamilyOverviewPage() {
                   <button
                     onClick={(event) => {
                       event.stopPropagation();
-                      setSelectedMember(member);
+                      if (isSelf) openSelfProfile();
+                      else setSelectedMember(member);
                     }}
                     style={{
                       width: "100%", marginTop: 18, padding: "10px 0", border: `1.5px solid ${tier.border}`, borderRadius: 14,
@@ -326,7 +354,7 @@ export default function FamilyOverviewPage() {
                       fontFamily: "'Plus Jakarta Sans', sans-serif",
                     }}
                   >
-                    View Details <CaretRight size={13} weight="bold" />
+                    {isSelf ? "View Dashboard" : "View Details"} <CaretRight size={13} weight="bold" />
                   </button>
                 </div>
               );
@@ -451,7 +479,13 @@ export default function FamilyOverviewPage() {
         <AddFamilyModal
           onClose={() => setShowAddFamily(false)}
           onAdded={(member) => {
-            setMemberRows((rows) => [...rows, { member, summary: null, logs: [] }]);
+            setMemberRows((rows) => {
+              const idx = rows.findIndex((r) => r.member.id === member.id);
+              if (idx === -1) return [...rows, { member, summary: null, logs: [] }];
+              const next = [...rows];
+              next[idx] = { ...next[idx], member };
+              return next;
+            });
             captureEvent("family_member_added", {
               member_id: member.id,
               member_status: member.status,
@@ -459,6 +493,7 @@ export default function FamilyOverviewPage() {
               source: "family_overview",
             });
           }}
+          onActivated={() => loadFamilyOverview(true)}
         />
       )}
     </div>

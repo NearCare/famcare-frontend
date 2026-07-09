@@ -1,25 +1,15 @@
 /**
  * Typed API client for the FamCare backend.
- *
- * Set NEXT_PUBLIC_API_URL in .env.local to point at the Ktor server.
- * Default: http://localhost:8080  (backend should run on 8080 in dev
- *          so it doesn't clash with the Next.js dev server on 3000).
+ * API calls use same-origin paths; production routing/proxy decides where
+ * `/api`, `/auth`, `/family`, and other backend routes resolve.
  */
 
-const configuredApiUrl =
-  typeof process !== "undefined" ? process.env.NEXT_PUBLIC_API_URL : undefined;
+import { captureEvent } from "./analytics";
+
 const isProductionBuild =
   typeof process !== "undefined" && process.env.NODE_ENV === "production";
 
-if (!configuredApiUrl && isProductionBuild) {
-  console.error(
-    "[famcare] NEXT_PUBLIC_API_URL is not set in a production build — falling back to " +
-    "http://localhost:8080, which will not reach the real backend. Set NEXT_PUBLIC_API_URL " +
-    "in the deployment environment."
-  );
-}
-
-const BASE_URL = configuredApiUrl || "http://localhost:8080";
+const BASE_URL = "";
 
 /**
  * Set NEXT_PUBLIC_MOCK_API=true in .env.local to bypass the backend
@@ -152,16 +142,43 @@ export type Summary = {
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
+/**
+ * Logs the real reason a request failed. A bare `fetch` throws the same
+ * generic TypeError for a CORS/proxy issue, a timeout, or being offline —
+ * this records which context/path/status it actually was so reports of
+ * failures come with real diagnostic info instead of none at all. Does not
+ * change what's thrown to the caller.
+ */
+function logRequestFailure(
+  context: string,
+  path: string,
+  info: { status?: number; error?: unknown },
+) {
+  captureEvent("api_request_failed", {
+    context,
+    path,
+    status: info.status,
+    error_name: info.error instanceof Error ? info.error.name : undefined,
+    error_message: info.error instanceof Error ? info.error.message : undefined,
+  });
+}
+
 async function apiFetch<T>(path: string): Promise<T> {
   const token = typeof window !== "undefined" ? localStorage.getItem("auth_token") : null;
 
-  const res = await fetch(`${BASE_URL}${path}`, {
-    headers: {
-      Accept: "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-    cache: "no-store",
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${BASE_URL}${path}`, {
+      headers: {
+        Accept: "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      cache: "no-store",
+    });
+  } catch (err) {
+    logRequestFailure("apiFetch", path, { error: err });
+    throw err;
+  }
 
   if (res.status === 401 || res.status === 403) {
     if (typeof window !== "undefined") {
@@ -171,6 +188,7 @@ async function apiFetch<T>(path: string): Promise<T> {
   }
 
   if (!res.ok) {
+    logRequestFailure("apiFetch", path, { status: res.status });
     throw new Error(`API ${path} → ${res.status} ${res.statusText}`);
   }
 
@@ -183,6 +201,36 @@ export type AuthResponse = {
   token: string;
   user: User;
 };
+
+export async function getCurrentUser(token?: string): Promise<User | null> {
+  if (MOCK_API) return MOCK_USER;
+  const sessionToken =
+    token ?? (typeof window !== "undefined" ? localStorage.getItem("auth_token") ?? "" : "");
+  if (!sessionToken) return null;
+
+  let res: Response;
+  try {
+    res = await fetch(`${BASE_URL}/auth/me`, {
+      headers: {
+        Accept: "application/json",
+        Authorization: `Bearer ${sessionToken}`,
+      },
+      cache: "no-store",
+    });
+  } catch (err) {
+    logRequestFailure("getCurrentUser", "/auth/me", { error: err });
+    throw err;
+  }
+
+  if (res.status === 401 || res.status === 403) return null;
+
+  if (!res.ok) {
+    logRequestFailure("getCurrentUser", "/auth/me", { status: res.status });
+    throw new Error(`Session check failed: ${res.status} ${res.statusText}`);
+  }
+
+  return res.json() as Promise<User>;
+}
 
 /**
  * Sends a 6-digit OTP to the given WhatsApp number.
@@ -197,12 +245,14 @@ export async function sendOtp(phone: string): Promise<void> {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ phone }),
     });
-  } catch {
+  } catch (err) {
+    logRequestFailure("sendOtp", "/auth/send-otp", { error: err });
     throw new Error("Network error. Please check your connection and try again.");
   }
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     const message = (err as { error?: string }).error;
+    logRequestFailure("sendOtp", "/auth/send-otp", { status: res.status });
     if (res.status === 429) throw new Error(message ?? "Too many OTP requests today. Please try again tomorrow.");
     if (res.status === 400) throw new Error(message ?? "That doesn't look like a valid phone number.");
     throw new Error(message ?? "Couldn't send the OTP right now. Please try again in a moment.");
@@ -225,12 +275,14 @@ export async function verifyOtp(
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ phone, code }),
     });
-  } catch {
+  } catch (err) {
+    logRequestFailure("verifyOtp", "/auth/verify-otp", { error: err });
     throw new Error("Network error. Please check your connection and try again.");
   }
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     const message = (err as { error?: string }).error;
+    logRequestFailure("verifyOtp", "/auth/verify-otp", { status: res.status });
     if (res.status === 401) throw new Error(message ?? "That code is incorrect or has expired. Request a new one.");
     if (res.status === 400) throw new Error(message ?? "Please enter the 6-digit code sent to your WhatsApp.");
     throw new Error(message ?? "Couldn't verify your code right now. Please try again.");
@@ -245,13 +297,21 @@ export async function updateUserGoals(
   token: string,
 ): Promise<User> {
   if (MOCK_API) return { ...MOCK_USER, ...goals };
-  const res = await fetch(`${BASE_URL}/api/users/${userId}/goals`, {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-    body: JSON.stringify(goals),
-  });
+  const path = `/api/users/${userId}/goals`;
+  let res: Response;
+  try {
+    res = await fetch(`${BASE_URL}${path}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify(goals),
+    });
+  } catch (err) {
+    logRequestFailure("updateUserGoals", path, { error: err });
+    throw err;
+  }
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
+    logRequestFailure("updateUserGoals", path, { status: res.status });
     throw new Error((err as { error?: string }).error ?? "Failed to update goals");
   }
   return res.json() as Promise<User>;
@@ -260,13 +320,21 @@ export async function updateUserGoals(
 /** Sets the caller's display name. Used by the first-login onboarding step. */
 export async function updateUserName(userId: number, name: string, token: string): Promise<User> {
   if (MOCK_API) return { ...MOCK_USER, name };
-  const res = await fetch(`${BASE_URL}/api/users/${userId}`, {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ name }),
-  });
+  const path = `/api/users/${userId}`;
+  let res: Response;
+  try {
+    res = await fetch(`${BASE_URL}${path}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ name }),
+    });
+  } catch (err) {
+    logRequestFailure("updateUserName", path, { error: err });
+    throw err;
+  }
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
+    logRequestFailure("updateUserName", path, { status: res.status });
     throw new Error((err as { error?: string }).error ?? "Failed to update name");
   }
   return res.json() as Promise<User>;
@@ -331,17 +399,24 @@ export type InviteFamilyResponse = {
 };
 
 async function authedFetch<T>(path: string, token: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(`${BASE_URL}${path}`, {
-    ...options,
-    headers: {
-      Accept: "application/json",
-      Authorization: `Bearer ${token}`,
-      ...(options?.headers ?? {}),
-    },
-    cache: "no-store",
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${BASE_URL}${path}`, {
+      ...options,
+      headers: {
+        Accept: "application/json",
+        Authorization: `Bearer ${token}`,
+        ...(options?.headers ?? {}),
+      },
+      cache: "no-store",
+    });
+  } catch (err) {
+    logRequestFailure("authedFetch", path, { error: err });
+    throw err;
+  }
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
+    logRequestFailure("authedFetch", path, { status: res.status });
     throw new Error((err as { error?: string }).error ?? `API ${path} → ${res.status}`);
   }
   return res.json() as Promise<T>;
@@ -536,6 +611,10 @@ export type CreateMedicineInput = {
   schedules: MedicineScheduleInput[];
 };
 
+export type UpdateMedicineInput = Partial<Omit<CreateMedicineInput, "patient_user_id">> & {
+  is_active?: boolean;
+};
+
 export type TodayDose = {
   id: string;
   medicine: Medicine;
@@ -569,6 +648,20 @@ export async function createMedicine(input: CreateMedicineInput, token: string):
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(input),
+  });
+}
+
+export async function updateMedicine(medicineId: number, input: UpdateMedicineInput, token: string): Promise<Medicine> {
+  return authedFetch<Medicine>(`/api/medicines/${medicineId}`, token, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+}
+
+export async function deleteMedicine(medicineId: number, token: string): Promise<void> {
+  await authedFetch<{ archived: boolean }>(`/api/medicines/${medicineId}`, token, {
+    method: "DELETE",
   });
 }
 

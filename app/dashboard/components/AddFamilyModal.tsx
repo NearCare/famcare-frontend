@@ -27,6 +27,7 @@ export default function AddFamilyModal({ onClose, onAdded, onActivated }: Props)
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const phone = `+91${rawPhone}`;
+  const sentMemberId = sentMember?.id;
 
   async function handleInvite(e: React.FormEvent) {
     e.preventDefault();
@@ -39,7 +40,12 @@ export default function AddFamilyModal({ onClose, onAdded, onActivated }: Props)
     try {
       const invite = await inviteFamilyMember(phone, label.trim(), type, token);
       setSentMember(invite.member);
-      onAdded(invite.member);
+      // OTP flow adds the card only once verified (handleVerifyOtp) — adding it
+      // here too would show a duplicate card for the same person. The "sent"
+      // (WhatsApp YES) flow still shows a pending card while waiting.
+      if (invite.method !== "otp") {
+        onAdded(invite.member);
+      }
       setStep(invite.method === "otp" ? "otp" : "sent");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to send invite");
@@ -70,7 +76,7 @@ export default function AddFamilyModal({ onClose, onAdded, onActivated }: Props)
 
   // Poll for the family member replying YES, then animate to success and refresh the dashboard.
   useEffect(() => {
-    if (step !== "sent" || !sentMember) return;
+    if (step !== "sent" || !sentMemberId) return;
 
     const token = localStorage.getItem("auth_token") ?? "";
     const startedAt = Date.now();
@@ -82,7 +88,7 @@ export default function AddFamilyModal({ onClose, onAdded, onActivated }: Props)
       }
       try {
         const members = await getFamilyMembers(token);
-        const updated = members.find(m => m.id === sentMember.id);
+        const updated = members.find(m => m.id === sentMemberId);
         if (updated?.status === "active") {
           if (pollRef.current) clearInterval(pollRef.current);
           setSentMember(updated);
@@ -98,7 +104,7 @@ export default function AddFamilyModal({ onClose, onAdded, onActivated }: Props)
     return () => {
       if (pollRef.current) clearInterval(pollRef.current);
     };
-  }, [step, sentMember?.id, onAdded, onActivated]);
+  }, [step, sentMemberId, onAdded, onActivated]);
 
   // Auto-close shortly after the success animation plays.
   useEffect(() => {
