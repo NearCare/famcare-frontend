@@ -66,7 +66,6 @@ type SelectOption = {
 type MedicineForm = {
   personId: string;
   name: string;
-  strength: string;
   dose: string;
   form: "Tablet" | "Capsule" | "Syrup" | "Injection";
   dayPart: DayPart;
@@ -97,11 +96,15 @@ const todayISO = () => new Date().toLocaleDateString("en-CA");
 const defaultForm = (personId: string): MedicineForm => ({
   personId,
   name: "",
-  strength: "",
   dose: "",
   form: "Tablet",
   dayPart: "Morning",
-  times: [],
+  times: [
+    { dayPart: "Morning", time: "08:00" },
+    { dayPart: "Afternoon", time: "13:00" },
+    { dayPart: "Evening", time: "17:00" },
+    { dayPart: "Night", time: "22:00" },
+  ],
   startDate: todayISO(),
   endDate: "",
   daysOfWeek: [0, 1, 2, 3, 4, 5, 6],
@@ -111,8 +114,8 @@ const defaultForm = (personId: string): MedicineForm => ({
 const DEFAULT_TIMES_BY_DAY_PART: Record<DayPart, string> = {
   Morning: "08:00",
   Afternoon: "13:00",
-  Evening: "18:00",
-  Night: "21:00",
+  Evening: "17:00",
+  Night: "22:00",
 };
 
 function normalizeQuarterHourTime(value: string) {
@@ -166,7 +169,6 @@ function formFromMedicine(medicine: Medicine, personId: string): MedicineForm {
   return {
     personId,
     name: medicine.name,
-    strength: medicine.strength ?? "",
     dose: medicine.dose === "As prescribed" ? "" : medicine.dose,
     form: toUiForm(medicine.form),
     dayPart: firstSchedule ? dayPartForTime(firstSchedule.time_of_day) : "Morning",
@@ -428,7 +430,6 @@ function AddMedicineDrawer({
     void onSave({
       ...form,
       name: form.name.trim(),
-      strength: form.strength.trim(),
       dose: form.dose.trim(),
     });
   };
@@ -448,6 +449,13 @@ function AddMedicineDrawer({
       : [...form.daysOfWeek, day].sort((a, b) => a - b);
     update("daysOfWeek", nextDays);
   };
+  const weeklySelected = form.daysOfWeek.length === WEEK_DAYS.length;
+  const toggleWeekly = () => {
+    update("daysOfWeek", weeklySelected ? [] : WEEK_DAYS.map((day) => day.value));
+  };
+  const selectedTimes = form.times
+    .map((schedule, index) => ({ schedule, index }))
+    .filter(({ schedule }) => schedule.dayPart === form.dayPart);
 
   return (
     <div style={{ position: "fixed", inset: 0, zIndex: 400 }}>
@@ -506,15 +514,10 @@ function AddMedicineDrawer({
               <FieldError>{submitted && errors.name}</FieldError>
             </div>
             <div>
-              <FieldLabel>Strength</FieldLabel>
-              <TextField value={form.strength} onChange={(value) => update("strength", value)} placeholder="500 mg" />
+              <FieldLabel>Dose</FieldLabel>
+              <TextField value={form.dose} onChange={(value) => update("dose", value)} placeholder="e.g. 1 tablet" error={submitted && Boolean(errors.dose)} />
+              <FieldError>{submitted && errors.dose}</FieldError>
             </div>
-          </div>
-
-          <div>
-            <FieldLabel>Dose</FieldLabel>
-            <TextField value={form.dose} onChange={(value) => update("dose", value)} placeholder="e.g. 1 tablet after breakfast" error={submitted && Boolean(errors.dose)} />
-            <FieldError>{submitted && errors.dose}</FieldError>
           </div>
 
           <div>
@@ -572,7 +575,7 @@ function AddMedicineDrawer({
               })}
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
-              {form.times.map((schedule, index) => (
+              {selectedTimes.map(({ schedule, index }) => (
                 <div
                   key={`${schedule.dayPart}-${schedule.time}-${index}`}
                   style={{ display: "flex", alignItems: "center", gap: 9, border: "1.5px solid var(--he-blue-bg-2)", borderRadius: 12, background: "var(--he-blue-bg)", padding: "8px 9px" }}
@@ -598,18 +601,24 @@ function AddMedicineDrawer({
                   </button>
                 </div>
               ))}
-              <button
-                onClick={addScheduleTime}
-                style={{ height: 40, border: "1.5px dashed var(--he-green)", borderRadius: 12, background: "#fff", color: "var(--he-green-deep)", padding: "0 12px", fontFamily: "inherit", fontSize: 12.5, fontWeight: 800, cursor: "pointer" }}
-              >
-                + Schedule {form.dayPart.toLowerCase()} time
-              </button>
+              {selectedTimes.length === 0 && (
+                <button
+                  onClick={addScheduleTime}
+                  style={{ height: 40, border: "1.5px dashed var(--he-green)", borderRadius: 12, background: "#fff", color: "var(--he-green-deep)", padding: "0 12px", fontFamily: "inherit", fontSize: 12.5, fontWeight: 800, cursor: "pointer" }}
+                >
+                  + Schedule {form.dayPart.toLowerCase()} time
+                </button>
+              )}
               <FieldError>{submitted && errors.times}</FieldError>
             </div>
           </div>
 
           <div>
             <FieldLabel>Repeat on</FieldLabel>
+            <label style={{ display: "inline-flex", alignItems: "center", gap: 8, marginBottom: 10, color: "var(--he-ink-2)", fontSize: 12.5, fontWeight: 800, cursor: "pointer" }}>
+              <input type="checkbox" checked={weeklySelected} onChange={toggleWeekly} />
+              Weekly
+            </label>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(7, minmax(0, 1fr))", gap: 7 }}>
               {WEEK_DAYS.map((day) => {
                 const active = form.daysOfWeek.includes(day.value);
@@ -890,7 +899,7 @@ function MedicationsContent() {
       const payload = {
         patient_user_id: person.userId,
         name: form.name,
-        strength: form.strength || null,
+        strength: null,
         form: toApiForm(form.form),
         dose: form.dose,
         timing: "anytime",
