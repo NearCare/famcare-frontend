@@ -437,18 +437,14 @@ function AddMedicineDrawer({
     });
   };
 
-  const addScheduleTime = (dayPart: DayPart = form.dayPart) => {
-    update("times", [...form.times, { dayPart, time: DEFAULT_TIMES_BY_DAY_PART[dayPart] }]);
-  };
-
-  const selectDayPart = (dayPart: DayPart) => {
+  const toggleDayPartReminder = (dayPart: DayPart) => {
     setForm((current) => {
       const hasTime = current.times.some((schedule) => schedule.dayPart === dayPart);
       return {
         ...current,
         dayPart,
         times: hasTime
-          ? current.times
+          ? current.times.filter((schedule) => schedule.dayPart !== dayPart)
           : [...current.times, { dayPart, time: DEFAULT_TIMES_BY_DAY_PART[dayPart] }],
       };
     });
@@ -471,7 +467,7 @@ function AddMedicineDrawer({
   };
   const selectedTimes = form.times
     .map((schedule, index) => ({ schedule, index }))
-    .filter(({ schedule }) => schedule.dayPart === form.dayPart);
+    .sort((a, b) => DAY_PARTS.indexOf(a.schedule.dayPart) - DAY_PARTS.indexOf(b.schedule.dayPart));
 
   return (
     <div style={{ position: "fixed", inset: 0, zIndex: 400 }}>
@@ -537,7 +533,7 @@ function AddMedicineDrawer({
           </div>
 
           <div>
-            <FieldLabel required>Form</FieldLabel>
+            <FieldLabel>Form</FieldLabel>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8 }}>
               {(["Tablet", "Capsule", "Syrup", "Injection"] as MedicineForm["form"][]).map((option) => {
                 const active = form.form === option;
@@ -569,14 +565,14 @@ function AddMedicineDrawer({
             <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8, marginBottom: 10 }}>
               {DAY_PARTS.map((option) => {
                 const hasReminder = form.times.some((schedule) => schedule.dayPart === option);
-                const selected = form.dayPart === option;
                 return (
                   <button
                     key={option}
-                    onClick={() => selectDayPart(option)}
+                    onClick={() => toggleDayPartReminder(option)}
+                    aria-pressed={hasReminder}
                     style={{
                       height: 36,
-                      border: `1.5px solid ${selected ? "var(--he-green-deep)" : hasReminder ? "var(--he-green)" : "var(--he-card-border)"}`,
+                      border: `1.5px solid ${hasReminder ? "var(--he-green)" : "var(--he-card-border)"}`,
                       borderRadius: 11,
                       background: hasReminder ? "var(--he-green-bg)" : "#fff",
                       color: hasReminder ? "var(--he-green-deep)" : "var(--he-ink-2)",
@@ -584,7 +580,6 @@ function AddMedicineDrawer({
                       fontSize: 11.5,
                       fontWeight: 800,
                       cursor: "pointer",
-                      boxShadow: selected ? "0 0 0 3px rgba(32, 168, 101, .12)" : "none",
                     }}
                   >
                     {option}
@@ -617,19 +612,16 @@ function AddMedicineDrawer({
                   <button
                     onClick={() => removeScheduleTime(index)}
                     aria-label={`Remove time ${index + 1}`}
-                    style={{ height: 34, border: "1px solid #CFEFDC", borderRadius: 10, background: "#fff", color: "var(--he-green-deep)", padding: "0 10px", fontFamily: "inherit", fontSize: 12, fontWeight: 800, cursor: "pointer" }}
+                    style={{ height: 34, border: "1px solid #FFD7D7", borderRadius: 10, background: "#fff", color: "var(--he-coral-deep)", padding: "0 10px", fontFamily: "inherit", fontSize: 12, fontWeight: 800, cursor: "pointer" }}
                   >
                     Remove
                   </button>
                 </div>
               ))}
               {selectedTimes.length === 0 && (
-                <button
-                  onClick={() => addScheduleTime()}
-                  style={{ height: 40, border: "1.5px dashed var(--he-green)", borderRadius: 12, background: "#fff", color: "var(--he-green-deep)", padding: "0 12px", fontFamily: "inherit", fontSize: 12.5, fontWeight: 800, cursor: "pointer" }}
-                >
-                  + Schedule {form.dayPart.toLowerCase()} time
-                </button>
+                <div style={{ border: "1.5px dashed var(--he-card-border)", borderRadius: 12, background: "#fff", color: "var(--he-ink-3)", padding: "11px 12px", fontSize: 12.5, fontWeight: 800 }}>
+                  Select at least one reminder time.
+                </div>
               )}
               <FieldError>{submitted && errors.times}</FieldError>
             </div>
