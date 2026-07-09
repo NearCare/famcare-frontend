@@ -531,10 +531,10 @@ function AddMedicineDrawer({
                     onClick={() => update("form", option)}
                     style={{
                       height: 36,
-                      border: `1.5px solid ${active ? "var(--he-coral)" : "var(--he-card-border)"}`,
+                      border: `1.5px solid ${active ? "var(--he-green)" : "var(--he-card-border)"}`,
                       borderRadius: 11,
-                      background: active ? "var(--he-coral-bg)" : "#fff",
-                      color: active ? "var(--he-coral-deep)" : "var(--he-ink-2)",
+                      background: active ? "var(--he-green-bg)" : "#fff",
+                      color: active ? "var(--he-green-deep)" : "var(--he-ink-2)",
                       fontFamily: "inherit",
                       fontSize: 11.5,
                       fontWeight: 800,
@@ -559,10 +559,10 @@ function AddMedicineDrawer({
                     onClick={() => update("dayPart", option)}
                     style={{
                       height: 36,
-                      border: `1.5px solid ${active ? "var(--he-blue-deep)" : "var(--he-card-border)"}`,
+                      border: `1.5px solid ${active ? "var(--he-green)" : "var(--he-card-border)"}`,
                       borderRadius: 11,
-                      background: active ? "var(--he-blue-bg)" : "#fff",
-                      color: active ? "var(--he-blue-deep)" : "var(--he-ink-2)",
+                      background: active ? "var(--he-green-bg)" : "#fff",
+                      color: active ? "var(--he-green-deep)" : "var(--he-ink-2)",
                       fontFamily: "inherit",
                       fontSize: 11.5,
                       fontWeight: 800,
@@ -578,9 +578,9 @@ function AddMedicineDrawer({
               {selectedTimes.map(({ schedule, index }) => (
                 <div
                   key={`${schedule.dayPart}-${schedule.time}-${index}`}
-                  style={{ display: "flex", alignItems: "center", gap: 9, border: "1.5px solid var(--he-blue-bg-2)", borderRadius: 12, background: "var(--he-blue-bg)", padding: "8px 9px" }}
+                  style={{ display: "flex", alignItems: "center", gap: 9, border: "1.5px solid #CFEFDC", borderRadius: 12, background: "var(--he-green-bg)", padding: "8px 9px" }}
                 >
-                  <span style={{ minWidth: 76, color: "var(--he-blue-deep)", fontSize: 12, fontWeight: 800 }}>{schedule.dayPart}</span>
+                  <span style={{ minWidth: 76, color: "var(--he-green-deep)", fontSize: 12, fontWeight: 800 }}>{schedule.dayPart}</span>
                   <select
                     value={schedule.time}
                     onChange={(e) => {
@@ -588,7 +588,7 @@ function AddMedicineDrawer({
                       next[index] = { ...schedule, time: e.target.value };
                       update("times", next);
                     }}
-                    style={{ height: 34, border: "1px solid #CFE4FF", borderRadius: 10, background: "#fff", padding: "0 10px", color: "var(--he-blue-deep)", fontWeight: 800, fontFamily: "inherit", flex: 1, cursor: "pointer" }}
+                    style={{ height: 34, border: "1px solid #CFEFDC", borderRadius: 10, background: "#fff", padding: "0 10px", color: "var(--he-green-deep)", fontWeight: 800, fontFamily: "inherit", flex: 1, cursor: "pointer" }}
                   >
                     {QUARTER_HOUR_TIME_OPTIONS.map((option) => (
                       <option key={option.value} value={option.value}>
@@ -599,7 +599,7 @@ function AddMedicineDrawer({
                   <button
                     onClick={() => removeScheduleTime(index)}
                     aria-label={`Remove time ${index + 1}`}
-                    style={{ height: 34, border: "1px solid #FFD7D7", borderRadius: 10, background: "#fff", color: "var(--he-coral-deep)", padding: "0 10px", fontFamily: "inherit", fontSize: 12, fontWeight: 800, cursor: "pointer" }}
+                    style={{ height: 34, border: "1px solid #CFEFDC", borderRadius: 10, background: "#fff", color: "var(--he-green-deep)", padding: "0 10px", fontFamily: "inherit", fontSize: 12, fontWeight: 800, cursor: "pointer" }}
                   >
                     Remove
                   </button>
