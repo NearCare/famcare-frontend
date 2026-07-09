@@ -119,18 +119,6 @@ const DEFAULT_TIMES_BY_DAY_PART: Record<DayPart, string> = {
   Night: "22:00",
 };
 
-function normalizeQuarterHourTime(value: string) {
-  const [hourPart = "0", minutePart = "0"] = value.split(":");
-  const hour = Number(hourPart);
-  const minute = Number(minutePart);
-  if (!Number.isFinite(hour) || !Number.isFinite(minute)) return value;
-
-  const roundedMinute = Math.round(minute / 15) * 15;
-  const normalizedHour = (hour + Math.floor(roundedMinute / 60)) % 24;
-  const normalizedMinute = roundedMinute % 60;
-  return `${String(normalizedHour).padStart(2, "0")}:${String(normalizedMinute).padStart(2, "0")}`;
-}
-
 const WEEK_DAYS: WeekDay[] = [
   { value: 0, label: "Sunday", short: "Sun" },
   { value: 1, label: "Monday", short: "Mon" },
@@ -201,6 +189,17 @@ function formatTimeLabel(timeOfDay: string) {
   const hour12 = hour % 12 || 12;
   return `${hour12.toString().padStart(2, "0")}:${minute.toString().padStart(2, "0")} ${period}`;
 }
+
+const QUARTER_HOUR_TIME_OPTIONS = Array.from({ length: 24 * 4 }, (_, index) => {
+  const totalMinutes = index * 15;
+  const hour = Math.floor(totalMinutes / 60);
+  const minute = totalMinutes % 60;
+  const value = `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+  return {
+    value,
+    label: formatTimeLabel(value).toUpperCase(),
+  };
+});
 
 function statusLabel(status: TodayDose["status"]) {
   if (status === "taken") return "Taken";
@@ -582,17 +581,21 @@ function AddMedicineDrawer({
                   style={{ display: "flex", alignItems: "center", gap: 9, border: "1.5px solid var(--he-blue-bg-2)", borderRadius: 12, background: "var(--he-blue-bg)", padding: "8px 9px" }}
                 >
                   <span style={{ minWidth: 76, color: "var(--he-blue-deep)", fontSize: 12, fontWeight: 800 }}>{schedule.dayPart}</span>
-                  <input
-                    type="time"
-                    step={900}
+                  <select
                     value={schedule.time}
                     onChange={(e) => {
                       const next = [...form.times];
-                      next[index] = { ...schedule, time: normalizeQuarterHourTime(e.target.value) };
+                      next[index] = { ...schedule, time: e.target.value };
                       update("times", next);
                     }}
-                    style={{ height: 34, border: "1px solid #CFE4FF", borderRadius: 10, background: "#fff", padding: "0 10px", color: "var(--he-blue-deep)", fontWeight: 800, fontFamily: "inherit", flex: 1 }}
-                  />
+                    style={{ height: 34, border: "1px solid #CFE4FF", borderRadius: 10, background: "#fff", padding: "0 10px", color: "var(--he-blue-deep)", fontWeight: 800, fontFamily: "inherit", flex: 1, cursor: "pointer" }}
+                  >
+                    {QUARTER_HOUR_TIME_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
                   <button
                     onClick={() => removeScheduleTime(index)}
                     aria-label={`Remove time ${index + 1}`}
