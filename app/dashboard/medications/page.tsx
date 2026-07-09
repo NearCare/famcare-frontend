@@ -94,6 +94,11 @@ type ScheduleRow = {
 
 const todayISO = () => new Date().toLocaleDateString("en-CA");
 
+const isFutureDose = (dose: TodayDose, nowMs: number) => {
+  const scheduledMs = new Date(dose.scheduled_for).getTime();
+  return Number.isFinite(scheduledMs) && scheduledMs > nowMs;
+};
+
 const defaultForm = (personId: string): MedicineForm => ({
   personId,
   name: "",
@@ -781,6 +786,7 @@ function MedicationsContent() {
   const [showCalendar, setShowCalendar] = useState(false);
   const [markingDoseId, setMarkingDoseId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [nowMs, setNowMs] = useState(() => Date.now());
 
   useEffect(() => {
     (async () => {
@@ -823,6 +829,11 @@ function MedicationsContent() {
   }, [requestedPersonId]);
 
   useEffect(() => {
+    const timer = window.setInterval(() => setNowMs(Date.now()), 30_000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
     let cancelled = false;
     (async () => {
       const selected = people.find((person) => person.id === selectedPersonId);
@@ -854,13 +865,17 @@ function MedicationsContent() {
 
   const selectedPerson = people.find((person) => person.id === selectedPersonId);
   const activeMedicines = useMemo(() => medicines.filter((medicine) => medicine.is_active), [medicines]);
+  const upcomingDoses = useMemo(
+    () => todayDoses.filter((dose) => dose.status === "upcoming" && isFutureDose(dose, nowMs)),
+    [todayDoses, nowMs],
+  );
   const hasMedicines = activeMedicines.length > 0;
   const activeCount = activeMedicines.length;
   const dosesToday = todayDoses.length;
   const completedDoses = todayDoses.filter((dose) => ["taken", "missed", "skipped"].includes(dose.status));
   const takenDoses = todayDoses.filter((dose) => dose.status === "taken");
   const adherence = completedDoses.length ? Math.round((takenDoses.length / completedDoses.length) * 100) : null;
-  const dueSoon = todayDoses.filter((dose) => dose.status === "due" || dose.status === "upcoming").length;
+  const dueSoon = upcomingDoses.length;
   const avatarLetter = (user?.name ?? "T").charAt(0).toUpperCase();
   const selectedPersonOptions = people.map((person) => ({
     value: person.id,
@@ -898,7 +913,7 @@ function MedicationsContent() {
     });
   }, [activeMedicines]);
 
-  const scheduleRows: ScheduleRow[] = todayDoses.map((dose, index) => ({
+  const scheduleRows: ScheduleRow[] = upcomingDoses.map((dose, index) => ({
     id: dose.id,
     medicineId: dose.medicine.id,
     scheduleId: dose.schedule.id,
@@ -1212,17 +1227,34 @@ function MedicationsContent() {
                 <div style={{ width: 72, height: 72, borderRadius: 24, background: "var(--he-green-bg)", display: "grid", placeItems: "center", margin: "0 auto 18px" }}>
                   <CalendarBlank size={34} weight="bold" color="var(--he-green-deep)" />
                 </div>
-                <h3 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: "var(--he-ink-1)", letterSpacing: "-.4px" }}>No doses scheduled today</h3>
+                <h3 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: "var(--he-ink-1)", letterSpacing: "-.4px" }}>No upcoming doses today</h3>
                 <p style={{ margin: "8px auto 0", maxWidth: 500, fontSize: 14, lineHeight: 1.65, color: "var(--he-ink-2)", fontWeight: 500 }}>
-                  Medicines are saved for {displayName(selectedPerson)}, but none are due on today&apos;s schedule.
+                  Medicines are saved for {displayName(selectedPerson)}, but the remaining schedule for today is clear.
                 </p>
               </div>
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                 {scheduleRows.map((row) => {
                   const colors = toneColors(row.tone);
+                  const rowMedicine = activeMedicines.find((medicine) => medicine.id === row.medicineId);
+                  const openRowMedicine = () => {
+                    if (rowMedicine) openEdit(rowMedicine);
+                  };
                   return (
-                    <div key={row.id} className="med-dose-row">
+                    <div
+                      key={row.id}
+                      className="med-dose-row"
+                      role="button"
+                      tabIndex={0}
+                      onClick={openRowMedicine}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" || event.key === " ") {
+                          event.preventDefault();
+                          openRowMedicine();
+                        }
+                      }}
+                      style={{ cursor: rowMedicine ? "pointer" : "default" }}
+                    >
                       <div style={{ width: 64, height: 56, borderRadius: 13, background: colors.bg, color: colors.text, display: "grid", placeItems: "center", fontSize: 14, fontWeight: 800, lineHeight: 1.2, textAlign: "center", flex: "none" }}>
                         {row.timeLabel.replace(" ", "\n")}
                       </div>
@@ -1238,7 +1270,10 @@ function MedicationsContent() {
                       <span style={{ background: colors.bg, color: colors.text, borderRadius: 99, padding: "7px 12px", fontSize: 12, fontWeight: 800, whiteSpace: "nowrap" }}>{row.status}</span>
                       {row.canMarkTaken ? (
                         <button
-                          onClick={() => markTaken(row)}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            markTaken(row);
+                          }}
                           disabled={markingDoseId === row.id}
                           style={{ border: "none", borderRadius: 999, padding: "8px 12px", background: "var(--he-green-bg)", color: "var(--he-green-deep)", fontFamily: "inherit", fontSize: 12, fontWeight: 800, cursor: markingDoseId === row.id ? "wait" : "pointer", whiteSpace: "nowrap" }}
                         >

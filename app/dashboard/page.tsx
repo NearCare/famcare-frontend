@@ -50,6 +50,15 @@ function rangeAverages(logs: HealthLog[], minDaysAgo: number, maxDaysAgo: number
   return { steps: avg("steps"), protein: avg("protein_g"), calories: avg("calories") };
 }
 
+function withOpacity(hexColor: string, opacity: number) {
+  const normalized = hexColor.replace("#", "");
+  if (!/^[0-9a-fA-F]{6}$/.test(normalized)) return hexColor;
+  const r = parseInt(normalized.slice(0, 2), 16);
+  const g = parseInt(normalized.slice(2, 4), 16);
+  const b = parseInt(normalized.slice(4, 6), 16);
+  return `rgba(${r}, ${g}, ${b}, ${opacity})`;
+}
+
 function Sparkline({ data, color }: { data: number[]; color: string }) {
   const w = 68, h = 20;
   const max = Math.max(...data, 1);
@@ -939,6 +948,8 @@ export default function DashboardPage() {
                   : tier.label === "Action required"
                   ? "danger"
                   : "neutral";
+                const unselectedBorderStart = withOpacity(tier.border, 0.7);
+                const unselectedBorderEnd = withOpacity(tier.ring, 0.7);
                 const selectProfile = () => {
                   setSelectedCardId(cardId);
                   captureEvent("dashboard_profile_selected", {
@@ -965,7 +976,7 @@ export default function DashboardPage() {
                       background:
                         isSelectedCard
                           ? `linear-gradient(165deg, ${tier.bg} 0%, #fff 55%)`
-                          : `linear-gradient(165deg, ${tier.bg} 0%, #fff 55%) padding-box, linear-gradient(135deg, ${tier.border}, ${tier.ring}) border-box`,
+                          : `linear-gradient(165deg, ${tier.bg} 0%, #fff 55%) padding-box, linear-gradient(135deg, ${unselectedBorderStart}, ${unselectedBorderEnd}) border-box`,
                       borderRadius: 24, border: isSelectedCard ? "none" : "1.5px solid transparent",
                       boxShadow: "0 4px 16px rgba(26,20,20,.05)", padding: "22px 22px 20px",
                       cursor: "pointer",
