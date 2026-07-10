@@ -5,6 +5,7 @@ import { useState, useEffect, useRef } from "react";
 import { getCurrentUser, sendOtp, verifyOtp } from "@/lib/api";
 
 type Step = "phone" | "otp";
+const EMPTY_OTP = ["", "", "", ""];
 
 function ButtonLoader({ label }: { label: string }) {
   return (
@@ -78,17 +79,18 @@ export default function LoginPage() {
   const router = useRouter();
   const [step, setStep] = useState<Step>("phone");
   const [phone, setPhone] = useState("");
-  const [otp, setOtp] = useState("");
+  const [otpDigits, setOtpDigits] = useState<string[]>(EMPTY_OTP);
   const [checkingSession, setCheckingSession] = useState(true);
   const [loading, setLoading] = useState(false);
   const [redirecting, setRedirecting] = useState(false);
   const [error, setError] = useState("");
   const [resendTimer, setResendTimer] = useState(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const otpInputRef = useRef<HTMLInputElement>(null);
+  const otpInputRefs = useRef<Array<HTMLInputElement | null>>([]);
+  const otp = otpDigits.join("");
 
   useEffect(() => {
-    if (step === "otp") otpInputRef.current?.focus();
+    if (step === "otp") otpInputRefs.current[0]?.focus();
   }, [step]);
 
   useEffect(() => {
@@ -148,6 +150,44 @@ export default function LoginPage() {
 
   useEffect(() => () => { if (timerRef.current) clearInterval(timerRef.current); }, []);
 
+  function updateOtpDigits(index: number, rawValue: string) {
+    const digits = rawValue.replace(/\D/g, "").slice(0, 4);
+    setError("");
+
+    if (!digits) {
+      setOtpDigits(current => current.map((digit, digitIndex) => digitIndex === index ? "" : digit));
+      return;
+    }
+
+    setOtpDigits(current => {
+      const next = [...current];
+      digits.split("").forEach((digit, offset) => {
+        if (index + offset < next.length) next[index + offset] = digit;
+      });
+      return next;
+    });
+
+    const nextIndex = Math.min(index + digits.length, EMPTY_OTP.length - 1);
+    requestAnimationFrame(() => otpInputRefs.current[nextIndex]?.focus());
+  }
+
+  function handleOtpKeyDown(index: number, event: React.KeyboardEvent<HTMLInputElement>) {
+    if (event.key === "Backspace" && !otpDigits[index] && index > 0) {
+      event.preventDefault();
+      setOtpDigits(current => current.map((digit, digitIndex) => digitIndex === index - 1 ? "" : digit));
+      otpInputRefs.current[index - 1]?.focus();
+    }
+    if (event.key === "ArrowLeft" && index > 0) otpInputRefs.current[index - 1]?.focus();
+    if (event.key === "ArrowRight" && index < EMPTY_OTP.length - 1) otpInputRefs.current[index + 1]?.focus();
+  }
+
+  function handleOtpPaste(index: number, event: React.ClipboardEvent<HTMLInputElement>) {
+    const digits = event.clipboardData.getData("text").replace(/\D/g, "").slice(0, EMPTY_OTP.length - index);
+    if (!digits) return;
+    event.preventDefault();
+    updateOtpDigits(index, digits);
+  }
+
   // ── Step 1: send OTP ────────────────────────────────────────────────────────
   async function handleSendOtp(e: React.FormEvent) {
     e.preventDefault();
@@ -174,7 +214,7 @@ export default function LoginPage() {
   async function handleVerifyOtp(e: React.FormEvent) {
     e.preventDefault();
     setError("");
-    if (otp.trim().length !== 6) return setError("OTP must be 6 digits");
+    if (otp.trim().length !== 4) return setError("OTP must be 4 digits");
 
     setLoading(true);
     let keepLoading = false;
@@ -344,34 +384,35 @@ export default function LoginPage() {
           <>
             <h2 style={{ fontSize: 26, fontWeight: 700, letterSpacing: "-.3px" }}>Enter your OTP</h2>
             <p style={{ marginTop: 6, fontSize: 14, color: "#6B7A9A" }}>
-              We sent a 6-digit code to <strong style={{ color: "#1A2744" }}>{phone}</strong> on WhatsApp.
+              We sent a 4-digit code to <strong style={{ color: "#1A2744" }}>{phone}</strong> on WhatsApp.
             </p>
 
             <form onSubmit={handleVerifyOtp} style={{ marginTop: 28, display: "flex", flexDirection: "column", gap: 16 }}>
-              <div style={{ position: "relative" }}>
-                <div style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", color: "#B0BFCC" }}>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-                    <rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" />
-                  </svg>
-                </div>
-                <input
-                  ref={otpInputRef}
-                  type="text"
-                  inputMode="numeric"
-                  maxLength={6}
-                  placeholder="123456"
-                  value={otp}
-                  onChange={e => { setOtp(e.target.value.replace(/\D/g, "")); setError(""); }}
-                  autoFocus
-                  style={{
-                    width: "100%", padding: "13px 14px 13px 44px",
-                    border: "1.5px solid #EDE6E6", borderRadius: 8,
-                    fontSize: 22, fontFamily: "'Courier New', monospace", letterSpacing: 8,
-                    color: "#1A2744", background: "#FAFAFA", outline: "none", boxSizing: "border-box",
-                  }}
-                  onFocus={e => { e.target.style.borderColor = "#E85C5C"; e.target.style.background = "#fff"; }}
-                  onBlur={e => { e.target.style.borderColor = "#EDE6E6"; e.target.style.background = "#FAFAFA"; }}
-                />
+              <div style={{ display: "flex", gap: 10, justifyContent: "space-between" }}>
+                  {otpDigits.map((digit, index) => (
+                    <input
+                      key={index}
+                      ref={element => { otpInputRefs.current[index] = element; }}
+                      type="text"
+                      inputMode="numeric"
+                      autoComplete={index === 0 ? "one-time-code" : "off"}
+                      aria-label={`OTP digit ${index + 1}`}
+                      maxLength={4}
+                      value={digit}
+                      onChange={event => updateOtpDigits(index, event.target.value)}
+                      onKeyDown={event => handleOtpKeyDown(index, event)}
+                      onPaste={event => handleOtpPaste(index, event)}
+                      style={{
+                        width: "calc((100% - 30px) / 4)", height: 58,
+                        border: `1.5px solid ${digit ? "#E85C5C" : "#EDE6E6"}`, borderRadius: 10,
+                        fontSize: 25, fontFamily: "'Courier New', monospace", fontWeight: 700,
+                        textAlign: "center", color: "#1A2744", background: digit ? "#FFF8F6" : "#FAFAFA",
+                        outline: "none", boxSizing: "border-box", transition: "border-color .2s, background .2s",
+                      }}
+                      onFocus={event => { event.target.style.borderColor = "#E85C5C"; event.target.style.background = "#fff"; }}
+                      onBlur={event => { event.target.style.borderColor = digit ? "#E85C5C" : "#EDE6E6"; event.target.style.background = digit ? "#FFF8F6" : "#FAFAFA"; }}
+                    />
+                  ))}
               </div>
 
               {error && (
@@ -380,12 +421,12 @@ export default function LoginPage() {
 
               <button
                 type="submit"
-                disabled={busy || otp.length !== 6}
+                disabled={busy || otp.length !== 4}
                 style={{
                   marginTop: 4, width: "100%", padding: 14,
-                  background: busy || otp.length !== 6 ? "#F0A0A0" : "#E85C5C", color: "#fff",
+                  background: busy || otp.length !== 4 ? "#F0A0A0" : "#E85C5C", color: "#fff",
                   border: "none", borderRadius: 8, fontSize: 15, fontWeight: 600,
-                  fontFamily: "inherit", cursor: busy || otp.length !== 6 ? "not-allowed" : "pointer",
+                  fontFamily: "inherit", cursor: busy || otp.length !== 4 ? "not-allowed" : "pointer",
                 }}
               >
                 {redirecting ? <ButtonLoader label="Opening dashboard…" /> : loading ? <ButtonLoader label="Verifying…" /> : "Verify & Log In"}
@@ -393,7 +434,7 @@ export default function LoginPage() {
 
               <button
                 type="button"
-                onClick={() => { setStep("phone"); setOtp(""); setError(""); setResendTimer(0); if (timerRef.current) clearInterval(timerRef.current); }}
+                onClick={() => { setStep("phone"); setOtpDigits(EMPTY_OTP); setError(""); setResendTimer(0); if (timerRef.current) clearInterval(timerRef.current); }}
                 disabled={busy}
                 style={{
                   width: "100%", padding: 13, border: "1.5px solid #EDE6E6", borderRadius: 8,
@@ -416,7 +457,7 @@ export default function LoginPage() {
                 <button
                   onClick={async () => {
                     setError("");
-                    setOtp("");
+                    setOtpDigits(EMPTY_OTP);
                     setLoading(true);
                     try { await sendOtp(phone); startResendTimer(); }
                     catch (e) { setError(e instanceof Error ? e.message : "Failed"); }
