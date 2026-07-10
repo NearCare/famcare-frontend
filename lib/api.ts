@@ -669,8 +669,86 @@ export type TodayDose = {
   marked_by_user_id: number | null;
 };
 
+const MOCK_TAKEN_SCHEDULE_IDS = new Set<number>([902]);
+
+function buildMockMedicationData(patientUserId: number): { medicines: Medicine[]; doses: TodayDose[] } {
+  const now = new Date();
+  const today = now.toLocaleDateString("en-CA");
+  const timestamp = now.toISOString();
+  const atOffset = (minutes: number) => new Date(now.getTime() + minutes * 60_000);
+  const timeOfDay = (date: Date) =>
+    `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
+
+  const scheduleTimes = [atOffset(-150), atOffset(-60), atOffset(60), atOffset(180)];
+  const schedules: MedicineSchedule[] = scheduleTimes.map((date, index) => ({
+    id: 901 + index,
+    medicine_id: index < 2 ? 101 : 102,
+    time_of_day: timeOfDay(date),
+    days_of_week: [0, 1, 2, 3, 4, 5, 6],
+    reminder_enabled: true,
+    reminder_offset_minutes: 0,
+    created_at: timestamp,
+    updated_at: timestamp,
+  }));
+
+  const medicines: Medicine[] = [
+    {
+      id: 101,
+      owner_id: patientUserId,
+      patient_user_id: patientUserId,
+      created_by_user_id: patientUserId,
+      name: "Metformin",
+      strength: "500 mg",
+      form: "tablet",
+      dose: "1 tablet after food",
+      timing: "after_food",
+      start_date: today,
+      end_date: null,
+      notes: null,
+      is_active: true,
+      created_at: timestamp,
+      updated_at: timestamp,
+      schedules: schedules.slice(0, 2),
+    },
+    {
+      id: 102,
+      owner_id: patientUserId,
+      patient_user_id: patientUserId,
+      created_by_user_id: patientUserId,
+      name: "Vitamin D3",
+      strength: null,
+      form: "capsule",
+      dose: "1 capsule",
+      timing: "with_food",
+      start_date: today,
+      end_date: null,
+      notes: null,
+      is_active: true,
+      created_at: timestamp,
+      updated_at: timestamp,
+      schedules: schedules.slice(2),
+    },
+  ];
+
+  const medicineById = new Map(medicines.map((medicine) => [medicine.id, medicine]));
+  const statuses: TodayDose["status"][] = schedules.map((schedule, index) =>
+    MOCK_TAKEN_SCHEDULE_IDS.has(schedule.id) ? "taken" : index < 2 ? "due" : "upcoming"
+  );
+  const doses = schedules.map((schedule, index): TodayDose => ({
+    id: `mock-dose-${schedule.id}`,
+    medicine: medicineById.get(schedule.medicine_id)!,
+    schedule,
+    scheduled_for: scheduleTimes[index].toISOString(),
+    status: statuses[index],
+    marked_at: statuses[index] === "taken" ? atOffset(-55).toISOString() : null,
+    marked_by_user_id: statuses[index] === "taken" ? patientUserId : null,
+  }));
+
+  return { medicines, doses };
+}
+
 export async function getMedicines(patientUserId: number, token: string): Promise<Medicine[]> {
-  if (MOCK_API) return [];
+  if (MOCK_API) return buildMockMedicationData(patientUserId).medicines;
   const data = await authedFetch<{ medicines: Medicine[] }>(
     `/api/medicines?patientUserId=${patientUserId}`,
     token,
@@ -679,7 +757,7 @@ export async function getMedicines(patientUserId: number, token: string): Promis
 }
 
 export async function getTodayMedicineDoses(patientUserId: number, token: string): Promise<TodayDose[]> {
-  if (MOCK_API) return [];
+  if (MOCK_API) return buildMockMedicationData(patientUserId).doses;
   const data = await authedFetch<{ doses: TodayDose[] }>(
     `/api/medicines/today?patientUserId=${patientUserId}`,
     token,
@@ -714,6 +792,12 @@ export async function markMedicineDose(
   input: { schedule_id: number; scheduled_for: string; status: "taken" | "missed" | "skipped"; note?: string | null },
   token: string,
 ): Promise<TodayDose> {
+  if (MOCK_API) {
+    MOCK_TAKEN_SCHEDULE_IDS.add(input.schedule_id);
+    const mockDose = buildMockMedicationData(1).doses.find((dose) => dose.schedule.id === input.schedule_id);
+    if (!mockDose) throw new Error("Mock dose not found");
+    return mockDose;
+  }
   return authedFetch<TodayDose>(`/api/medicines/${medicineId}/doses`, token, {
     method: "POST",
     headers: { "Content-Type": "application/json" },

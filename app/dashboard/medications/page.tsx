@@ -1,12 +1,10 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Fragment, Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import {
-  Bell,
   CalendarBlank,
   CaretDown,
-  CaretRight,
   CheckCircle,
   Info,
   PencilSimple,
@@ -866,16 +864,21 @@ function MedicationsContent() {
   const selectedPerson = people.find((person) => person.id === selectedPersonId);
   const activeMedicines = useMemo(() => medicines.filter((medicine) => medicine.is_active), [medicines]);
   const upcomingDoses = useMemo(
-    () => todayDoses.filter((dose) => dose.status === "upcoming" && isFutureDose(dose, nowMs)),
+    () => todayDoses
+      .filter((dose) => dose.status === "upcoming" && isFutureDose(dose, nowMs))
+      .sort((a, b) => new Date(a.scheduled_for).getTime() - new Date(b.scheduled_for).getTime()),
+    [todayDoses, nowMs],
+  );
+  const earlierDoses = useMemo(
+    () => todayDoses
+      .filter((dose) => !(dose.status === "upcoming" && isFutureDose(dose, nowMs)))
+      .sort((a, b) => new Date(b.scheduled_for).getTime() - new Date(a.scheduled_for).getTime()),
     [todayDoses, nowMs],
   );
   const hasMedicines = activeMedicines.length > 0;
   const activeCount = activeMedicines.length;
   const dosesToday = todayDoses.length;
-  const completedDoses = todayDoses.filter((dose) => ["taken", "missed", "skipped"].includes(dose.status));
   const takenDoses = todayDoses.filter((dose) => dose.status === "taken");
-  const adherence = completedDoses.length ? Math.round((takenDoses.length / completedDoses.length) * 100) : null;
-  const dueSoon = upcomingDoses.length;
   const avatarLetter = (user?.name ?? "T").charAt(0).toUpperCase();
   const selectedPersonOptions = people.map((person) => ({
     value: person.id,
@@ -913,20 +916,31 @@ function MedicationsContent() {
     });
   }, [activeMedicines]);
 
-  const scheduleRows: ScheduleRow[] = upcomingDoses.map((dose, index) => ({
-    id: dose.id,
-    medicineId: dose.medicine.id,
-    scheduleId: dose.schedule.id,
-    scheduledFor: dose.scheduled_for,
-    timeLabel: formatTimeLabel(dose.schedule.time_of_day),
-    name: `${dose.medicine.name}${dose.medicine.strength ? ` ${dose.medicine.strength}` : ""}`,
-    dose: dose.medicine.dose,
-    timing: dose.medicine.timing === "anytime" ? "" : formatTiming(dose.medicine.timing),
-    tone: index % 4 === 1 ? "orange" : index % 4 === 2 ? "violet" : index % 4 === 3 ? "blue" : "green",
-    status: statusLabel(dose.status),
-    actionStatus: dose.status,
-    canMarkTaken: dose.status !== "taken" && dose.status !== "upcoming",
-  }));
+  const scheduleRows: ScheduleRow[] = [...upcomingDoses, ...earlierDoses].map((dose, index) => {
+    const actionStatus: TodayDose["status"] =
+      dose.status === "upcoming" && !isFutureDose(dose, nowMs) ? "due" : dose.status;
+    const tone = actionStatus === "taken"
+      ? "green"
+      : actionStatus === "due" || actionStatus === "missed"
+        ? "orange"
+        : actionStatus === "skipped"
+          ? "violet"
+          : index % 2 === 0 ? "blue" : "green";
+    return {
+      id: dose.id,
+      medicineId: dose.medicine.id,
+      scheduleId: dose.schedule.id,
+      scheduledFor: dose.scheduled_for,
+      timeLabel: formatTimeLabel(dose.schedule.time_of_day),
+      name: `${dose.medicine.name}${dose.medicine.strength ? ` ${dose.medicine.strength}` : ""}`,
+      dose: dose.medicine.dose,
+      timing: dose.medicine.timing === "anytime" ? "" : formatTiming(dose.medicine.timing),
+      tone,
+      status: statusLabel(actionStatus),
+      actionStatus,
+      canMarkTaken: actionStatus === "due" || actionStatus === "missed",
+    };
+  });
 
   const openAdd = () => {
     setEditingMedicine(null);
@@ -1116,9 +1130,7 @@ function MedicationsContent() {
 
           <div className="med-stat-grid">
             <StatCard icon={<Pill size={23} weight="bold" color="var(--he-green-deep)" />} value={`${activeCount}`} label="Active Medicines" detail={hasMedicines ? `All medicines for ${displayName(selectedPerson)} are tracked.` : "No medicines added yet"} tone="green" />
-            <StatCard icon={<Bell size={23} weight="fill" color="var(--he-orange-deep)" />} value={`${dueSoon}`} label="Due Soon" detail={hasMedicines ? "Based on today's schedule" : "Add a schedule to see reminders"} tone="orange" />
-            <StatCard icon={<CheckCircle size={23} weight="bold" color="var(--he-blue-deep)" />} value={adherence === null ? "--" : `${adherence}%`} label="Adherence" detail={completedDoses.length ? "From marked doses today" : "Starts after first marked dose"} tone="blue" />
-            <StatCard icon={<CalendarBlank size={23} weight="bold" color="#6A5BD0" />} value={`${dosesToday}`} label="Doses Today" detail={hasMedicines ? `Across ${displayName(selectedPerson)}` : "Nothing scheduled today"} tone="violet" />
+            <StatCard icon={<CheckCircle size={23} weight="bold" color="var(--he-blue-deep)" />} value={`${takenDoses.length}/${dosesToday}`} label="Taken Today" detail={dosesToday ? `${takenDoses.length} of ${dosesToday} scheduled doses taken` : "Nothing scheduled today"} tone="blue" />
           </div>
 
           <section className="med-schedule-card">
@@ -1227,36 +1239,35 @@ function MedicationsContent() {
                 <div style={{ width: 72, height: 72, borderRadius: 24, background: "var(--he-green-bg)", display: "grid", placeItems: "center", margin: "0 auto 18px" }}>
                   <CalendarBlank size={34} weight="bold" color="var(--he-green-deep)" />
                 </div>
-                <h3 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: "var(--he-ink-1)", letterSpacing: "-.4px" }}>No upcoming doses today</h3>
+                <h3 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: "var(--he-ink-1)", letterSpacing: "-.4px" }}>No doses today</h3>
                 <p style={{ margin: "8px auto 0", maxWidth: 500, fontSize: 14, lineHeight: 1.65, color: "var(--he-ink-2)", fontWeight: 500 }}>
-                  Medicines are saved for {displayName(selectedPerson)}, but the remaining schedule for today is clear.
+                  Medicines are saved for {displayName(selectedPerson)}, but nothing is scheduled for today.
                 </p>
               </div>
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                {scheduleRows.map((row) => {
+                {scheduleRows.map((row, index) => {
                   const colors = toneColors(row.tone);
-                  const rowMedicine = activeMedicines.find((medicine) => medicine.id === row.medicineId);
-                  const openRowMedicine = () => {
-                    if (rowMedicine) openEdit(rowMedicine);
-                  };
+                  const startsEarlierGroup = index === upcomingDoses.length && earlierDoses.length > 0;
+                  const [time, period] = row.timeLabel.split(" ");
                   return (
-                    <div
-                      key={row.id}
-                      className="med-dose-row"
-                      role="button"
-                      tabIndex={0}
-                      onClick={openRowMedicine}
-                      onKeyDown={(event) => {
-                        if (event.key === "Enter" || event.key === " ") {
-                          event.preventDefault();
-                          openRowMedicine();
-                        }
-                      }}
-                      style={{ cursor: rowMedicine ? "pointer" : "default" }}
-                    >
-                      <div style={{ width: 64, height: 56, borderRadius: 13, background: colors.bg, color: colors.text, display: "grid", placeItems: "center", fontSize: 14, fontWeight: 800, lineHeight: 1.2, textAlign: "center", flex: "none" }}>
-                        {row.timeLabel.replace(" ", "\n")}
+                    <Fragment key={row.id}>
+                      {(index === 0 || startsEarlierGroup) && (
+                        <div style={{
+                          marginTop: startsEarlierGroup && upcomingDoses.length > 0 ? 10 : 0,
+                          color: "var(--he-ink-2)",
+                          fontSize: 12.5,
+                          fontWeight: 900,
+                        }}>
+                          {startsEarlierGroup || upcomingDoses.length === 0 ? "Earlier today" : "Upcoming"}
+                        </div>
+                      )}
+                      <div
+                        className="med-dose-row"
+                      >
+                      <div style={{ width: 72, minWidth: 72, height: 62, borderRadius: 13, background: colors.bg, color: colors.text, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 800, lineHeight: 1.15, textAlign: "center", flex: "none" }}>
+                        <span>{time}</span>
+                        <span>{period}</span>
                       </div>
                       <div style={{ width: 48, height: 48, borderRadius: 13, background: colors.bg, display: "grid", placeItems: "center", flex: "none" }}>
                         <Pill size={23} weight="bold" color={colors.text} />
@@ -1267,7 +1278,6 @@ function MedicationsContent() {
                           {row.timing ? `${row.dose} • ${row.timing}` : row.dose}
                         </p>
                       </div>
-                      <span style={{ background: colors.bg, color: colors.text, borderRadius: 99, padding: "7px 12px", fontSize: 12, fontWeight: 800, whiteSpace: "nowrap" }}>{row.status}</span>
                       {row.canMarkTaken ? (
                         <button
                           onClick={(event) => {
@@ -1275,17 +1285,15 @@ function MedicationsContent() {
                             markTaken(row);
                           }}
                           disabled={markingDoseId === row.id}
-                          style={{ border: "none", borderRadius: 999, padding: "8px 12px", background: "var(--he-green-bg)", color: "var(--he-green-deep)", fontFamily: "inherit", fontSize: 12, fontWeight: 800, cursor: markingDoseId === row.id ? "wait" : "pointer", whiteSpace: "nowrap" }}
+                          style={{ border: "1px solid #FFD79A", borderRadius: 999, padding: "9px 14px", background: "var(--he-orange-bg)", color: "var(--he-orange-deep)", fontFamily: "inherit", fontSize: 12, fontWeight: 900, cursor: markingDoseId === row.id ? "wait" : "pointer", whiteSpace: "nowrap" }}
                         >
                           {markingDoseId === row.id ? "Saving..." : "Mark taken"}
                         </button>
-                      ) : row.actionStatus === "upcoming" ? (
-                        <span style={{ color: "var(--he-ink-3)", fontSize: 12, fontWeight: 800, whiteSpace: "nowrap" }}>
-                          Not due yet
-                        </span>
-                      ) : null}
-                      <CaretRight size={18} weight="bold" color="var(--he-ink-3)" />
-                    </div>
+                      ) : (
+                        <span style={{ background: colors.bg, color: colors.text, borderRadius: 99, padding: "8px 13px", fontSize: 12, fontWeight: 900, whiteSpace: "nowrap" }}>{row.status}</span>
+                      )}
+                      </div>
+                    </Fragment>
                   );
                 })}
               </div>
