@@ -522,8 +522,8 @@ export async function getFoodReminderPreference(token: string): Promise<FoodRemi
       enabled: true,
       activated: true,
       breakfast_time: "09:00",
-      lunch_time: "14:00",
-      dinner_time: "21:00",
+      lunch_time: "15:00",
+      dinner_time: "22:00",
     };
   }
   return authedFetch<FoodReminderPreference>("/api/food-reminders/preference", token);
@@ -539,8 +539,8 @@ export async function updateFoodReminderPreference(
       enabled,
       activated: enabled,
       breakfast_time: "09:00",
-      lunch_time: "14:00",
-      dinner_time: "21:00",
+      lunch_time: "15:00",
+      dinner_time: "22:00",
     };
   }
   return authedFetch<FoodReminderPreference>("/api/food-reminders/preference", token, {

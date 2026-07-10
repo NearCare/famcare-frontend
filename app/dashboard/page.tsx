@@ -622,8 +622,8 @@ export default function DashboardPage() {
       enabled: nextEnabled,
       activated: current?.activated || nextEnabled,
       breakfast_time: current?.breakfast_time ?? "09:00",
-      lunch_time: current?.lunch_time ?? "14:00",
-      dinner_time: current?.dinner_time ?? "21:00",
+      lunch_time: current?.lunch_time ?? "15:00",
+      dinner_time: current?.dinner_time ?? "22:00",
     }));
     try {
       const updated = await updateFoodReminderPreference(nextEnabled, token);
