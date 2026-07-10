@@ -569,23 +569,28 @@ a {
   }
 }
 .db-profile-carousel {
-  scrollbar-width: thin;
-  scrollbar-color: rgba(255, 107, 107, .55) rgba(255, 107, 107, .10);
+  scrollbar-width: none;
   -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+  overscroll-behavior-inline: contain;
 }
-.db-profile-carousel::-webkit-scrollbar { height: 10px; }
-.db-profile-carousel::-webkit-scrollbar-track {
-  background: rgba(255, 107, 107, .10);
+.db-profile-carousel::-webkit-scrollbar { display: none; }
+.db-profile-scroll-track {
+  width: 92px;
+  height: 4px;
+  margin: 3px auto 0;
+  padding: 0;
   border-radius: 999px;
-  margin: 0 10px;
+  background: rgba(224, 228, 235, .72);
+  overflow: hidden;
 }
-.db-profile-carousel::-webkit-scrollbar-thumb {
-  background: linear-gradient(90deg, var(--he-coral), var(--he-orange));
-  border: 2px solid #fff;
-  border-radius: 999px;
-}
-.db-profile-carousel::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(90deg, var(--he-coral-deep), var(--he-orange-deep));
+.db-profile-scroll-thumb {
+  display: block;
+  width: 24px;
+  height: 100%;
+  border-radius: inherit;
+  background: rgba(124, 132, 168, .58);
+  transition: transform 100ms ease-out;
 }
 .fo-metric-tile > div:first-child > div:first-child {
   min-width: 0;
