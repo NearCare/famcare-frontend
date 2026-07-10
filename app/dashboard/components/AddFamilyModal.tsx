@@ -57,7 +57,7 @@ export default function AddFamilyModal({ onClose, onAdded, onActivated }: Props)
   async function handleVerifyOtp(e: React.FormEvent) {
     e.preventDefault();
     setError("");
-    if (otp.trim().length !== 6) return setError("Enter the 6-digit OTP");
+    if (otp.trim().length !== 4) return setError("Enter the 4-digit OTP");
 
     const token = localStorage.getItem("auth_token") ?? "";
     setLoading(true);
@@ -221,7 +221,7 @@ export default function AddFamilyModal({ onClose, onAdded, onActivated }: Props)
             <div style={{ marginBottom: 14, display: "flex", justifyContent: "center" }}><FESmartphone size={60} /></div>
             <h2 style={{ ...headingStyle, textAlign: "center" }}>Enter OTP</h2>
             <p style={{ ...subStyle, textAlign: "center", marginBottom: 22 }}>
-              Ask {sentMember?.label ?? "them"} for the 6-digit OTP sent to <strong style={{ color: "#2C2F3A" }}>{phone}</strong>.
+              Ask {sentMember?.label ?? "them"} for the 4-digit OTP sent to <strong style={{ color: "#2C2F3A" }}>{phone}</strong>.
             </p>
 
             <form onSubmit={handleVerifyOtp} style={{ display: "flex", flexDirection: "column", gap: 13 }}>
@@ -230,10 +230,10 @@ export default function AddFamilyModal({ onClose, onAdded, onActivated }: Props)
                 <input
                   type="tel"
                   inputMode="numeric"
-                  placeholder="6-digit code"
-                  maxLength={6}
+                  placeholder="4-digit code"
+                  maxLength={4}
                   value={otp}
-                  onChange={e => { setOtp(e.target.value.replace(/\D/g, "").slice(0, 6)); setError(""); }}
+                  onChange={e => { setOtp(e.target.value.replace(/\D/g, "").slice(0, 4)); setError(""); }}
                   style={{ ...inputStyle, textAlign: "center", letterSpacing: 4, fontWeight: 800, fontSize: 18 }}
                   onFocus={e => e.target.style.borderColor = "#7C6FF7"}
                   onBlur={e => e.target.style.borderColor = "#E8E4F5"}

@@ -242,7 +242,7 @@ export async function getCurrentUser(token?: string): Promise<User | null> {
 }
 
 /**
- * Sends a 6-digit OTP to the given WhatsApp number.
+ * Sends a 4-digit OTP to the given WhatsApp number.
  * Phone must include country code, e.g. "+919876543210"
  */
 export async function sendOtp(phone: string): Promise<void> {
@@ -293,7 +293,7 @@ export async function verifyOtp(
     const message = (err as { error?: string }).error;
     logRequestFailure("verifyOtp", "/auth/verify-otp", { status: res.status });
     if (res.status === 401) throw new Error(message ?? "That code is incorrect or has expired. Request a new one.");
-    if (res.status === 400) throw new Error(message ?? "Please enter the 6-digit code sent to your WhatsApp.");
+    if (res.status === 400) throw new Error(message ?? "Please enter the 4-digit code sent to your WhatsApp.");
     throw new Error(message ?? "Couldn't verify your code right now. Please try again.");
   }
   return res.json() as Promise<AuthResponse>;

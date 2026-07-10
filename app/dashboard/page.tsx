@@ -525,8 +525,17 @@ export default function DashboardPage() {
   const [showGoals, setShowGoals] = useState(false);
   const [foodReminderPreference, setFoodReminderPreference] = useState<FoodReminderPreference | null>(null);
   const [savingFoodReminder, setSavingFoodReminder] = useState(false);
+  const [profileCarouselProgress, setProfileCarouselProgress] = useState(0);
   const accountMenuRef = useRef<HTMLDivElement>(null);
   const scoreInfoRef = useRef<HTMLDivElement>(null);
+  const profileCarouselRef = useRef<HTMLDivElement>(null);
+
+  const handleProfileCarouselScroll = useCallback(() => {
+    const carousel = profileCarouselRef.current;
+    if (!carousel) return;
+    const maxScroll = carousel.scrollWidth - carousel.clientWidth;
+    setProfileCarouselProgress(maxScroll > 0 ? carousel.scrollLeft / maxScroll : 0);
+  }, []);
 
   useEffect(() => {
     if (!showAccountMenu) return;
@@ -930,7 +939,12 @@ export default function DashboardPage() {
                 </Link>
               )}
             </div>
-            <div className="db-profile-carousel" style={{ display: "flex", alignItems: "stretch", gap: 16, overflowX: "auto", padding: "12px 8px 18px", scrollSnapType: "x proximity" }}>
+            <div
+              ref={profileCarouselRef}
+              onScroll={handleProfileCarouselScroll}
+              className="db-profile-carousel"
+              style={{ display: "flex", alignItems: "stretch", gap: 16, overflowX: "auto", padding: "12px 8px 10px", scrollSnapType: "x proximity" }}
+            >
               {homeMemberRows.map(({ member, summary: memberSummary, logs: memberLogs, isSelf }) => {
                 const score = computeScore(memberSummary);
                 const tier = scoreTier(score);
@@ -1089,6 +1103,12 @@ export default function DashboardPage() {
                   Invite now <CaretRight size={11} weight="bold" />
                 </span>
               </button>
+            </div>
+            <div className="db-profile-scroll-track" aria-hidden="true">
+              <span
+                className="db-profile-scroll-thumb"
+                style={{ transform: `translateX(${profileCarouselProgress * 68}px)` }}
+              />
             </div>
           </div>
         </div>
