@@ -75,7 +75,7 @@ export default function Sidebar() {
                 className={`db-nav-item${active ? " active" : ""}`}
               >
                 <NavIcon name={item.label} />
-                <span style={{ flex: 1 }}>{item.label}</span>
+                <span className="db-nav-label">{item.label}</span>
                 {item.isNew && <span className="db-new-badge">New</span>}
               </Link>
             );
