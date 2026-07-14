@@ -11,7 +11,7 @@ const navItems = [
   { label: "Family Overview",  href: "/dashboard/family-overview" },
   { label: "Medications",      href: "/dashboard/medications" },
   { label: "Logs",             href: "/dashboard/logs" },
-  { label: "Calorie Calculator", href: "/dashboard/calorie-calculator" },
+  { label: "Calorie Calculator", href: "/dashboard/calorie-calculator", isNew: true },
   { label: "Review",           href: "/dashboard/review" },
 ];
 
@@ -76,6 +76,7 @@ export default function Sidebar() {
               >
                 <NavIcon name={item.label} />
                 <span style={{ flex: 1 }}>{item.label}</span>
+                {item.isNew && <span className="db-new-badge">New</span>}
               </Link>
             );
           })}
