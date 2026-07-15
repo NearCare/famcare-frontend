@@ -32,12 +32,15 @@ import {
 } from "@/lib/api";
 import { scoreTier, computeScore, scoreFromAverages, ScoreRing } from "./components/Score";
 import EmptyState from "./components/EmptyState";
+import FeatureIntro from "./components/FeatureIntro";
 import Sidebar from "./components/Sidebar";
 import AddFamilyModal from "./components/AddFamilyModal";
 import StreakPill from "./components/StreakPill";
 import { FAMCARE_WHATSAPP_LINK } from "@/lib/whatsapp";
 import PageLoader from "./components/PageLoader";
 import { captureEvent, identifyUser } from "@/lib/analytics";
+
+const IS_PRODUCTION = process.env.NODE_ENV === "production";
 
 /** Averages raw logs falling within [minDaysAgo, maxDaysAgo] of today — used to compare this week vs last week. */
 function rangeAverages(logs: HealthLog[], minDaysAgo: number, maxDaysAgo: number) {
@@ -576,6 +579,8 @@ export default function DashboardPage() {
   const [selectedCardId, setSelectedCardId] = useState("self");
   const [showAddFamily, setShowAddFamily] = useState(false);
   const [showScoreInfo, setShowScoreInfo] = useState(false);
+  const [showFeatureIntro, setShowFeatureIntro] = useState(false);
+  const [featureIntroChecked, setFeatureIntroChecked] = useState(false);
   const [metricDetail, setMetricDetail] = useState<MetricDetail | null>(null);
   const [showGoals, setShowGoals] = useState(false);
   const [foodReminderPreference, setFoodReminderPreference] = useState<FoodReminderPreference | null>(null);
@@ -594,6 +599,7 @@ export default function DashboardPage() {
   const handleProfileCarouselScroll = useCallback(() => {
     const carousel = profileCarouselRef.current;
     if (!carousel) return;
+    if (carousel.scrollTop !== 0) carousel.scrollTop = 0;
     const maxScroll = carousel.scrollWidth - carousel.clientWidth;
     setProfileCarouselProgress(maxScroll > 0 ? carousel.scrollLeft / maxScroll : 0);
   }, []);
@@ -632,12 +638,32 @@ export default function DashboardPage() {
   }, [showFoodReminderMenu]);
 
   useEffect(() => {
+    if (profileCarouselRef.current) profileCarouselRef.current.scrollTop = 0;
+  }, [logs.length, memberRows.length]);
+
+  useEffect(() => {
+    if (loading) return;
+    if (!user) {
+      setShowFeatureIntro(false);
+      setFeatureIntroChecked(true);
+      return;
+    }
+
+    const storageKey = `famcare_feature_intro_seen_${user.id}`;
+    const seen = IS_PRODUCTION && localStorage.getItem(storageKey) === "true";
+    const shouldShow = IS_PRODUCTION ? logs.length === 0 && !seen : true;
+    setShowFeatureIntro(shouldShow);
+    setFeatureIntroChecked(true);
+  }, [loading, logs.length, user]);
+
+  useEffect(() => {
     setFoodReminderDraftEnabled(foodReminderPreference?.enabled ?? true);
     setFoodReminderDraftMeals(foodReminderMealsFromPreference(foodReminderPreference));
   }, [foodReminderPreference]);
 
   const handleLogout = () => {
-    localStorage.clear();
+    localStorage.removeItem("auth_token");
+    localStorage.removeItem("auth_user");
     window.location.href = "/login";
   };
 
@@ -930,6 +956,31 @@ export default function DashboardPage() {
     );
   }
 
+  if (user && !featureIntroChecked) {
+    return (
+      <div className="db-page">
+        <Sidebar />
+        <div className="db-main" style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <PageLoader
+            title="Preparing your quick guide..."
+            subtitle="Just a moment before your dashboard opens."
+          />
+        </div>
+      </div>
+    );
+  }
+
+  const featureIntroOverlay = user && showFeatureIntro ? (
+    <FeatureIntro
+      onDone={() => {
+        if (IS_PRODUCTION) {
+          localStorage.setItem(`famcare_feature_intro_seen_${user.id}`, "true");
+        }
+        setShowFeatureIntro(false);
+      }}
+    />
+  ) : null;
+
   if (!user || logs.length === 0) {
     return (
       <div className="db-page">
@@ -937,6 +988,7 @@ export default function DashboardPage() {
         <div className="db-main">
           <EmptyState userName={user?.name ?? undefined} />
         </div>
+        {featureIntroOverlay}
       </div>
     );
   }
@@ -963,6 +1015,7 @@ export default function DashboardPage() {
   return (
     <div className="db-page">
       <Sidebar />
+      {featureIntroOverlay}
 
       <div className="db-main">
         <div className="db-topbar">
@@ -990,7 +1043,7 @@ export default function DashboardPage() {
               >
                 <FEWheat size={15} />
                 Food reminders
-                <span className="food-reminder-status">{foodReminderEnabled ? "On" : "Off"}</span>
+                <span className="food-reminder-status">{foodReminderEnabled ? "ON" : "OFF"}</span>
                 <CaretDown size={14} weight="bold" />
               </button>
               {showFoodReminderMenu && (
@@ -1061,7 +1114,7 @@ export default function DashboardPage() {
                           }}
                         />
                       </i>
-                      <span>{foodReminderDraftEnabled ? "On" : "Off"}</span>
+                      <span>{foodReminderDraftEnabled ? "ON" : "OFF"}</span>
                     </label>
                   </div>
 
@@ -1309,7 +1362,7 @@ export default function DashboardPage() {
               ref={profileCarouselRef}
               onScroll={handleProfileCarouselScroll}
               className="db-profile-carousel"
-              style={{ display: "flex", alignItems: "flex-start", gap: 16, overflowX: "auto", padding: "12px 8px 10px", scrollSnapType: "x proximity" }}
+              style={{ display: "flex", alignItems: "flex-start", gap: 16, overflowX: "auto", overflowY: "hidden", padding: "22px 8px 10px", scrollSnapType: "x proximity" }}
             >
               {homeMemberRows.map(({ member, summary: memberSummary, logs: memberLogs, events: memberEvents, isSelf }) => {
                 const score = computeScore(memberSummary);
@@ -1460,10 +1513,11 @@ export default function DashboardPage() {
                           <span style={{
                             width: 28, height: 28, borderRadius: 10,
                             background: "#FFF0EE", color: "var(--he-coral)",
-                            display: "inline-flex", alignItems: "center", justifyContent: "center",
-                            fontSize: 18, fontWeight: 900, lineHeight: 1,
+                            display: "inline-grid", placeItems: "center", flex: "none",
                           }}>
-                            ≡
+                            <svg width="13" height="13" viewBox="0 0 13 13" aria-hidden="true" style={{ display: "block" }}>
+                              <path d="M3 4h7M3 6.5h7M3 9h7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                            </svg>
                           </span>
                           <span style={{ color: "#1A2744", fontSize: 13.5, fontWeight: 900, whiteSpace: "nowrap" }}>Recent logs</span>
                           <span style={{
@@ -1487,9 +1541,9 @@ export default function DashboardPage() {
                         top: "100%",
                         left: -1.5,
                         right: -1.5,
-                        maxHeight: isRecentOpen ? 148 : 0,
-                        opacity: isRecentOpen ? 1 : 0,
-                        transform: isRecentOpen ? "translateY(0)" : "translateY(-7px)",
+                        height: 148,
+                        clipPath: isRecentOpen ? "inset(0 0 0 0 round 0 0 18px 18px)" : "inset(0 0 100% 0 round 0 0 18px 18px)",
+                        transform: isRecentOpen ? "translateY(0) scaleY(1)" : "translateY(-6px) scaleY(.98)",
                         overflow: "hidden",
                         pointerEvents: isRecentOpen ? "auto" : "none",
                         border: `1.5px solid ${withOpacity(tier.border, 0.72)}`,
@@ -1499,7 +1553,7 @@ export default function DashboardPage() {
                         boxShadow: "0 18px 30px rgba(26, 39, 68, .12)",
                         transformOrigin: "top center",
                         zIndex: 20,
-                        transition: "max-height .28s cubic-bezier(.2,.8,.2,1), opacity .18s ease, transform .28s cubic-bezier(.2,.8,.2,1)",
+                        transition: "clip-path .28s cubic-bezier(.2,.8,.2,1), transform .28s cubic-bezier(.2,.8,.2,1)",
                       }}>
                         <div style={{
                           padding: "11px 12px 10px",
@@ -1583,7 +1637,8 @@ export default function DashboardPage() {
                         fontFamily: "'Plus Jakarta Sans', sans-serif",
                       }}
                     >
-                      {isSelectedCard ? "Selected" : "View profile"} <CaretRight size={13} weight="bold" />
+                      {isSelectedCard ? "Selected" : "View profile"}
+                      {!isSelectedCard && <CaretRight size={13} weight="bold" />}
                     </button>
                   </div>
                 );

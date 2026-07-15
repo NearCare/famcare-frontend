@@ -1,12 +1,14 @@
 "use client";
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   House, TrendUp, ForkKnife, Lightning, ClipboardText, Trophy,
   Bell, Gear, CalendarBlank, Fire, Lock, MapPin, Users,
   ChatDots, ChartBar, Heart, UserCircle, Info,
 } from "@phosphor-icons/react";
 import { FEShoe, FETarget } from "./dashboard/components/FluentEmoji";
+import { getCurrentUser } from "@/lib/api";
 import { FAMCARE_WHATSAPP_LINK } from "@/lib/whatsapp";
 
 const structuredData = {
@@ -374,6 +376,42 @@ const DashboardMockup = () => (
 );
 
 export default function LandingPage() {
+  const router = useRouter();
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function resumeSavedSession() {
+      const token = localStorage.getItem("auth_token");
+      if (!token) return;
+
+      try {
+        const authUser = await getCurrentUser(token);
+        if (cancelled) return;
+
+        if (!authUser) {
+          localStorage.removeItem("auth_token");
+          localStorage.removeItem("auth_user");
+          return;
+        }
+
+        localStorage.setItem("auth_user", JSON.stringify(authUser));
+        router.replace(authUser.name ? "/dashboard" : "/onboarding/name");
+      } catch {
+        if (!cancelled) {
+          localStorage.removeItem("auth_token");
+          localStorage.removeItem("auth_user");
+        }
+      }
+    }
+
+    resumeSavedSession();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [router]);
+
   return (
     <div className="flex flex-col min-h-screen bg-white">
       <script
