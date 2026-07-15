@@ -763,6 +763,14 @@ export default function DashboardPage() {
     });
   }, [foodReminderDraftEnabled]);
 
+  const setFoodReminderDraftMealEnabled = useCallback((slot: FoodReminderMeal["slot"], enabled: boolean) => {
+    if (!enabled) {
+      removeFoodReminderDraftMeal(slot);
+      return;
+    }
+    updateFoodReminderDraftMeal(slot, { enabled: true });
+  }, [removeFoodReminderDraftMeal, updateFoodReminderDraftMeal]);
+
   const addFoodReminderDraftMeal = useCallback(() => {
     setFoodReminderDraftError(null);
     setFoodReminderDraftMeals((current) => {
@@ -1134,7 +1142,7 @@ export default function DashboardPage() {
                             type="checkbox"
                             checked={meal.enabled}
                             disabled={!foodReminderDraftEnabled}
-                            onChange={(event) => updateFoodReminderDraftMeal(meal.slot, { enabled: event.target.checked })}
+                            onChange={(event) => setFoodReminderDraftMealEnabled(meal.slot, event.target.checked)}
                             style={{ position: "absolute", opacity: 0, pointerEvents: "none" }}
                           />
                           <span
