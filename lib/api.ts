@@ -147,6 +147,14 @@ export type FoodReminderPreference = {
   breakfast_time: string;
   lunch_time: string;
   dinner_time: string;
+  meals: FoodReminderMeal[];
+};
+
+export type FoodReminderMeal = {
+  slot: "breakfast" | "lunch" | "dinner" | "snack" | "extra";
+  label: string;
+  time: string;
+  enabled: boolean;
 };
 
 export type CalorieTargetRequest = {
@@ -610,6 +618,13 @@ export async function getFoodReminderPreference(token: string): Promise<FoodRemi
       breakfast_time: "09:00",
       lunch_time: "15:00",
       dinner_time: "22:00",
+      meals: [
+        { slot: "breakfast", label: "breakfast", time: "09:00", enabled: true },
+        { slot: "lunch", label: "lunch", time: "15:00", enabled: true },
+        { slot: "dinner", label: "dinner", time: "22:00", enabled: true },
+        { slot: "snack", label: "snack", time: "18:00", enabled: false },
+        { slot: "extra", label: "snack", time: "20:00", enabled: false },
+      ],
     };
   }
   return authedFetch<FoodReminderPreference>("/api/food-reminders/preference", token);
@@ -618,6 +633,7 @@ export async function getFoodReminderPreference(token: string): Promise<FoodRemi
 export async function updateFoodReminderPreference(
   enabled: boolean,
   token: string,
+  meals?: FoodReminderMeal[],
 ): Promise<FoodReminderPreference> {
   if (MOCK_API) {
     return {
@@ -627,12 +643,19 @@ export async function updateFoodReminderPreference(
       breakfast_time: "09:00",
       lunch_time: "15:00",
       dinner_time: "22:00",
+      meals: meals ?? [
+        { slot: "breakfast", label: "breakfast", time: "09:00", enabled: true },
+        { slot: "lunch", label: "lunch", time: "15:00", enabled: true },
+        { slot: "dinner", label: "dinner", time: "22:00", enabled: true },
+        { slot: "snack", label: "snack", time: "18:00", enabled: false },
+        { slot: "extra", label: "snack", time: "20:00", enabled: false },
+      ],
     };
   }
   return authedFetch<FoodReminderPreference>("/api/food-reminders/preference", token, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ enabled }),
+    body: JSON.stringify({ enabled, meals }),
   });
 }
 
