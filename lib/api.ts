@@ -147,6 +147,36 @@ export type FoodReminderPreference = {
   breakfast_time: string;
   lunch_time: string;
   dinner_time: string;
+  meals: FoodReminderMeal[];
+};
+
+export type FoodReminderMeal = {
+  slot: "breakfast" | "lunch" | "dinner" | "snack" | "extra";
+  label: string;
+  time: string;
+  enabled: boolean;
+};
+
+export type CalorieTargetRequest = {
+  age: number;
+  sex: "female" | "male";
+  height_cm: number;
+  weight_kg: number;
+  activity: "sedentary" | "light" | "moderate" | "active";
+  goal: "lose" | "maintain" | "gain";
+};
+
+export type CalorieTargetResponse = {
+  maintenance: number;
+  target: number;
+  low: number;
+  high: number;
+  bmr: number;
+  bmi: number;
+  goal: "lose" | "maintain" | "gain";
+  maintenance_only: boolean;
+  minimum_limited: boolean;
+  protein_target: number;
 };
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -202,6 +232,44 @@ async function apiFetch<T>(path: string): Promise<T> {
   }
 
   return res.json() as Promise<T>;
+}
+
+function roundTo50(value: number) {
+  return Math.round(value / 50) * 50;
+}
+
+function mockCalculateCalorieTarget(body: CalorieTargetRequest): CalorieTargetResponse {
+  const sexAdjustment = body.sex === "male" ? 5 : -161;
+  const bmr = 10 * body.weight_kg + 6.25 * body.height_cm - 5 * body.age + sexAdjustment;
+  const activityFactor = {
+    sedentary: 1.2,
+    light: 1.375,
+    moderate: 1.55,
+    active: 1.725,
+  }[body.activity];
+  const maintenance = roundTo50(bmr * activityFactor);
+  const bmi = body.weight_kg / ((body.height_cm / 100) ** 2);
+  const maintenanceOnly = body.goal === "lose" && bmi < 18.5;
+  const goalFactor = maintenanceOnly || body.goal === "maintain" ? 1 : body.goal === "lose" ? 0.85 : 1.1;
+  const rawTarget = roundTo50(maintenance * goalFactor);
+  const calorieFloor = body.sex === "male" ? 1500 : 1200;
+  const minimumLimited = body.goal === "lose" && rawTarget < calorieFloor;
+  const target = minimumLimited ? calorieFloor : rawTarget;
+  const proteinFactor = body.goal === "maintain" ? 1.2 : 1.6;
+  const proteinTarget = Math.min(200, Math.max(40, Math.round(body.weight_kg * proteinFactor)));
+
+  return {
+    maintenance,
+    target,
+    low: body.goal === "lose" ? Math.max(calorieFloor, target - 100) : target - 100,
+    high: target + 100,
+    bmr: roundTo50(bmr),
+    bmi: Math.round(bmi * 10) / 10,
+    goal: body.goal,
+    maintenance_only: maintenanceOnly,
+    minimum_limited: minimumLimited,
+    protein_target: proteinTarget,
+  };
 }
 
 // ─── Auth ────────────────────────────────────────────────────────────────────
@@ -324,6 +392,32 @@ export async function updateUserGoals(
     throw new Error((err as { error?: string }).error ?? "Failed to update goals");
   }
   return res.json() as Promise<User>;
+}
+
+export async function calculateUserCalorieTarget(
+  userId: number,
+  body: CalorieTargetRequest,
+  token: string,
+): Promise<CalorieTargetResponse> {
+  if (MOCK_API) return mockCalculateCalorieTarget(body);
+  const path = `/api/users/${userId}/calorie-target`;
+  let res: Response;
+  try {
+    res = await fetch(`${BASE_URL}${path}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify(body),
+    });
+  } catch (err) {
+    logRequestFailure("calculateUserCalorieTarget", path, { error: err });
+    throw err;
+  }
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    logRequestFailure("calculateUserCalorieTarget", path, { status: res.status });
+    throw new Error((err as { error?: string }).error ?? "Failed to calculate calorie target");
+  }
+  return res.json() as Promise<CalorieTargetResponse>;
 }
 
 /** Sets the caller's display name. Used by the first-login onboarding step. */
@@ -524,6 +618,13 @@ export async function getFoodReminderPreference(token: string): Promise<FoodRemi
       breakfast_time: "09:00",
       lunch_time: "15:00",
       dinner_time: "22:00",
+      meals: [
+        { slot: "breakfast", label: "breakfast", time: "09:00", enabled: true },
+        { slot: "lunch", label: "lunch", time: "15:00", enabled: true },
+        { slot: "dinner", label: "dinner", time: "22:00", enabled: true },
+        { slot: "snack", label: "snack", time: "18:00", enabled: false },
+        { slot: "extra", label: "snack", time: "20:00", enabled: false },
+      ],
     };
   }
   return authedFetch<FoodReminderPreference>("/api/food-reminders/preference", token);
@@ -532,6 +633,7 @@ export async function getFoodReminderPreference(token: string): Promise<FoodRemi
 export async function updateFoodReminderPreference(
   enabled: boolean,
   token: string,
+  meals?: FoodReminderMeal[],
 ): Promise<FoodReminderPreference> {
   if (MOCK_API) {
     return {
@@ -541,12 +643,19 @@ export async function updateFoodReminderPreference(
       breakfast_time: "09:00",
       lunch_time: "15:00",
       dinner_time: "22:00",
+      meals: meals ?? [
+        { slot: "breakfast", label: "breakfast", time: "09:00", enabled: true },
+        { slot: "lunch", label: "lunch", time: "15:00", enabled: true },
+        { slot: "dinner", label: "dinner", time: "22:00", enabled: true },
+        { slot: "snack", label: "snack", time: "18:00", enabled: false },
+        { slot: "extra", label: "snack", time: "20:00", enabled: false },
+      ],
     };
   }
   return authedFetch<FoodReminderPreference>("/api/food-reminders/preference", token, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ enabled }),
+    body: JSON.stringify({ enabled, meals }),
   });
 }
 

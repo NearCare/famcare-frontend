@@ -2,18 +2,20 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  CheckCircle, Warning, Sparkle, CaretRight, Info, TrendUp, Minus, X,
-  Star, CalendarBlank, CalendarCheck, SignOut, UserPlus,
+  CheckCircle, Warning, Sparkle, CaretRight, CaretDown, Info, TrendUp, Minus, X,
+  Star, CalendarBlank, CalendarCheck, SignOut, UserPlus, Plus, Trash,
 } from "@phosphor-icons/react";
 import { Flame, Dumbbell, Footprints } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip as ReTooltip, ResponsiveContainer, ReferenceLine, Cell } from "recharts";
 import { FEShoe, FEProtein, FEWheat, FEMoon, FEFlame, FEChat } from "./components/FluentEmoji";
 import {
   getUserLogs,
+  getUserLogEvents,
   getUserSummary,
   getFamilyMembers,
   getMemberSummary,
   getMemberLogs,
+  getMemberLogEvents,
   getFoodReminderPreference,
   updateFoodReminderPreference,
   updateUserGoals,
@@ -22,18 +24,23 @@ import {
   hasLoggedMetric,
   type User,
   type HealthLog,
+  type HealthLogEvent,
   type Summary,
   type FamilyMember,
   type FoodReminderPreference,
+  type FoodReminderMeal,
 } from "@/lib/api";
 import { scoreTier, computeScore, scoreFromAverages, ScoreRing } from "./components/Score";
 import EmptyState from "./components/EmptyState";
+import FeatureIntro from "./components/FeatureIntro";
 import Sidebar from "./components/Sidebar";
 import AddFamilyModal from "./components/AddFamilyModal";
 import StreakPill from "./components/StreakPill";
 import { FAMCARE_WHATSAPP_LINK } from "@/lib/whatsapp";
 import PageLoader from "./components/PageLoader";
 import { captureEvent, identifyUser } from "@/lib/analytics";
+
+const IS_PRODUCTION = process.env.NODE_ENV === "production";
 
 /** Averages raw logs falling within [minDaysAgo, maxDaysAgo] of today — used to compare this week vs last week. */
 function rangeAverages(logs: HealthLog[], minDaysAgo: number, maxDaysAgo: number) {
@@ -57,6 +64,43 @@ function withOpacity(hexColor: string, opacity: number) {
   const g = parseInt(normalized.slice(2, 4), 16);
   const b = parseInt(normalized.slice(4, 6), 16);
   return `rgba(${r}, ${g}, ${b}, ${opacity})`;
+}
+
+function compactLogMessage(message: string | null | undefined) {
+  const trimmed = message?.replace(/^\[voice\]\s*/i, "").trim();
+  if (!trimmed) return "Health log added";
+  return trimmed.length > 24 ? `${trimmed.slice(0, 24).trim()}…` : trimmed;
+}
+
+function logMetricsText(log: Pick<HealthLogEvent, "calories" | "protein_g" | "steps" | "sleep_hours">) {
+  const parts: string[] = [];
+  if (log.calories != null) parts.push(`${log.calories.toLocaleString()} kcal`);
+  if (log.protein_g != null) parts.push(`${Math.round(log.protein_g)}g protein`);
+  if (log.steps != null) parts.push(`${log.steps.toLocaleString()} steps`);
+  if (log.sleep_hours != null) parts.push(`${log.sleep_hours}h sleep`);
+  return parts.length ? parts.join(" · ") : "Logged";
+}
+
+type RecentLogItem = {
+  key: string;
+  message: string;
+  metrics: string;
+};
+
+function recentItemFromEvent(event: HealthLogEvent): RecentLogItem {
+  return {
+    key: `event-${event.id}`,
+    message: compactLogMessage(event.raw_message),
+    metrics: logMetricsText(event),
+  };
+}
+
+function recentItemFromAggregate(log: HealthLog): RecentLogItem {
+  return {
+    key: `log-${log.id}`,
+    message: compactLogMessage(log.raw_message),
+    metrics: logMetricsText(log),
+  };
 }
 
 function Sparkline({ data, color }: { data: number[]; color: string }) {
@@ -502,17 +546,31 @@ function getGreeting(): string {
 
 const WA_LINK = FAMCARE_WHATSAPP_LINK;
 
+const DEFAULT_FOOD_REMINDER_MEALS: FoodReminderMeal[] = [
+  { slot: "breakfast", label: "breakfast", time: "09:00", enabled: true },
+  { slot: "lunch", label: "lunch", time: "15:00", enabled: true },
+  { slot: "dinner", label: "dinner", time: "22:00", enabled: true },
+  { slot: "snack", label: "snack", time: "18:00", enabled: false },
+  { slot: "extra", label: "snack", time: "20:00", enabled: false },
+];
+
+function foodReminderMealsFromPreference(preference: FoodReminderPreference | null): FoodReminderMeal[] {
+  const incoming = preference?.meals ?? [];
+  return DEFAULT_FOOD_REMINDER_MEALS.map((fallback) => incoming.find((meal) => meal.slot === fallback.slot) ?? fallback);
+}
+
 const WaIcon = ({ size = 16 }: { size?: number }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="white">
     <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z" />
   </svg>
 );
 
-type MemberRow = { member: FamilyMember; summary: Summary | null; logs: HealthLog[] };
+type MemberRow = { member: FamilyMember; summary: Summary | null; logs: HealthLog[]; events: HealthLogEvent[] };
 
 export default function DashboardPage() {
   const [user, setUser] = useState<User | null>(null);
   const [logs, setLogs] = useState<HealthLog[]>([]);
+  const [logEvents, setLogEvents] = useState<HealthLogEvent[]>([]);
   const [summary, setSummary] = useState<Summary | null>(null);
   const [memberRows, setMemberRows] = useState<MemberRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -521,18 +579,27 @@ export default function DashboardPage() {
   const [selectedCardId, setSelectedCardId] = useState("self");
   const [showAddFamily, setShowAddFamily] = useState(false);
   const [showScoreInfo, setShowScoreInfo] = useState(false);
+  const [showFeatureIntro, setShowFeatureIntro] = useState(false);
+  const [featureIntroChecked, setFeatureIntroChecked] = useState(false);
   const [metricDetail, setMetricDetail] = useState<MetricDetail | null>(null);
   const [showGoals, setShowGoals] = useState(false);
   const [foodReminderPreference, setFoodReminderPreference] = useState<FoodReminderPreference | null>(null);
+  const [showFoodReminderMenu, setShowFoodReminderMenu] = useState(false);
+  const [foodReminderDraftEnabled, setFoodReminderDraftEnabled] = useState(true);
+  const [foodReminderDraftMeals, setFoodReminderDraftMeals] = useState<FoodReminderMeal[]>(DEFAULT_FOOD_REMINDER_MEALS);
+  const [foodReminderDraftError, setFoodReminderDraftError] = useState<string | null>(null);
   const [savingFoodReminder, setSavingFoodReminder] = useState(false);
+  const [recentLogsOpen, setRecentLogsOpen] = useState<Record<string, boolean>>({});
   const [profileCarouselProgress, setProfileCarouselProgress] = useState(0);
   const accountMenuRef = useRef<HTMLDivElement>(null);
+  const foodReminderMenuRef = useRef<HTMLDivElement>(null);
   const scoreInfoRef = useRef<HTMLDivElement>(null);
   const profileCarouselRef = useRef<HTMLDivElement>(null);
 
   const handleProfileCarouselScroll = useCallback(() => {
     const carousel = profileCarouselRef.current;
     if (!carousel) return;
+    if (carousel.scrollTop !== 0) carousel.scrollTop = 0;
     const maxScroll = carousel.scrollWidth - carousel.clientWidth;
     setProfileCarouselProgress(maxScroll > 0 ? carousel.scrollLeft / maxScroll : 0);
   }, []);
@@ -559,8 +626,45 @@ export default function DashboardPage() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [showScoreInfo]);
 
+  useEffect(() => {
+    if (!showFoodReminderMenu) return;
+    function handleClickOutside(e: MouseEvent) {
+      if (foodReminderMenuRef.current && !foodReminderMenuRef.current.contains(e.target as Node)) {
+        setShowFoodReminderMenu(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [showFoodReminderMenu]);
+
+  useEffect(() => {
+    if (profileCarouselRef.current) profileCarouselRef.current.scrollTop = 0;
+  }, [logs.length, memberRows.length]);
+
+  useEffect(() => {
+    if (loading) return;
+    if (!user) {
+      setShowFeatureIntro(false);
+      setFeatureIntroChecked(true);
+      return;
+    }
+
+    const storageKey = `famcare_feature_intro_seen_${user.id}`;
+    const seen = IS_PRODUCTION && localStorage.getItem(storageKey) === "true";
+    const shouldShow = IS_PRODUCTION ? logs.length === 0 && !seen : true;
+    setShowFeatureIntro(shouldShow);
+    setFeatureIntroChecked(true);
+  }, [loading, logs.length, user]);
+
+  useEffect(() => {
+    setFoodReminderDraftEnabled(foodReminderPreference?.enabled ?? true);
+    setFoodReminderDraftMeals(foodReminderMealsFromPreference(foodReminderPreference));
+  }, [foodReminderPreference]);
+
   const handleLogout = () => {
-    localStorage.clear();
+    if (user) localStorage.removeItem(`famcare_feature_intro_seen_${user.id}`);
+    localStorage.removeItem("auth_token");
+    localStorage.removeItem("auth_user");
     window.location.href = "/login";
   };
 
@@ -573,8 +677,9 @@ export default function DashboardPage() {
       if (!authUser.name) { window.location.href = "/onboarding/name"; return; }
       setUser(authUser);
       const token = localStorage.getItem("auth_token") ?? "";
-      const [fetchedLogs, fetchedSummary, members] = await Promise.all([
+      const [fetchedLogs, fetchedEvents, fetchedSummary, members] = await Promise.all([
         getUserLogs(authUser.id, 30),
+        getUserLogEvents(authUser.id, 7).catch(() => []),
         getUserSummary(authUser.id),
         getFamilyMembers(token).catch((err) => {
           if (err?.message === "Unauthorized") throw err;
@@ -582,6 +687,7 @@ export default function DashboardPage() {
         }),
       ]);
       setLogs(fetchedLogs);
+      setLogEvents(fetchedEvents);
       setSummary(fetchedSummary);
       getFoodReminderPreference(token)
         .then(setFoodReminderPreference)
@@ -597,11 +703,19 @@ export default function DashboardPage() {
         has_family_members: activeMembers.length > 0,
       });
       const rows = await Promise.all(
-        activeMembers.map(async (member) => ({
-          member,
-          summary: await getMemberSummary(member.id, token).catch(() => null),
-          logs: await getMemberLogs(member.id, token, 7).catch(() => []),
-        }))
+        activeMembers.map(async (member) => {
+          const [memberSummary, memberLogs, memberEvents] = await Promise.all([
+            getMemberSummary(member.id, token).catch(() => null),
+            getMemberLogs(member.id, token, 7).catch(() => []),
+            getMemberLogEvents(member.id, token, 7).catch(() => []),
+          ]);
+          return {
+            member,
+            summary: memberSummary,
+            logs: memberLogs,
+            events: memberEvents,
+          };
+        })
       );
       setMemberRows(rows);
     } catch (err) {
@@ -611,31 +725,89 @@ export default function DashboardPage() {
     }
   }, []);
 
-  const handleFoodReminderToggle = useCallback(async () => {
+  const updateFoodReminderDraftMeal = useCallback((slot: FoodReminderMeal["slot"], patch: Partial<FoodReminderMeal>) => {
+    setFoodReminderDraftError(null);
+    setFoodReminderDraftMeals((current) => current.map((meal) => (
+      meal.slot === slot ? { ...meal, ...patch } : meal
+    )));
+  }, []);
+
+  const ensureOneFoodReminderDraftMeal = useCallback(() => {
+    setFoodReminderDraftMeals((current) => {
+      if (current.some((meal) => meal.enabled)) return current;
+      const firstSlot = current[0]?.slot;
+      if (!firstSlot) return current;
+      return current.map((meal) => (
+        meal.slot === firstSlot ? { ...meal, enabled: true } : meal
+      ));
+    });
+  }, []);
+
+  const setFoodReminderDraftPower = useCallback((enabled: boolean) => {
+    setFoodReminderDraftError(null);
+    setFoodReminderDraftEnabled(enabled);
+    if (enabled) ensureOneFoodReminderDraftMeal();
+  }, [ensureOneFoodReminderDraftMeal]);
+
+  const removeFoodReminderDraftMeal = useCallback((slot: FoodReminderMeal["slot"]) => {
+    setFoodReminderDraftMeals((current) => {
+      const activeCount = current.filter((meal) => meal.enabled).length;
+      if (foodReminderDraftEnabled && activeCount <= 1) {
+        setFoodReminderDraftError("At least one reminder is needed while food reminders are On. Turn Off reminders to remove all.");
+        return current;
+      }
+      setFoodReminderDraftError(null);
+      return current.map((meal) => (
+        meal.slot === slot ? { ...meal, enabled: false } : meal
+      ));
+    });
+  }, [foodReminderDraftEnabled]);
+
+  const addFoodReminderDraftMeal = useCallback(() => {
+    setFoodReminderDraftError(null);
+    setFoodReminderDraftMeals((current) => {
+      const nextSlot = current.find((meal) => !meal.enabled)?.slot;
+      if (!nextSlot) return current;
+      return current.map((meal) => (
+        meal.slot === nextSlot ? { ...meal, enabled: true } : meal
+      ));
+    });
+  }, []);
+
+  const saveFoodReminderSetup = useCallback(async () => {
     const token = localStorage.getItem("auth_token") ?? "";
     if (!token || savingFoodReminder) return;
-    const nextEnabled = !(foodReminderPreference?.enabled ?? true);
+    const safeMeals = foodReminderDraftEnabled && foodReminderDraftMeals.every((meal) => !meal.enabled)
+      ? foodReminderDraftMeals.map((meal, index) => index === 0 ? { ...meal, enabled: true } : meal)
+      : foodReminderDraftMeals;
+    if (safeMeals !== foodReminderDraftMeals) setFoodReminderDraftMeals(safeMeals);
     setSavingFoodReminder(true);
     const previous = foodReminderPreference;
-    setFoodReminderPreference((current) => ({
+    const optimisticMeals = safeMeals;
+    setFoodReminderPreference((current): FoodReminderPreference => ({
       user_id: current?.user_id ?? user?.id ?? 0,
-      enabled: nextEnabled,
-      activated: current?.activated || nextEnabled,
-      breakfast_time: current?.breakfast_time ?? "09:00",
-      lunch_time: current?.lunch_time ?? "15:00",
-      dinner_time: current?.dinner_time ?? "22:00",
+      enabled: foodReminderDraftEnabled,
+      activated: current?.activated || foodReminderDraftEnabled,
+      breakfast_time: optimisticMeals.find((meal) => meal.slot === "breakfast")?.time ?? "09:00",
+      lunch_time: optimisticMeals.find((meal) => meal.slot === "lunch")?.time ?? "15:00",
+      dinner_time: optimisticMeals.find((meal) => meal.slot === "dinner")?.time ?? "22:00",
+      meals: optimisticMeals,
     }));
     try {
-      const updated = await updateFoodReminderPreference(nextEnabled, token);
+      const updated = await updateFoodReminderPreference(foodReminderDraftEnabled, token, optimisticMeals);
       setFoodReminderPreference(updated);
-      captureEvent("food_reminder_preference_updated", { enabled: updated.enabled });
+      setShowFoodReminderMenu(false);
+      captureEvent("food_reminder_preference_updated", {
+        enabled: updated.enabled,
+        active_meal_count: updated.meals.filter((meal) => meal.enabled).length,
+      });
     } catch (err) {
       setFoodReminderPreference(previous);
       setError(err instanceof Error ? err.message : "Failed to update food reminder preference");
     } finally {
       setSavingFoodReminder(false);
     }
-  }, [foodReminderPreference, savingFoodReminder, user?.id]);
+  }, [foodReminderDraftEnabled, foodReminderDraftMeals, foodReminderPreference, savingFoodReminder, user?.id]);
 
   useEffect(() => {
     (async () => {
@@ -785,6 +957,31 @@ export default function DashboardPage() {
     );
   }
 
+  if (user && !featureIntroChecked) {
+    return (
+      <div className="db-page">
+        <Sidebar />
+        <div className="db-main" style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <PageLoader
+            title="Preparing your quick guide..."
+            subtitle="Just a moment before your dashboard opens."
+          />
+        </div>
+      </div>
+    );
+  }
+
+  const featureIntroOverlay = user && showFeatureIntro ? (
+    <FeatureIntro
+      onDone={() => {
+        if (IS_PRODUCTION) {
+          localStorage.setItem(`famcare_feature_intro_seen_${user.id}`, "true");
+        }
+        setShowFeatureIntro(false);
+      }}
+    />
+  ) : null;
+
   if (!user || logs.length === 0) {
     return (
       <div className="db-page">
@@ -792,6 +989,7 @@ export default function DashboardPage() {
         <div className="db-main">
           <EmptyState userName={user?.name ?? undefined} />
         </div>
+        {featureIntroOverlay}
       </div>
     );
   }
@@ -811,13 +1009,14 @@ export default function DashboardPage() {
     created_at: user.created_at,
   };
   const homeMemberRows = [
-    { member: selfMember, summary, logs, isSelf: true },
+    { member: selfMember, summary, logs, events: logEvents, isSelf: true },
     ...memberRows.map((row) => ({ ...row, isSelf: false })),
   ];
 
   return (
     <div className="db-page">
       <Sidebar />
+      {featureIntroOverlay}
 
       <div className="db-main">
         <div className="db-topbar">
@@ -831,37 +1030,258 @@ export default function DashboardPage() {
               {new Date().toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
             </div>
             <StreakPill streak={streak} />
-            <button
-              type="button"
-              onClick={handleFoodReminderToggle}
-              disabled={savingFoodReminder}
-              aria-pressed={foodReminderEnabled}
-              className="db-pill"
-              style={{
-                border: `1px solid ${foodReminderEnabled ? "#BDEFD3" : "#E9E5EA"}`,
-                background: foodReminderEnabled ? "var(--he-green-bg)" : "#fff",
-                color: foodReminderEnabled ? "var(--he-green-deep)" : "#7C84A8",
-                cursor: savingFoodReminder ? "wait" : "pointer",
-                opacity: savingFoodReminder ? 0.72 : 1,
-              }}
-              title={foodReminderEnabled
-                ? "Breakfast, lunch, and dinner logging reminders are on"
-                : "Turn on breakfast, lunch, and dinner logging reminders"}
-            >
-              <FEWheat size={15} />
-              Food reminders
-              <span style={{
-                marginLeft: 2,
-                padding: "2px 7px",
-                borderRadius: 999,
-                background: foodReminderEnabled ? "#fff" : "#F5F2F5",
-                fontSize: 10.5,
-                fontWeight: 900,
-                color: foodReminderEnabled ? "var(--he-green-deep)" : "#9AA0AD",
-              }}>
-                {foodReminderEnabled ? "On" : "Off"}
-              </span>
-            </button>
+            <div className="food-reminder-control" ref={foodReminderMenuRef} style={{ position: "relative" }}>
+              <button
+                type="button"
+                onClick={() => setShowFoodReminderMenu((current) => !current)}
+                disabled={savingFoodReminder}
+                aria-pressed={foodReminderEnabled}
+                aria-expanded={showFoodReminderMenu}
+                className={`db-pill food-reminder-trigger${foodReminderEnabled ? " enabled" : ""}`}
+                title={foodReminderEnabled
+                  ? "Manage breakfast, lunch, dinner, and snack logging reminders"
+                  : "Turn on meal logging reminders"}
+              >
+                <FEWheat size={15} />
+                Food reminders
+                <span className="food-reminder-status">{foodReminderEnabled ? "ON" : "OFF"}</span>
+                <CaretDown size={14} weight="bold" />
+              </button>
+              {showFoodReminderMenu && (
+                <div
+                  className="food-reminder-menu"
+                  style={{
+                    position: "absolute",
+                    top: "calc(100% + 10px)",
+                    right: 0,
+                    zIndex: 120,
+                    width: "min(438px, calc(100vw - 28px))",
+                    padding: 14,
+                    border: "1px solid #DDF4E7",
+                    borderRadius: 22,
+                    background: "radial-gradient(circle at top left, rgba(32,168,101,.12), transparent 36%), #fff",
+                    boxShadow: "0 22px 55px rgba(26, 38, 52, .16)",
+                    fontFamily: "inherit",
+                  }}
+                >
+                  <div className="food-reminder-menu-head" style={{ display: "flex", justifyContent: "space-between", gap: 14, alignItems: "flex-start", marginBottom: 12 }}>
+                    <div>
+                      <strong style={{ display: "block", color: "var(--he-ink-1)", fontSize: 14.5, fontWeight: 900 }}>Food reminders</strong>
+                      <span style={{ display: "block", marginTop: 3, color: "var(--he-ink-3)", fontSize: 11.5, fontWeight: 700, lineHeight: 1.35 }}>Choose what FamCare should remind you to log.</span>
+                    </div>
+                    <label
+                      className="food-reminder-switch"
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 7,
+                        padding: "6px 9px",
+                        borderRadius: 999,
+                        background: foodReminderDraftEnabled ? "#DDF7EA" : "#F1EEF2",
+                        border: `1px solid ${foodReminderDraftEnabled ? "#BDEFD3" : "#E3DEE5"}`,
+                        color: foodReminderDraftEnabled ? "var(--he-green-deep)" : "#8D92A1",
+                        fontSize: 11,
+                        fontWeight: 900,
+                        cursor: "pointer",
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={foodReminderDraftEnabled}
+                        onChange={(event) => setFoodReminderDraftPower(event.target.checked)}
+                        style={{ position: "absolute", opacity: 0, pointerEvents: "none" }}
+                      />
+                      <i
+                        aria-hidden="true"
+                        style={{
+                          position: "relative",
+                          width: 34,
+                          height: 20,
+                          borderRadius: 999,
+                          background: foodReminderDraftEnabled ? "#33C879" : "#C8CDD4",
+                          boxShadow: "inset 0 1px 2px rgba(0,0,0,.10)",
+                        }}
+                      >
+                        <b
+                          style={{
+                            position: "absolute",
+                            top: 3,
+                            left: foodReminderDraftEnabled ? 17 : 3,
+                            width: 14,
+                            height: 14,
+                            borderRadius: "50%",
+                            background: "#fff",
+                            boxShadow: "0 2px 5px rgba(16, 31, 23, .18)",
+                          }}
+                        />
+                      </i>
+                      <span>{foodReminderDraftEnabled ? "ON" : "OFF"}</span>
+                    </label>
+                  </div>
+
+                  <div
+                    className={`food-reminder-rows${foodReminderDraftEnabled ? "" : " disabled"}`}
+                    style={{ display: "grid", gap: 8, opacity: foodReminderDraftEnabled ? 1 : 0.55 }}
+                  >
+                    {foodReminderDraftMeals.filter((meal) => meal.enabled).map((meal) => (
+                      <div
+                        className="food-reminder-row"
+                        key={meal.slot}
+                        style={{ display: "grid", gridTemplateColumns: "28px 1fr 124px 36px", gap: 8, alignItems: "center" }}
+                      >
+                        <label className="food-reminder-row-check" aria-label={`Enable ${meal.slot} reminder`} style={{ width: 28, height: 38, display: "grid", placeItems: "center", cursor: "pointer" }}>
+                          <input
+                            type="checkbox"
+                            checked={meal.enabled}
+                            disabled={!foodReminderDraftEnabled}
+                            onChange={(event) => updateFoodReminderDraftMeal(meal.slot, { enabled: event.target.checked })}
+                            style={{ position: "absolute", opacity: 0, pointerEvents: "none" }}
+                          />
+                          <span
+                            style={{
+                              width: 18,
+                              height: 18,
+                              borderRadius: 7,
+                              border: `1.5px solid ${meal.enabled ? "var(--he-green)" : "#DCE3E0"}`,
+                              background: meal.enabled ? "var(--he-green)" : "#fff",
+                              boxShadow: meal.enabled ? "inset 0 0 0 4px #fff" : "none",
+                            }}
+                          />
+                        </label>
+                        <input
+                          type="text"
+                          value={meal.label}
+                          placeholder="Reminder name"
+                          maxLength={32}
+                          disabled={!foodReminderDraftEnabled || !meal.enabled}
+                          onChange={(event) => updateFoodReminderDraftMeal(meal.slot, { label: event.target.value })}
+                          style={{
+                            height: 38,
+                            border: "1.5px solid #E8E3E5",
+                            borderRadius: 12,
+                            background: foodReminderDraftEnabled && meal.enabled ? "rgba(255,255,255,.88)" : "#F8F6F7",
+                            color: foodReminderDraftEnabled && meal.enabled ? "var(--he-ink-1)" : "#A0A6AD",
+                            fontFamily: "inherit",
+                            fontSize: 12,
+                            fontWeight: 850,
+                            padding: "0 10px",
+                            outline: "none",
+                          }}
+                        />
+                        <input
+                          type="time"
+                          value={meal.time}
+                          disabled={!foodReminderDraftEnabled || !meal.enabled}
+                          onChange={(event) => updateFoodReminderDraftMeal(meal.slot, { time: event.target.value })}
+                          style={{
+                            height: 38,
+                            border: "1.5px solid #E8E3E5",
+                            borderRadius: 12,
+                            background: foodReminderDraftEnabled && meal.enabled ? "rgba(255,255,255,.88)" : "#F8F6F7",
+                            color: foodReminderDraftEnabled && meal.enabled ? "var(--he-ink-1)" : "#A0A6AD",
+                            fontFamily: "inherit",
+                            fontSize: 12,
+                            fontWeight: 850,
+                            padding: "0 10px",
+                            outline: "none",
+                          }}
+                        />
+                        <button
+                          type="button"
+                          aria-label={`Remove ${meal.label || "reminder"}`}
+                          onClick={() => removeFoodReminderDraftMeal(meal.slot)}
+                          disabled={!foodReminderDraftEnabled}
+                          style={{
+                            width: 36,
+                            height: 38,
+                            display: "grid",
+                            placeItems: "center",
+                            border: "1.5px solid #F0DDDD",
+                            borderRadius: 12,
+                            background: foodReminderDraftEnabled ? "#FFF7F6" : "#F8F6F7",
+                            color: foodReminderDraftEnabled ? "var(--he-coral)" : "#A0A6AD",
+                            cursor: foodReminderDraftEnabled ? "pointer" : "not-allowed",
+                          }}
+                        >
+                          <Trash size={16} weight="bold" />
+                        </button>
+                      </div>
+                    ))}
+                    {foodReminderDraftMeals.filter((meal) => meal.enabled).length < 5 && (
+                      <button
+                        type="button"
+                        onClick={addFoodReminderDraftMeal}
+                        disabled={!foodReminderDraftEnabled}
+                        style={{
+                          height: 42,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          gap: 8,
+                          border: "1.5px dashed #BDEFD3",
+                          borderRadius: 14,
+                          background: foodReminderDraftEnabled ? "#F3FCF7" : "#F8F6F7",
+                          color: foodReminderDraftEnabled ? "var(--he-green-deep)" : "#A0A6AD",
+                          fontFamily: "inherit",
+                          fontSize: 12.5,
+                          fontWeight: 900,
+                          cursor: foodReminderDraftEnabled ? "pointer" : "not-allowed",
+                        }}
+                      >
+                        <Plus size={15} weight="bold" />
+                        Add reminder
+                      </button>
+                    )}
+                  </div>
+
+                  {foodReminderDraftError && (
+                    <div
+                      role="alert"
+                      style={{
+                        marginTop: 10,
+                        padding: "9px 11px",
+                        borderRadius: 12,
+                        border: "1px solid #FFD6D1",
+                        background: "#FFF5F3",
+                        color: "#D94E45",
+                        fontSize: 11.5,
+                        fontWeight: 800,
+                        lineHeight: 1.35,
+                      }}
+                    >
+                      {foodReminderDraftError}
+                    </div>
+                  )}
+
+                  <div className="food-reminder-menu-foot" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginTop: 12, paddingTop: 12, borderTop: "1px solid #F0ECEE" }}>
+                    <span style={{ color: "var(--he-ink-3)", fontSize: 11.5, fontWeight: 800 }}>
+                      {foodReminderDraftMeals.filter((meal) => meal.enabled).length} {foodReminderDraftMeals.filter((meal) => meal.enabled).length === 1 ? "reminder" : "reminders"} selected
+                    </span>
+                    <button
+                      type="button"
+                      onClick={saveFoodReminderSetup}
+                      disabled={savingFoodReminder}
+                      style={{
+                        height: 36,
+                        padding: "0 16px",
+                        border: "none",
+                        borderRadius: 12,
+                        background: "linear-gradient(150deg, #38D184, var(--he-green))",
+                        color: "#fff",
+                        fontFamily: "inherit",
+                        fontSize: 12,
+                        fontWeight: 900,
+                        cursor: savingFoodReminder ? "wait" : "pointer",
+                        opacity: savingFoodReminder ? 0.72 : 1,
+                        boxShadow: "0 9px 18px rgba(32,168,101,.22)",
+                      }}
+                    >
+                      {savingFoodReminder ? "Saving..." : "Save"}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
             <a href={WA_LINK} target="_blank" rel="noopener noreferrer" className="db-pill cta">
               <WaIcon size={15} />
               Log via WhatsApp
@@ -943,9 +1363,9 @@ export default function DashboardPage() {
               ref={profileCarouselRef}
               onScroll={handleProfileCarouselScroll}
               className="db-profile-carousel"
-              style={{ display: "flex", alignItems: "stretch", gap: 16, overflowX: "auto", padding: "12px 8px 10px", scrollSnapType: "x proximity" }}
+              style={{ display: "flex", alignItems: "flex-start", gap: 16, overflowX: "auto", overflowY: "hidden", padding: "22px 8px 10px", scrollSnapType: "x proximity" }}
             >
-              {homeMemberRows.map(({ member, summary: memberSummary, logs: memberLogs, isSelf }) => {
+              {homeMemberRows.map(({ member, summary: memberSummary, logs: memberLogs, events: memberEvents, isSelf }) => {
                 const score = computeScore(memberSummary);
                 const tier = scoreTier(score);
                 const avatarLetter = (member.name ?? member.label).charAt(0).toUpperCase();
@@ -955,6 +1375,20 @@ export default function DashboardPage() {
                 const memberTodaySteps = memberTodayLog?.steps ?? null;
                 const cardId = isSelf ? "self" : `member-${member.id}`;
                 const isSelectedCard = selectedCardId === cardId;
+                const sortedRecentEvents = [...memberEvents].sort(
+                  (a, b) => (new Date(b.created_at).getTime() || 0) - (new Date(a.created_at).getTime() || 0),
+                );
+                const sortedRecentLogs = [...memberLogs].sort(
+                  (a, b) => (new Date(`${b.logged_at}T00:00:00`).getTime() || 0) - (new Date(`${a.logged_at}T00:00:00`).getTime() || 0),
+                );
+                const recentCount = sortedRecentEvents.length || sortedRecentLogs.length;
+                const recentLogItems = sortedRecentEvents.length > 0
+                  ? sortedRecentEvents.slice(0, 2).map(recentItemFromEvent)
+                  : sortedRecentLogs.slice(0, 2).map(recentItemFromAggregate);
+                const visibleRecentItems = recentLogItems.length > 0
+                  ? recentLogItems
+                  : [{ key: "empty", message: "No logs yet", metrics: "Send a WhatsApp log" }];
+                const isRecentOpen = recentLogsOpen[cardId] ?? false;
                 const selectedTone = tier.label === "All good"
                   ? "good"
                   : tier.label === "Needs attention"
@@ -998,11 +1432,6 @@ export default function DashboardPage() {
                       transform: isSelectedCard ? "translateY(-2px)" : undefined,
                     }}
                   >
-                    <div style={{
-                      position: "absolute", width: 130, height: 130, borderRadius: "50%",
-                      top: -54, right: -42, background: tier.ring, opacity: 0.1,
-                      filter: "blur(18px)", pointerEvents: "none",
-                    }} />
                     <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, position: "relative" }}>
                       <div className="hm-head" style={{ display: "flex", gap: 11 }}>
                         <div className="hm-avatar" style={{
@@ -1049,6 +1478,153 @@ export default function DashboardPage() {
                         <p className="hm-stat-label" style={{ margin: 0, fontSize: 10, fontWeight: 600, color: "#7C84A8" }}>Steps today</p>
                       </div>
                     </div>
+                    <div
+                      style={{
+                        marginTop: 16,
+                        border: `1.5px solid ${withOpacity(tier.border, 0.72)}`,
+                        borderRadius: isRecentOpen ? "18px 18px 0 0" : 18,
+                        borderBottomColor: isRecentOpen ? "transparent" : withOpacity(tier.border, 0.72),
+                        background: "rgba(255,255,255,.72)",
+                        boxShadow: "inset 0 1px 0 rgba(255,255,255,.9)",
+                        overflow: "visible",
+                        position: "relative",
+                        zIndex: isRecentOpen ? 6 : 2,
+                        transition: "border-radius .2s ease, border-color .2s ease",
+                      }}
+                      onClick={(event) => event.stopPropagation()}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => setRecentLogsOpen((current) => ({ ...current, [cardId]: !isRecentOpen }))}
+                        style={{
+                          width: "100%",
+                          minHeight: 44,
+                          border: "none",
+                          background: "transparent",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          gap: 10,
+                          padding: "10px 12px",
+                          cursor: "pointer",
+                          fontFamily: "'Plus Jakarta Sans', sans-serif",
+                        }}
+                      >
+                        <span style={{ display: "inline-flex", alignItems: "center", gap: 9, minWidth: 0 }}>
+                          <span style={{
+                            width: 28, height: 28, borderRadius: 10,
+                            background: "#FFF0EE", color: "var(--he-coral)",
+                            display: "inline-grid", placeItems: "center", flex: "none",
+                          }}>
+                            <svg width="13" height="13" viewBox="0 0 13 13" aria-hidden="true" style={{ display: "block" }}>
+                              <path d="M3 4h7M3 6.5h7M3 9h7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                            </svg>
+                          </span>
+                          <span style={{ color: "#1A2744", fontSize: 13.5, fontWeight: 900, whiteSpace: "nowrap" }}>Recent logs</span>
+                          <span style={{
+                            minWidth: 23, height: 23, borderRadius: 999,
+                            background: "#FFE6E4", color: "var(--he-coral)",
+                            display: "inline-flex", alignItems: "center", justifyContent: "center",
+                            fontSize: 11, fontWeight: 900,
+                          }}>
+                            {recentCount}
+                          </span>
+                        </span>
+                        <CaretDown
+                          size={18}
+                          weight="bold"
+                          color="#1A2744"
+                          style={{ flexShrink: 0, transform: isRecentOpen ? "rotate(180deg)" : "rotate(0deg)", transition: "transform .18s ease" }}
+                        />
+                      </button>
+                      <div style={{
+                        position: "absolute",
+                        top: "100%",
+                        left: -1.5,
+                        right: -1.5,
+                        height: 148,
+                        clipPath: isRecentOpen ? "inset(0 0 0 0 round 0 0 18px 18px)" : "inset(0 0 100% 0 round 0 0 18px 18px)",
+                        transform: isRecentOpen ? "translateY(0) scaleY(1)" : "translateY(-6px) scaleY(.98)",
+                        overflow: "hidden",
+                        pointerEvents: isRecentOpen ? "auto" : "none",
+                        border: `1.5px solid ${withOpacity(tier.border, 0.72)}`,
+                        borderTop: "none",
+                        borderRadius: "0 0 18px 18px",
+                        background: "#FFFFFF",
+                        boxShadow: "0 18px 30px rgba(26, 39, 68, .12)",
+                        transformOrigin: "top center",
+                        zIndex: 20,
+                        transition: "clip-path .28s cubic-bezier(.2,.8,.2,1), transform .28s cubic-bezier(.2,.8,.2,1)",
+                      }}>
+                        <div style={{
+                          padding: "11px 12px 10px",
+                          position: "relative",
+                          zIndex: 1,
+                        }}>
+                          <div style={{ display: "grid", gap: 8 }}>
+                            {visibleRecentItems.map((item) => (
+                              <div
+                                key={item.key}
+                                style={{
+                                  display: "flex",
+                                  gap: 10,
+                                  alignItems: "center",
+                                  minWidth: 0,
+                                  width: "100%",
+                                }}
+                              >
+                                <span style={{ minWidth: 0, flex: "1 1 0", display: "inline-flex", alignItems: "center", gap: 8 }}>
+                                  <span style={{ width: 8, height: 8, borderRadius: "50%", background: item.key === "empty" ? "#D7DDE8" : "var(--he-coral)", flexShrink: 0 }} />
+                                  <span style={{
+                                    minWidth: 0,
+                                    flex: "1 1 auto",
+                                    color: "#1A2744",
+                                    fontSize: 12.2,
+                                    fontWeight: 900,
+                                    whiteSpace: "nowrap",
+                                    overflow: "hidden",
+                                    textOverflow: "ellipsis",
+                                  }}>
+                                    {item.message}
+                                  </span>
+                                </span>
+                                <span style={{
+                                  color: "#8790A8",
+                                  fontSize: 10.4,
+                                  fontWeight: 900,
+                                  whiteSpace: "nowrap",
+                                  textAlign: "right",
+                                  flex: "0 1 118px",
+                                  maxWidth: 118,
+                                  minWidth: 72,
+                                  overflow: "hidden",
+                                  textOverflow: "ellipsis",
+                                }}>
+                                  {item.metrics}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                          <Link
+                            href="/dashboard/logs"
+                            onClick={(event) => event.stopPropagation()}
+                            style={{
+                              marginTop: 9,
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "flex-end",
+                              gap: 4,
+                              color: "#2F7DE1",
+                              fontSize: 12,
+                              fontWeight: 900,
+                              textDecoration: "none",
+                            }}
+                          >
+                            View all logs <CaretRight size={13} weight="bold" />
+                          </Link>
+                        </div>
+                      </div>
+                    </div>
                     <button
                       className="hm-btn"
                       onClick={(event) => {
@@ -1062,7 +1638,8 @@ export default function DashboardPage() {
                         fontFamily: "'Plus Jakarta Sans', sans-serif",
                       }}
                     >
-                      {isSelectedCard ? "Selected" : "View profile"} <CaretRight size={13} weight="bold" />
+                      {isSelectedCard ? "Selected" : "View profile"}
+                      {!isSelectedCard && <CaretRight size={13} weight="bold" />}
                     </button>
                   </div>
                 );
@@ -1412,7 +1989,7 @@ export default function DashboardPage() {
           onAdded={(member) => {
             setMemberRows((rows) => {
               const idx = rows.findIndex((r) => r.member.id === member.id);
-              if (idx === -1) return [...rows, { member, summary: null, logs: [] }];
+              if (idx === -1) return [...rows, { member, summary: null, logs: [], events: [] }];
               const next = [...rows];
               next[idx] = { ...next[idx], member };
               return next;
