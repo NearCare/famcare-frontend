@@ -632,6 +632,9 @@ a {
   overscroll-behavior-inline: contain;
 }
 .db-profile-carousel::-webkit-scrollbar { display: none; }
+.db-home-member-card {
+  overflow: visible !important;
+}
 .db-profile-scroll-track {
   width: 92px;
   height: 4px;

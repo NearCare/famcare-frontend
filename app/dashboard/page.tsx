@@ -77,6 +77,28 @@ function logMetricsText(log: Pick<HealthLogEvent, "calories" | "protein_g" | "st
   return parts.length ? parts.join(" · ") : "Logged";
 }
 
+type RecentLogItem = {
+  key: string;
+  message: string;
+  metrics: string;
+};
+
+function recentItemFromEvent(event: HealthLogEvent): RecentLogItem {
+  return {
+    key: `event-${event.id}`,
+    message: compactLogMessage(event.raw_message),
+    metrics: logMetricsText(event),
+  };
+}
+
+function recentItemFromAggregate(log: HealthLog): RecentLogItem {
+  return {
+    key: `log-${log.id}`,
+    message: compactLogMessage(log.raw_message),
+    metrics: logMetricsText(log),
+  };
+}
+
 function Sparkline({ data, color }: { data: number[]; color: string }) {
   const w = 68, h = 20;
   const max = Math.max(...data, 1);
@@ -991,17 +1013,13 @@ export default function DashboardPage() {
                 const sortedRecentLogs = [...memberLogs].sort(
                   (a, b) => (new Date(`${b.logged_at}T00:00:00`).getTime() || 0) - (new Date(`${a.logged_at}T00:00:00`).getTime() || 0),
                 );
-                const latestEvent = sortedRecentEvents[0];
-                const latestAggregate = latestEvent ? null : sortedRecentLogs[0];
                 const recentCount = sortedRecentEvents.length || sortedRecentLogs.length;
-                const latestMessage = latestEvent
-                  ? compactLogMessage(latestEvent.raw_message)
-                  : compactLogMessage(latestAggregate?.raw_message);
-                const latestMetrics = latestEvent
-                  ? logMetricsText(latestEvent)
-                  : latestAggregate
-                  ? logMetricsText(latestAggregate)
-                  : "Send a WhatsApp log";
+                const recentLogItems = sortedRecentEvents.length > 0
+                  ? sortedRecentEvents.slice(0, 2).map(recentItemFromEvent)
+                  : sortedRecentLogs.slice(0, 2).map(recentItemFromAggregate);
+                const visibleRecentItems = recentLogItems.length > 0
+                  ? recentLogItems
+                  : [{ key: "empty", message: "No logs yet", metrics: "Send a WhatsApp log" }];
                 const isRecentOpen = recentLogsOpen[cardId] ?? false;
                 const selectedTone = tier.label === "All good"
                   ? "good"
@@ -1046,11 +1064,6 @@ export default function DashboardPage() {
                       transform: isSelectedCard ? "translateY(-2px)" : undefined,
                     }}
                   >
-                    <div style={{
-                      position: "absolute", width: 130, height: 130, borderRadius: "50%",
-                      top: -54, right: -42, background: tier.ring, opacity: 0.1,
-                      filter: "blur(18px)", pointerEvents: "none",
-                    }} />
                     <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, position: "relative" }}>
                       <div className="hm-head" style={{ display: "flex", gap: 11 }}>
                         <div className="hm-avatar" style={{
@@ -1101,11 +1114,14 @@ export default function DashboardPage() {
                       style={{
                         marginTop: 16,
                         border: `1.5px solid ${withOpacity(tier.border, 0.72)}`,
-                        borderRadius: 18,
+                        borderRadius: isRecentOpen ? "18px 18px 0 0" : 18,
+                        borderBottomColor: isRecentOpen ? "transparent" : withOpacity(tier.border, 0.72),
                         background: "rgba(255,255,255,.72)",
                         boxShadow: "inset 0 1px 0 rgba(255,255,255,.9)",
-                        overflow: "hidden",
+                        overflow: "visible",
                         position: "relative",
+                        zIndex: isRecentOpen ? 6 : 2,
+                        transition: "border-radius .2s ease, border-color .2s ease",
                       }}
                       onClick={(event) => event.stopPropagation()}
                     >
@@ -1153,50 +1169,72 @@ export default function DashboardPage() {
                         />
                       </button>
                       <div style={{
-                        maxHeight: isRecentOpen ? 112 : 0,
+                        position: "absolute",
+                        top: "100%",
+                        left: -1.5,
+                        right: -1.5,
+                        maxHeight: isRecentOpen ? 148 : 0,
                         opacity: isRecentOpen ? 1 : 0,
-                        transform: isRecentOpen ? "translateY(0)" : "translateY(-8px)",
+                        transform: isRecentOpen ? "translateY(0)" : "translateY(-7px)",
                         overflow: "hidden",
-                        borderTop: isRecentOpen ? "1px solid rgba(242,225,212,.85)" : "1px solid rgba(242,225,212,0)",
-                        transition: "max-height .28s cubic-bezier(.2,.8,.2,1), opacity .2s ease, transform .28s cubic-bezier(.2,.8,.2,1), border-color .2s ease",
+                        pointerEvents: isRecentOpen ? "auto" : "none",
+                        border: `1.5px solid ${withOpacity(tier.border, 0.72)}`,
+                        borderTop: "none",
+                        borderRadius: "0 0 18px 18px",
+                        background: "#FFFFFF",
+                        boxShadow: "0 18px 30px rgba(26, 39, 68, .12)",
+                        transformOrigin: "top center",
+                        zIndex: 20,
+                        transition: "max-height .28s cubic-bezier(.2,.8,.2,1), opacity .18s ease, transform .28s cubic-bezier(.2,.8,.2,1)",
                       }}>
                         <div style={{
-                          padding: "10px 12px 11px 12px",
+                          padding: "11px 12px 10px",
+                          position: "relative",
+                          zIndex: 1,
                         }}>
-                          <div style={{
-                            display: "grid",
-                            gridTemplateColumns: "10px minmax(0, 1fr)",
-                            gap: 8,
-                            alignItems: "center",
-                          }}>
-                            <span style={{ width: 8, height: 8, borderRadius: "50%", background: recentCount > 0 ? "var(--he-coral)" : "#D7DDE8" }} />
-                            <span style={{ minWidth: 0, display: "flex", alignItems: "center", gap: 7 }}>
-                              <span style={{ minWidth: 0 }}>
+                          <div style={{ display: "grid", gap: 8 }}>
+                            {visibleRecentItems.map((item) => (
+                              <div
+                                key={item.key}
+                                style={{
+                                  display: "flex",
+                                  gap: 10,
+                                  alignItems: "center",
+                                  minWidth: 0,
+                                  width: "100%",
+                                }}
+                              >
+                                <span style={{ minWidth: 0, flex: "1 1 0", display: "inline-flex", alignItems: "center", gap: 8 }}>
+                                  <span style={{ width: 8, height: 8, borderRadius: "50%", background: item.key === "empty" ? "#D7DDE8" : "var(--he-coral)", flexShrink: 0 }} />
+                                  <span style={{
+                                    minWidth: 0,
+                                    flex: "1 1 auto",
+                                    color: "#1A2744",
+                                    fontSize: 12.2,
+                                    fontWeight: 900,
+                                    whiteSpace: "nowrap",
+                                    overflow: "hidden",
+                                    textOverflow: "ellipsis",
+                                  }}>
+                                    {item.message}
+                                  </span>
+                                </span>
                                 <span style={{
-                                  display: "block",
-                                  color: "#1A2744",
-                                  fontSize: 11.8,
+                                  color: "#8790A8",
+                                  fontSize: 10.4,
                                   fontWeight: 900,
                                   whiteSpace: "nowrap",
+                                  textAlign: "right",
+                                  flex: "0 1 118px",
+                                  maxWidth: 118,
+                                  minWidth: 72,
                                   overflow: "hidden",
                                   textOverflow: "ellipsis",
                                 }}>
-                                  {latestMessage}
+                                  {item.metrics}
                                 </span>
-                                <span style={{
-                                  display: "block",
-                                  color: "#8790A8",
-                                  fontSize: 10.5,
-                                  fontWeight: 800,
-                                  whiteSpace: "nowrap",
-                                  overflow: "hidden",
-                                  textOverflow: "ellipsis",
-                                  marginTop: 1,
-                                }}>
-                                  {latestMetrics}
-                                </span>
-                              </span>
-                            </span>
+                              </div>
+                            ))}
                           </div>
                           <Link
                             href="/dashboard/logs"
