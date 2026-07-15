@@ -86,6 +86,16 @@ export default function FeatureIntro({ onDone }: { onDone: () => void }) {
       >
         <button
           type="button"
+          className="feature-intro-skip"
+          onClick={(event) => {
+            event.stopPropagation();
+            onDone();
+          }}
+        >
+          Skip
+        </button>
+        <button
+          type="button"
           className="feature-intro-arrow left"
           aria-label="Previous slide"
           onClick={(event) => {

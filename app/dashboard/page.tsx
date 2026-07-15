@@ -662,6 +662,7 @@ export default function DashboardPage() {
   }, [foodReminderPreference]);
 
   const handleLogout = () => {
+    if (user) localStorage.removeItem(`famcare_feature_intro_seen_${user.id}`);
     localStorage.removeItem("auth_token");
     localStorage.removeItem("auth_user");
     window.location.href = "/login";

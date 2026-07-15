@@ -2776,6 +2776,27 @@ a {
   opacity: .28;
   cursor: default;
 }
+.feature-intro-skip {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  z-index: 4;
+  height: 34px;
+  padding: 0 14px;
+  border: 1px solid rgba(232,226,226,.76);
+  border-radius: 999px;
+  background: rgba(255,255,255,.84);
+  color: var(--he-ink-2);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 900;
+  cursor: pointer;
+  box-shadow: 0 12px 28px rgba(26,39,68,.12);
+  backdrop-filter: blur(10px);
+}
+.feature-intro-skip:hover {
+  color: var(--he-coral);
+}
 .feature-intro-ui {
   position: absolute;
   left: 50%;
@@ -2838,6 +2859,13 @@ a {
   }
   .feature-intro-arrow.left { left: 10px; }
   .feature-intro-arrow.right { right: 10px; }
+  .feature-intro-skip {
+    top: 10px;
+    right: 10px;
+    height: 31px;
+    padding: 0 12px;
+    font-size: 11.5px;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
