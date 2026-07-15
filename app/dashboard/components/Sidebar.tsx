@@ -75,8 +75,10 @@ export default function Sidebar() {
                 className={`db-nav-item${active ? " active" : ""}`}
               >
                 <NavIcon name={item.label} />
-                <span className="db-nav-label">{item.label}</span>
-                {item.isNew && <span className="db-new-badge">New</span>}
+                <span className={item.isNew ? "db-nav-label-stack" : "db-nav-label"}>
+                  <span className="db-nav-label">{item.label}</span>
+                  {item.isNew && <span className="db-new-badge">New</span>}
+                </span>
               </Link>
             );
           })}

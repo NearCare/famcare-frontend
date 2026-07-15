@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  CheckCircle, Warning, Sparkle, CaretRight, Info, TrendUp, Minus, X,
+  CheckCircle, Warning, Sparkle, CaretRight, CaretDown, Info, TrendUp, Minus, X,
   Star, CalendarBlank, CalendarCheck, SignOut, UserPlus,
 } from "@phosphor-icons/react";
 import { Flame, Dumbbell, Footprints } from "lucide-react";
@@ -10,10 +10,12 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip as ReTooltip, ResponsiveContainer,
 import { FEShoe, FEProtein, FEWheat, FEMoon, FEFlame, FEChat } from "./components/FluentEmoji";
 import {
   getUserLogs,
+  getUserLogEvents,
   getUserSummary,
   getFamilyMembers,
   getMemberSummary,
   getMemberLogs,
+  getMemberLogEvents,
   getFoodReminderPreference,
   updateFoodReminderPreference,
   updateUserGoals,
@@ -22,6 +24,7 @@ import {
   hasLoggedMetric,
   type User,
   type HealthLog,
+  type HealthLogEvent,
   type Summary,
   type FamilyMember,
   type FoodReminderPreference,
@@ -57,6 +60,21 @@ function withOpacity(hexColor: string, opacity: number) {
   const g = parseInt(normalized.slice(2, 4), 16);
   const b = parseInt(normalized.slice(4, 6), 16);
   return `rgba(${r}, ${g}, ${b}, ${opacity})`;
+}
+
+function compactLogMessage(message: string | null | undefined) {
+  const trimmed = message?.replace(/^\[voice\]\s*/i, "").trim();
+  if (!trimmed) return "Health log added";
+  return trimmed.length > 24 ? `${trimmed.slice(0, 24).trim()}…` : trimmed;
+}
+
+function logMetricsText(log: Pick<HealthLogEvent, "calories" | "protein_g" | "steps" | "sleep_hours">) {
+  const parts: string[] = [];
+  if (log.calories != null) parts.push(`${log.calories.toLocaleString()} kcal`);
+  if (log.protein_g != null) parts.push(`${Math.round(log.protein_g)}g protein`);
+  if (log.steps != null) parts.push(`${log.steps.toLocaleString()} steps`);
+  if (log.sleep_hours != null) parts.push(`${log.sleep_hours}h sleep`);
+  return parts.length ? parts.join(" · ") : "Logged";
 }
 
 function Sparkline({ data, color }: { data: number[]; color: string }) {
@@ -508,11 +526,12 @@ const WaIcon = ({ size = 16 }: { size?: number }) => (
   </svg>
 );
 
-type MemberRow = { member: FamilyMember; summary: Summary | null; logs: HealthLog[] };
+type MemberRow = { member: FamilyMember; summary: Summary | null; logs: HealthLog[]; events: HealthLogEvent[] };
 
 export default function DashboardPage() {
   const [user, setUser] = useState<User | null>(null);
   const [logs, setLogs] = useState<HealthLog[]>([]);
+  const [logEvents, setLogEvents] = useState<HealthLogEvent[]>([]);
   const [summary, setSummary] = useState<Summary | null>(null);
   const [memberRows, setMemberRows] = useState<MemberRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -525,6 +544,7 @@ export default function DashboardPage() {
   const [showGoals, setShowGoals] = useState(false);
   const [foodReminderPreference, setFoodReminderPreference] = useState<FoodReminderPreference | null>(null);
   const [savingFoodReminder, setSavingFoodReminder] = useState(false);
+  const [recentLogsOpen, setRecentLogsOpen] = useState<Record<string, boolean>>({});
   const [profileCarouselProgress, setProfileCarouselProgress] = useState(0);
   const accountMenuRef = useRef<HTMLDivElement>(null);
   const scoreInfoRef = useRef<HTMLDivElement>(null);
@@ -573,8 +593,9 @@ export default function DashboardPage() {
       if (!authUser.name) { window.location.href = "/onboarding/name"; return; }
       setUser(authUser);
       const token = localStorage.getItem("auth_token") ?? "";
-      const [fetchedLogs, fetchedSummary, members] = await Promise.all([
+      const [fetchedLogs, fetchedEvents, fetchedSummary, members] = await Promise.all([
         getUserLogs(authUser.id, 30),
+        getUserLogEvents(authUser.id, 7).catch(() => []),
         getUserSummary(authUser.id),
         getFamilyMembers(token).catch((err) => {
           if (err?.message === "Unauthorized") throw err;
@@ -582,6 +603,7 @@ export default function DashboardPage() {
         }),
       ]);
       setLogs(fetchedLogs);
+      setLogEvents(fetchedEvents);
       setSummary(fetchedSummary);
       getFoodReminderPreference(token)
         .then(setFoodReminderPreference)
@@ -597,11 +619,19 @@ export default function DashboardPage() {
         has_family_members: activeMembers.length > 0,
       });
       const rows = await Promise.all(
-        activeMembers.map(async (member) => ({
-          member,
-          summary: await getMemberSummary(member.id, token).catch(() => null),
-          logs: await getMemberLogs(member.id, token, 7).catch(() => []),
-        }))
+        activeMembers.map(async (member) => {
+          const [memberSummary, memberLogs, memberEvents] = await Promise.all([
+            getMemberSummary(member.id, token).catch(() => null),
+            getMemberLogs(member.id, token, 7).catch(() => []),
+            getMemberLogEvents(member.id, token, 7).catch(() => []),
+          ]);
+          return {
+            member,
+            summary: memberSummary,
+            logs: memberLogs,
+            events: memberEvents,
+          };
+        })
       );
       setMemberRows(rows);
     } catch (err) {
@@ -811,7 +841,7 @@ export default function DashboardPage() {
     created_at: user.created_at,
   };
   const homeMemberRows = [
-    { member: selfMember, summary, logs, isSelf: true },
+    { member: selfMember, summary, logs, events: logEvents, isSelf: true },
     ...memberRows.map((row) => ({ ...row, isSelf: false })),
   ];
 
@@ -943,9 +973,9 @@ export default function DashboardPage() {
               ref={profileCarouselRef}
               onScroll={handleProfileCarouselScroll}
               className="db-profile-carousel"
-              style={{ display: "flex", alignItems: "stretch", gap: 16, overflowX: "auto", padding: "12px 8px 10px", scrollSnapType: "x proximity" }}
+              style={{ display: "flex", alignItems: "flex-start", gap: 16, overflowX: "auto", padding: "12px 8px 10px", scrollSnapType: "x proximity" }}
             >
-              {homeMemberRows.map(({ member, summary: memberSummary, logs: memberLogs, isSelf }) => {
+              {homeMemberRows.map(({ member, summary: memberSummary, logs: memberLogs, events: memberEvents, isSelf }) => {
                 const score = computeScore(memberSummary);
                 const tier = scoreTier(score);
                 const avatarLetter = (member.name ?? member.label).charAt(0).toUpperCase();
@@ -955,6 +985,24 @@ export default function DashboardPage() {
                 const memberTodaySteps = memberTodayLog?.steps ?? null;
                 const cardId = isSelf ? "self" : `member-${member.id}`;
                 const isSelectedCard = selectedCardId === cardId;
+                const sortedRecentEvents = [...memberEvents].sort(
+                  (a, b) => (new Date(b.created_at).getTime() || 0) - (new Date(a.created_at).getTime() || 0),
+                );
+                const sortedRecentLogs = [...memberLogs].sort(
+                  (a, b) => (new Date(`${b.logged_at}T00:00:00`).getTime() || 0) - (new Date(`${a.logged_at}T00:00:00`).getTime() || 0),
+                );
+                const latestEvent = sortedRecentEvents[0];
+                const latestAggregate = latestEvent ? null : sortedRecentLogs[0];
+                const recentCount = sortedRecentEvents.length || sortedRecentLogs.length;
+                const latestMessage = latestEvent
+                  ? compactLogMessage(latestEvent.raw_message)
+                  : compactLogMessage(latestAggregate?.raw_message);
+                const latestMetrics = latestEvent
+                  ? logMetricsText(latestEvent)
+                  : latestAggregate
+                  ? logMetricsText(latestAggregate)
+                  : "Send a WhatsApp log";
+                const isRecentOpen = recentLogsOpen[cardId] ?? false;
                 const selectedTone = tier.label === "All good"
                   ? "good"
                   : tier.label === "Needs attention"
@@ -1047,6 +1095,127 @@ export default function DashboardPage() {
                         <div style={{ display: "flex", justifyContent: "center" }}><Footprints size={20} color="#20A865" /></div>
                         <p className="hm-stat-val" style={{ margin: "6px 0 0", fontSize: 14, fontWeight: 800, color: "#1A2744" }}>{memberTodaySteps != null ? memberTodaySteps.toLocaleString() : "—"}</p>
                         <p className="hm-stat-label" style={{ margin: 0, fontSize: 10, fontWeight: 600, color: "#7C84A8" }}>Steps today</p>
+                      </div>
+                    </div>
+                    <div
+                      style={{
+                        marginTop: 16,
+                        border: `1.5px solid ${withOpacity(tier.border, 0.72)}`,
+                        borderRadius: 18,
+                        background: "rgba(255,255,255,.72)",
+                        boxShadow: "inset 0 1px 0 rgba(255,255,255,.9)",
+                        overflow: "hidden",
+                        position: "relative",
+                      }}
+                      onClick={(event) => event.stopPropagation()}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => setRecentLogsOpen((current) => ({ ...current, [cardId]: !isRecentOpen }))}
+                        style={{
+                          width: "100%",
+                          minHeight: 44,
+                          border: "none",
+                          background: "transparent",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          gap: 10,
+                          padding: "10px 12px",
+                          cursor: "pointer",
+                          fontFamily: "'Plus Jakarta Sans', sans-serif",
+                        }}
+                      >
+                        <span style={{ display: "inline-flex", alignItems: "center", gap: 9, minWidth: 0 }}>
+                          <span style={{
+                            width: 28, height: 28, borderRadius: 10,
+                            background: "#FFF0EE", color: "var(--he-coral)",
+                            display: "inline-flex", alignItems: "center", justifyContent: "center",
+                            fontSize: 18, fontWeight: 900, lineHeight: 1,
+                          }}>
+                            ≡
+                          </span>
+                          <span style={{ color: "#1A2744", fontSize: 13.5, fontWeight: 900, whiteSpace: "nowrap" }}>Recent logs</span>
+                          <span style={{
+                            minWidth: 23, height: 23, borderRadius: 999,
+                            background: "#FFE6E4", color: "var(--he-coral)",
+                            display: "inline-flex", alignItems: "center", justifyContent: "center",
+                            fontSize: 11, fontWeight: 900,
+                          }}>
+                            {recentCount}
+                          </span>
+                        </span>
+                        <CaretDown
+                          size={18}
+                          weight="bold"
+                          color="#1A2744"
+                          style={{ flexShrink: 0, transform: isRecentOpen ? "rotate(180deg)" : "rotate(0deg)", transition: "transform .18s ease" }}
+                        />
+                      </button>
+                      <div style={{
+                        maxHeight: isRecentOpen ? 112 : 0,
+                        opacity: isRecentOpen ? 1 : 0,
+                        transform: isRecentOpen ? "translateY(0)" : "translateY(-8px)",
+                        overflow: "hidden",
+                        borderTop: isRecentOpen ? "1px solid rgba(242,225,212,.85)" : "1px solid rgba(242,225,212,0)",
+                        transition: "max-height .28s cubic-bezier(.2,.8,.2,1), opacity .2s ease, transform .28s cubic-bezier(.2,.8,.2,1), border-color .2s ease",
+                      }}>
+                        <div style={{
+                          padding: "10px 12px 11px 12px",
+                        }}>
+                          <div style={{
+                            display: "grid",
+                            gridTemplateColumns: "10px minmax(0, 1fr)",
+                            gap: 8,
+                            alignItems: "center",
+                          }}>
+                            <span style={{ width: 8, height: 8, borderRadius: "50%", background: recentCount > 0 ? "var(--he-coral)" : "#D7DDE8" }} />
+                            <span style={{ minWidth: 0, display: "flex", alignItems: "center", gap: 7 }}>
+                              <span style={{ minWidth: 0 }}>
+                                <span style={{
+                                  display: "block",
+                                  color: "#1A2744",
+                                  fontSize: 11.8,
+                                  fontWeight: 900,
+                                  whiteSpace: "nowrap",
+                                  overflow: "hidden",
+                                  textOverflow: "ellipsis",
+                                }}>
+                                  {latestMessage}
+                                </span>
+                                <span style={{
+                                  display: "block",
+                                  color: "#8790A8",
+                                  fontSize: 10.5,
+                                  fontWeight: 800,
+                                  whiteSpace: "nowrap",
+                                  overflow: "hidden",
+                                  textOverflow: "ellipsis",
+                                  marginTop: 1,
+                                }}>
+                                  {latestMetrics}
+                                </span>
+                              </span>
+                            </span>
+                          </div>
+                          <Link
+                            href="/dashboard/logs"
+                            onClick={(event) => event.stopPropagation()}
+                            style={{
+                              marginTop: 9,
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "flex-end",
+                              gap: 4,
+                              color: "#2F7DE1",
+                              fontSize: 12,
+                              fontWeight: 900,
+                              textDecoration: "none",
+                            }}
+                          >
+                            View all logs <CaretRight size={13} weight="bold" />
+                          </Link>
+                        </div>
                       </div>
                     </div>
                     <button
@@ -1412,7 +1581,7 @@ export default function DashboardPage() {
           onAdded={(member) => {
             setMemberRows((rows) => {
               const idx = rows.findIndex((r) => r.member.id === member.id);
-              if (idx === -1) return [...rows, { member, summary: null, logs: [] }];
+              if (idx === -1) return [...rows, { member, summary: null, logs: [], events: [] }];
               const next = [...rows];
               next[idx] = { ...next[idx], member };
               return next;
