@@ -352,13 +352,25 @@ export default function CalorieCalculatorPage() {
       <main className="db-main cc-main">
         <header className="cc-hero">
           <div>
-            <div className="cc-eyebrow"><Calculator size={14} weight="bold" /> Calorie calculator</div>
-            <h1>Find a calorie range that fits your life.</h1>
-            <p>Six quick answers give you a practical starting estimate for losing, maintaining, or gaining weight.</p>
+            <h1>Calorie Calculator</h1>
+            <p>Everything orbits your energy.</p>
+            <div className="cc-hero-mini-chip"><Sparkle size={11} weight="fill" /> Balance your universe.</div>
           </div>
-          <div className="cc-hero-note">
-            <Info size={18} weight="fill" />
-            <span>This is an estimate for adults, not a medical prescription.</span>
+          <div className="cc-food-galaxy" aria-hidden="true">
+            <span className="cc-orbit orbit-one" />
+            <span className="cc-orbit orbit-two" />
+            <span className="cc-orbit orbit-three" />
+            <span className="cc-galaxy-sparkle sparkle-one">✦</span>
+            <span className="cc-galaxy-sparkle sparkle-two">✧</span>
+            <div className="cc-fuel-sun">
+              <span>Daily fuel</span>
+              <strong>2100</strong>
+              <small>kcal</small>
+            </div>
+            <div className="cc-planet planet-broccoli"><span>🥦</span></div>
+            <div className="cc-planet planet-dumbbell"><span>🏋️</span></div>
+            <div className="cc-planet planet-protein"><span>💪</span></div>
+            <div className="cc-planet planet-moon"><span>🌙</span></div>
           </div>
         </header>
 
