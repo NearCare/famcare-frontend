@@ -6,7 +6,7 @@
 
 A warm-pastel health dashboard that visualises data logged by family members via WhatsApp. No app install for them, a beautiful dashboard for you.
 
-[![Next.js](https://img.shields.io/badge/Next.js-15-black?style=flat-square&logo=next.js)](https://nextjs.org)
+[![Next.js](https://img.shields.io/badge/Next.js-16-black?style=flat-square&logo=next.js)](https://nextjs.org)
 [![React](https://img.shields.io/badge/React-19-61DAFB?style=flat-square&logo=react)](https://react.dev)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?style=flat-square&logo=typescript)](https://www.typescriptlang.org)
 [![Recharts](https://img.shields.io/badge/Recharts-2-22B5BF?style=flat-square)](https://recharts.org)
@@ -17,12 +17,16 @@ A warm-pastel health dashboard that visualises data logged by family members via
 
 ## About
 
-FamCare is a WhatsApp-first family health tracker. Family members send casual Hindi/English messages or voice notes; a Kotlin/Ktor backend parses them with Gemini AI and stores structured health logs. This frontend displays that data in a clean, warm-pastel dashboard.
+FamCare is a WhatsApp-first family health tracker. Family members send casual Hindi/English messages or voice notes; a Kotlin/Ktor backend parses them with an AI provider chain, stores structured health logs, sends reminders, and powers a clean warm-pastel dashboard.
 
 Key highlights:
 
 - **WhatsApp onboarding** — invite family members with one tap; they reply YES to join, no app install required
-- **Family health cards** — per-member KPI cards with step count, protein, and carbs; tap to open a full detail modal
+- **Family health cards** — per-member KPI cards with score, calories, protein, steps, and expandable recent logs
+- **Calorie calculator** — guided calorie/protein target flow with save-to-goals support
+- **Food reminders** — configure up to 5 custom meal/reminder names and times
+- **Medicine tracking** — manage family medicines, schedules, reminders, and dose status
+- **First-run intro** — elevated swipe/tap onboarding slides for new/returning users
 - **Animated charts** — line graph with dots (Recharts) showing weekly step trends
 - **KPI hover lift** — dashboard cards lift on hover with a shadow transition
 - **Mixed icon system** — Phosphor bold icons for UI chrome, hand-crafted Fluent Emoji-style SVGs for data slots
@@ -92,7 +96,7 @@ Open [http://localhost:3000](http://localhost:3000).
 
 | Layer | Technology |
 |-------|-----------|
-| Framework | Next.js 15 (App Router) |
+| Framework | Next.js 16 (App Router) |
 | UI Library | React 19 |
 | Language | TypeScript 5 |
 | Styling | Inline styles + CSS custom properties (no Tailwind) |
@@ -107,13 +111,24 @@ Open [http://localhost:3000](http://localhost:3000).
 ## Features
 
 ### Dashboard
-- **KPI cards** — steps, protein, carbs with animated progress bars; lift on hover
+- **KPI cards** — score, calories, protein, steps, sleep/health signals with animated card states
 - **Weekly steps chart** — `LineChart` with dot markers; light tooltip with white background
 - **Wellness widgets** — hydration, sleep with Fluent Emoji SVG icons
-- **Family section** — member cards showing active/pending status; tap opens detail modal
-- **AI insights panel** — recent log entries with smart summaries
-- **WhatsApp banner** — dismissible onboarding prompt for first-time users
+- **Family section** — member cards showing active/pending status, score, today's totals, and expandable recent logs
+- **Recent logs** — per-message food/health log events with details and review/correction actions
+- **Food reminder dropdown** — ON/OFF plus custom reminder labels/times, max 5, at least one active while ON
+- **First-run feature intro** — full-screen elevated onboarding slides from `public/web*.jpeg` and `public/mob*.jpeg`
 - **Mobile-responsive** — hamburger nav collapses on small screens
+
+### Calorie Calculator
+- Guided questions for age, sex, height in cm/feet, weight, activity, and goal
+- Uses backend `/api/users/:id/calorie-target` for BMR/TDEE-based calorie and protein targets
+- Result can be saved as the user's calorie and protein goals
+
+### Medicine Tracking
+- Add medicines for self or family members
+- Configure schedules and WhatsApp reminders
+- View today's doses and mark taken/missed/skipped
 
 ### Family Tracking
 - Invite family or friends by WhatsApp number + label
@@ -123,6 +138,8 @@ Open [http://localhost:3000](http://localhost:3000).
 ### Auth
 - Phone number → 6-digit OTP delivered via WhatsApp
 - Session token stored in `localStorage` as `auth_token`
+- User profile stored in `localStorage` as `auth_user`
+- Landing page resumes saved sessions automatically and redirects to dashboard/onboarding
 - Dashboard redirects to `/login` when token is absent
 
 ---
@@ -143,9 +160,9 @@ The `FluentEmoji.tsx` components are hand-crafted layered SVGs that match the Mi
 
 ## Contributing
 
-1. Branch off `development`: `git checkout -b feat/your-feature`
+1. Branch off `dev`: `git checkout -b feat/your-feature`
 2. Keep inline-style conventions — no Tailwind classes, no CSS modules
-3. Open a PR against `development`, not `main`
+3. Open a PR against `dev`, not `main`
 
 `main` auto-deploys to Netlify — never push directly to it.
 
