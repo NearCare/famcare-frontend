@@ -105,10 +105,26 @@ function JsonLd({ content, canonical }: { content: SeoPageContent; canonical: st
         name: `${content.title} ${content.highlight}`,
         description: content.description,
         isPartOf: {
-          "@type": "WebSite",
-          name: "FamCare",
-          url: "https://famcarehealth.com",
+          "@id": "https://famcarehealth.com/#website",
         },
+      },
+      {
+        "@type": "BreadcrumbList",
+        "@id": `${canonical}#breadcrumb`,
+        itemListElement: [
+          {
+            "@type": "ListItem",
+            position: 1,
+            name: "FamCare",
+            item: "https://famcarehealth.com",
+          },
+          {
+            "@type": "ListItem",
+            position: 2,
+            name: content.eyebrow,
+            item: canonical,
+          },
+        ],
       },
       {
         "@type": "FAQPage",
