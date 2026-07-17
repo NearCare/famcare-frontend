@@ -364,8 +364,8 @@ export default function CalorieCalculatorPage() {
             <span className="cc-galaxy-sparkle sparkle-two">✧</span>
             <div className="cc-fuel-sun">
               <span>Daily fuel</span>
-              <strong>2100</strong>
-              <small>kcal</small>
+              <strong>Find yours</strong>
+              <small>kcal/day</small>
             </div>
             <div className="cc-planet planet-broccoli"><span>🥦</span></div>
             <div className="cc-planet planet-dumbbell"><span>🏋️</span></div>
