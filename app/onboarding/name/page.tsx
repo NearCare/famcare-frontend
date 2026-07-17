@@ -2,6 +2,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { updateUserName, type User } from "@/lib/api";
+import { authPath, requestedAuthDestination } from "@/lib/authRedirect";
 
 export default function OnboardingNamePage() {
   const router = useRouter();
@@ -15,8 +16,9 @@ export default function OnboardingNamePage() {
     const stored = localStorage.getItem("auth_user");
     const user: User | null = stored ? JSON.parse(stored) : null;
 
-    if (!token || !user) { router.replace("/login"); return; }
-    if (user.name) { router.replace("/dashboard"); return; }
+    const destination = requestedAuthDestination();
+    if (!token || !user) { router.replace(authPath("/login", destination)); return; }
+    if (user.name) { router.replace(destination); return; }
 
     setReady(true);
   }, [router]);
@@ -32,11 +34,12 @@ export default function OnboardingNamePage() {
       const token = localStorage.getItem("auth_token") ?? "";
       const stored = localStorage.getItem("auth_user");
       const user: User | null = stored ? JSON.parse(stored) : null;
-      if (!user) { router.replace("/login"); return; }
+      const destination = requestedAuthDestination();
+      if (!user) { router.replace(authPath("/login", destination)); return; }
 
       const updated = await updateUserName(user.id, trimmed, token);
       localStorage.setItem("auth_user", JSON.stringify(updated));
-      router.push("/dashboard");
+      router.replace(destination);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to save name");
     } finally {

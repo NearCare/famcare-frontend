@@ -3,6 +3,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useState, useEffect, useRef } from "react";
 import { getCurrentUser, sendOtp, verifyOtp } from "@/lib/api";
+import { authPath, requestedAuthDestination } from "@/lib/authRedirect";
 
 type Step = "phone" | "otp";
 const EMPTY_OTP = ["", "", "", ""];
@@ -65,7 +66,7 @@ function SessionLoader() {
           }}
         />
         <h1 style={{ margin: "18px 0 6px", fontSize: 22, lineHeight: 1.2, color: "#1A2744" }}>
-          Opening your dashboard
+          Opening FamCare
         </h1>
         <p style={{ margin: 0, fontSize: 14, lineHeight: 1.5, color: "#6B7A9A" }}>
           Checking your saved FamCare session.
@@ -94,7 +95,7 @@ export default function LoginPage() {
   }, [step]);
 
   useEffect(() => {
-    router.prefetch("/dashboard");
+    router.prefetch(requestedAuthDestination());
     router.prefetch("/onboarding/name");
   }, [router]);
 
@@ -121,7 +122,8 @@ export default function LoginPage() {
 
         localStorage.setItem("auth_user", JSON.stringify(authUser));
         setRedirecting(true);
-        router.replace(authUser.name ? "/dashboard" : "/onboarding/name");
+        const destination = requestedAuthDestination();
+        router.replace(authUser.name ? destination : authPath("/onboarding/name", destination));
       } catch {
         if (!cancelled) {
           setError("Couldn't check your saved session. Please log in again if the dashboard does not open.");
@@ -225,7 +227,8 @@ export default function LoginPage() {
       localStorage.setItem("auth_user", JSON.stringify(auth.user));
       setRedirecting(true);
       keepLoading = true;
-      router.replace(auth.user.name ? "/dashboard" : "/onboarding/name");
+      const destination = requestedAuthDestination();
+      router.replace(auth.user.name ? destination : authPath("/onboarding/name", destination));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Verification failed");
     } finally {

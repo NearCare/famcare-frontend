@@ -1,6 +1,7 @@
 "use client";
 
 import { type FormEvent, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   Calculator,
   CheckCircle,
@@ -14,7 +15,8 @@ import {
   Minus,
 } from "@phosphor-icons/react";
 import Sidebar from "../components/Sidebar";
-import { calculateUserCalorieTarget, updateUserGoals, type User } from "@/lib/api";
+import { calculateUserCalorieTarget, getCurrentUser, updateUserGoals, type User } from "@/lib/api";
+import { authPath } from "@/lib/authRedirect";
 
 type Sex = "female" | "male";
 type Activity = "sedentary" | "light" | "moderate" | "active";
@@ -52,6 +54,7 @@ type SavedCalculatorState = {
 };
 
 const SAVED_CALCULATOR_KEY = "famcare_calorie_calculator_result_v1";
+const CALCULATOR_PATH = "/dashboard/calorie-calculator";
 
 function calculatorStorageKey(userId?: number) {
   return userId ? `${SAVED_CALCULATOR_KEY}_${userId}` : SAVED_CALCULATOR_KEY;
@@ -151,6 +154,8 @@ function NumberField({
 }
 
 export default function CalorieCalculatorPage() {
+  const router = useRouter();
+  const [authReady, setAuthReady] = useState(false);
   const [form, setForm] = useState<FormState>(initialForm);
   const [heightUnit, setHeightUnit] = useState<HeightUnit>("cm");
   const [result, setResult] = useState<Result | null>(null);
@@ -170,6 +175,43 @@ export default function CalorieCalculatorPage() {
   ].filter(Boolean).length, [form, heightUnit]);
 
   useEffect(() => {
+    let cancelled = false;
+
+    async function verifySession() {
+      const token = localStorage.getItem("auth_token");
+      const storedUser = readStoredUser();
+      if (!token || !storedUser) {
+        router.replace(authPath("/login", CALCULATOR_PATH));
+        return;
+      }
+
+      try {
+        const currentUser = await getCurrentUser(token);
+        if (cancelled) return;
+        if (!currentUser) {
+          localStorage.removeItem("auth_token");
+          localStorage.removeItem("auth_user");
+          router.replace(authPath("/login", CALCULATOR_PATH));
+          return;
+        }
+
+        localStorage.setItem("auth_user", JSON.stringify(currentUser));
+        if (!currentUser.name) {
+          router.replace(authPath("/onboarding/name", CALCULATOR_PATH));
+          return;
+        }
+        setAuthReady(true);
+      } catch {
+        if (!cancelled) router.replace(authPath("/login", CALCULATOR_PATH));
+      }
+    }
+
+    verifySession();
+    return () => { cancelled = true; };
+  }, [router]);
+
+  useEffect(() => {
+    if (!authReady) return;
     const storedUser = readStoredUser();
     const userId = storedUser?.id;
     const stored = localStorage.getItem(calculatorStorageKey(userId)) ?? localStorage.getItem(SAVED_CALCULATOR_KEY);
@@ -190,7 +232,7 @@ export default function CalorieCalculatorPage() {
       localStorage.removeItem(calculatorStorageKey(userId));
       localStorage.removeItem(SAVED_CALCULATOR_KEY);
     }
-  }, []);
+  }, [authReady]);
 
   useEffect(() => {
     if (view !== "calculating") return;
@@ -345,6 +387,8 @@ export default function CalorieCalculatorPage() {
     : result?.goal === "gain"
       ? "Your gradual gain range"
       : "Your maintenance range";
+
+  if (!authReady) return null;
 
   return (
     <div className="db-page">
