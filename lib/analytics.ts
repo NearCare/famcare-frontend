@@ -16,7 +16,7 @@ export function initAnalytics() {
 
   posthog.init(key, {
     api_host: POSTHOG_HOST,
-    capture_pageview: true,
+    capture_pageview: "history_change",
     capture_pageleave: true,
     person_profiles: "identified_only",
   });
@@ -31,6 +31,22 @@ export function identifyUser(user: User) {
     phone_last4: user.phone.slice(-4),
     has_name: Boolean(user.name),
   });
+}
+
+export function identifyStoredUser() {
+  if (typeof window === "undefined") return;
+  const stored = localStorage.getItem("auth_user");
+  if (!stored) return;
+  try {
+    identifyUser(JSON.parse(stored) as User);
+  } catch {
+    // A malformed cached user should not prevent the app from rendering.
+  }
+}
+
+export function resetAnalytics() {
+  if (!initAnalytics()) return;
+  posthog.reset();
 }
 
 export function captureEvent(

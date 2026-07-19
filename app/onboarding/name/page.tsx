@@ -3,6 +3,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { updateUserName, type User } from "@/lib/api";
 import { authPath, requestedAuthDestination } from "@/lib/authRedirect";
+import { captureEvent, identifyUser } from "@/lib/analytics";
 
 export default function OnboardingNamePage() {
   const router = useRouter();
@@ -20,6 +21,8 @@ export default function OnboardingNamePage() {
     if (!token || !user) { router.replace(authPath("/login", destination)); return; }
     if (user.name) { router.replace(destination); return; }
 
+    identifyUser(user);
+    captureEvent("onboarding_started");
     setReady(true);
   }, [router]);
 
@@ -39,6 +42,8 @@ export default function OnboardingNamePage() {
 
       const updated = await updateUserName(user.id, trimmed, token);
       localStorage.setItem("auth_user", JSON.stringify(updated));
+      identifyUser(updated);
+      captureEvent("onboarding_completed");
       router.replace(destination);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to save name");

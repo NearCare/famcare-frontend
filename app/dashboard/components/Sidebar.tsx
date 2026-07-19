@@ -5,6 +5,7 @@ import { useState } from "react";
 import {
   Calculator, ChatCircleText, House, Users, FileText, List, Pill, SignOut, X,
 } from "@phosphor-icons/react";
+import { captureEvent, resetAnalytics } from "@/lib/analytics";
 
 const navItems = [
   { label: "Home",             href: "/dashboard" },
@@ -35,6 +36,8 @@ export default function Sidebar() {
   const pathname = usePathname();
 
   function handleLogout() {
+    captureEvent("logout");
+    resetAnalytics();
     localStorage.removeItem("auth_token");
     localStorage.removeItem("auth_user");
     window.location.href = "/login";

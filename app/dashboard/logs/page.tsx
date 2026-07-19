@@ -17,6 +17,7 @@ import { Dumbbell, Footprints } from "lucide-react";
 import Sidebar from "../components/Sidebar";
 import PageLoader from "../components/PageLoader";
 import { FEFlame } from "../components/FluentEmoji";
+import { captureEvent } from "@/lib/analytics";
 import {
   getFamilyMembers,
   getMemberLogEvents,
@@ -72,6 +73,15 @@ const TIME_WINDOWS: { key: TimeWindowKey; label: string; days: number }[] = [
 
 function getTimeWindow(key: TimeWindowKey) {
   return TIME_WINDOWS.find((window) => window.key === key) ?? TIME_WINDOWS[2];
+}
+
+function storedUserId(): number | null {
+  try {
+    const stored = localStorage.getItem("auth_user");
+    return stored ? (JSON.parse(stored) as User).id : null;
+  } catch {
+    return null;
+  }
 }
 
 function getMemberName(user: User, member?: FamilyMember) {
@@ -536,6 +546,11 @@ export default function LogsPage() {
         if (!cancelled) {
           setRows(nextRows);
           setSelectedId((current) => current || nextRows[0]?.id || "");
+          captureEvent("health_logs_viewed", {
+            time_window: timeWindow,
+            log_count: nextRows.length,
+            family_member_count: activeMembers.length,
+          });
         }
       } catch (err) {
         if (!cancelled) setError(err instanceof Error ? err.message : "Failed to load logs");
@@ -629,6 +644,10 @@ export default function LogsPage() {
           : row
       )));
       setActionNotice("Updated. Daily totals now use these corrected values.");
+      captureEvent("health_log_corrected", {
+        source: log.source,
+        is_family_member: log.userId !== storedUserId(),
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to update log values");
     } finally {
@@ -646,6 +665,7 @@ export default function LogsPage() {
         log_id: log.aggregateLogId,
       });
       setActionNotice("Marked incorrect. Saved to the review table for verification.");
+      captureEvent("health_log_marked_incorrect", { source: log.source });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to mark log incorrect");
     } finally {
@@ -664,6 +684,7 @@ export default function LogsPage() {
       });
       setRows((current) => current.filter((row) => row.id !== log.id));
       setSelectedId("");
+      captureEvent("health_log_deleted", { source: log.source });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to delete log");
     } finally {

@@ -1,9 +1,10 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { CheckCircle, ChatCircleText, PaperPlaneTilt, WarningCircle } from "@phosphor-icons/react";
 import Sidebar from "../components/Sidebar";
 import { submitReviewFeedback, type ReviewFeedbackType } from "@/lib/api";
+import { captureEvent } from "@/lib/analytics";
 
 const feedbackTypes: { value: ReviewFeedbackType; label: string; helper: string }[] = [
   { value: "feature", label: "Feature request", helper: "Something you want us to build" },
@@ -27,6 +28,10 @@ export default function ReviewPage() {
   const trimmed = message.trim();
   const canSubmit = trimmed.length >= 5 && trimmed.length <= 2000 && !submitting;
 
+  useEffect(() => {
+    captureEvent("review_viewed");
+  }, []);
+
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!canSubmit) return;
@@ -41,6 +46,7 @@ export default function ReviewPage() {
       });
       setMessage("");
       setSuccess(true);
+      captureEvent("feedback_submitted", { feedback_type: type });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not submit feedback");
     } finally {

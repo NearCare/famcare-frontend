@@ -17,6 +17,7 @@ import {
 import Sidebar from "../components/Sidebar";
 import { calculateUserCalorieTarget, getCurrentUser, updateUserGoals, type User } from "@/lib/api";
 import { authPath } from "@/lib/authRedirect";
+import { captureEvent, identifyUser, resetAnalytics } from "@/lib/analytics";
 
 type Sex = "female" | "male";
 type Activity = "sedentary" | "light" | "moderate" | "active";
@@ -189,6 +190,7 @@ export default function CalorieCalculatorPage() {
         const currentUser = await getCurrentUser(token);
         if (cancelled) return;
         if (!currentUser) {
+          resetAnalytics();
           localStorage.removeItem("auth_token");
           localStorage.removeItem("auth_user");
           router.replace(authPath("/login", CALCULATOR_PATH));
@@ -196,10 +198,12 @@ export default function CalorieCalculatorPage() {
         }
 
         localStorage.setItem("auth_user", JSON.stringify(currentUser));
+        identifyUser(currentUser);
         if (!currentUser.name) {
           router.replace(authPath("/onboarding/name", CALCULATOR_PATH));
           return;
         }
+        captureEvent("calorie_calculator_viewed", { has_saved_goal: currentUser.goal_calories != null });
         setAuthReady(true);
       } catch {
         if (!cancelled) router.replace(authPath("/login", CALCULATOR_PATH));
@@ -338,10 +342,16 @@ export default function CalorieCalculatorPage() {
         proteinTarget: serverResult.protein_target,
       });
       setView("result");
+      captureEvent("calorie_target_calculated", {
+        goal: form.goal,
+        activity: form.activity,
+        minimum_limited: serverResult.minimum_limited,
+      });
       window.requestAnimationFrame(() => {
         document.getElementById("calorie-result")?.scrollIntoView({ behavior: "smooth", block: "center" });
       });
     } catch (calculateError) {
+      captureEvent("calorie_target_calculation_failed");
       setView("form");
       setError(calculateError instanceof Error ? calculateError.message : "Could not calculate your target. Try again.");
     }
@@ -376,6 +386,7 @@ export default function CalorieCalculatorPage() {
       localStorage.setItem(calculatorStorageKey(storedUser.id), JSON.stringify({ form, heightUnit, result } satisfies SavedCalculatorState));
       localStorage.removeItem(SAVED_CALCULATOR_KEY);
       setGoalStatus("saved");
+      captureEvent("calorie_goal_saved", { goal: result.goal });
     } catch (saveError) {
       setGoalStatus("idle");
       setGoalError(saveError instanceof Error ? saveError.message : "Could not save this goal. Try again.");

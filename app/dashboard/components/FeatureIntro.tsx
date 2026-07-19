@@ -1,6 +1,7 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { captureEvent } from "@/lib/analytics";
 
 const slides = [
   { web: "/web1.jpeg", mobile: "/mob1.jpeg", alt: "FamCare onboarding feature slide 1" },
@@ -14,8 +15,13 @@ export default function FeatureIntro({ onDone }: { onDone: () => void }) {
   const pointerStartX = useRef<number | null>(null);
   const swiped = useRef(false);
 
+  useEffect(() => {
+    captureEvent("feature_intro_shown");
+  }, []);
+
   function goNext() {
     if (index >= slides.length - 1) {
+      captureEvent("feature_intro_completed");
       onDone();
       return;
     }
@@ -74,7 +80,10 @@ export default function FeatureIntro({ onDone }: { onDone: () => void }) {
           }
           if (event.key === "ArrowRight") goNext();
           if (event.key === "ArrowLeft") goPrevious();
-          if (event.key === "Escape") onDone();
+          if (event.key === "Escape") {
+            captureEvent("feature_intro_skipped", { slide: index + 1 });
+            onDone();
+          }
         }}
         onPointerDown={(event) => {
           pointerStartX.current = event.clientX;
@@ -89,6 +98,7 @@ export default function FeatureIntro({ onDone }: { onDone: () => void }) {
           className="feature-intro-skip"
           onClick={(event) => {
             event.stopPropagation();
+            captureEvent("feature_intro_skipped", { slide: index + 1 });
             onDone();
           }}
         >

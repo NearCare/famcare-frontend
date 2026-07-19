@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState, useEffect, useRef } from "react";
 import { getCurrentUser, sendOtp, verifyOtp } from "@/lib/api";
 import { authPath, requestedAuthDestination } from "@/lib/authRedirect";
+import { captureEvent, identifyUser, resetAnalytics } from "@/lib/analytics";
 
 type Step = "phone" | "otp";
 const EMPTY_OTP = ["", "", "", ""];
@@ -114,6 +115,7 @@ export default function LoginPage() {
         if (cancelled) return;
 
         if (!authUser) {
+          resetAnalytics();
           localStorage.removeItem("auth_token");
           localStorage.removeItem("auth_user");
           setCheckingSession(false);
@@ -121,6 +123,8 @@ export default function LoginPage() {
         }
 
         localStorage.setItem("auth_user", JSON.stringify(authUser));
+        identifyUser(authUser);
+        captureEvent("session_resumed");
         setRedirecting(true);
         const destination = requestedAuthDestination();
         router.replace(authUser.name ? destination : authPath("/onboarding/name", destination));
@@ -202,10 +206,12 @@ export default function LoginPage() {
     setLoading(true);
     try {
       await sendOtp(normalized);
+      captureEvent("otp_requested", { country_code: "+91" });
       setPhone(normalized);
       setStep("otp");
       startResendTimer();
     } catch (err) {
+      captureEvent("otp_request_failed");
       setError(err instanceof Error ? err.message : "Failed to send OTP");
     } finally {
       setLoading(false);
@@ -225,11 +231,14 @@ export default function LoginPage() {
       // Save session to localStorage
       localStorage.setItem("auth_token", auth.token);
       localStorage.setItem("auth_user", JSON.stringify(auth.user));
+      identifyUser(auth.user);
+      captureEvent("login_succeeded", { has_name: Boolean(auth.user.name) });
       setRedirecting(true);
       keepLoading = true;
       const destination = requestedAuthDestination();
       router.replace(auth.user.name ? destination : authPath("/onboarding/name", destination));
     } catch (err) {
+      captureEvent("login_failed");
       setError(err instanceof Error ? err.message : "Verification failed");
     } finally {
       if (!keepLoading) setLoading(false);
