@@ -554,9 +554,35 @@ const DEFAULT_FOOD_REMINDER_MEALS: FoodReminderMeal[] = [
   { slot: "extra", label: "snack", time: "20:00", enabled: false },
 ];
 
+function formatFoodReminderTime(time: string) {
+  const [hourPart = "0", minutePart = "0"] = time.split(":");
+  const hour = Number(hourPart);
+  const minute = Number(minutePart);
+  const period = hour >= 12 ? "PM" : "AM";
+  const hour12 = hour % 12 || 12;
+  return `${String(hour12).padStart(2, "0")}:${String(minute).padStart(2, "0")} ${period}`;
+}
+
+const FOOD_REMINDER_TIME_OPTIONS = Array.from({ length: 24 * 4 }, (_, index) => {
+  const totalMinutes = index * 15;
+  const hour = Math.floor(totalMinutes / 60);
+  const minute = totalMinutes % 60;
+  const value = `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+  return { value, label: formatFoodReminderTime(value) };
+});
+
+function quarterHourFoodReminderTime(time: string, fallback: string) {
+  return FOOD_REMINDER_TIME_OPTIONS.some((option) => option.value === time.slice(0, 5))
+    ? time.slice(0, 5)
+    : fallback;
+}
+
 function foodReminderMealsFromPreference(preference: FoodReminderPreference | null): FoodReminderMeal[] {
   const incoming = preference?.meals ?? [];
-  return DEFAULT_FOOD_REMINDER_MEALS.map((fallback) => incoming.find((meal) => meal.slot === fallback.slot) ?? fallback);
+  return DEFAULT_FOOD_REMINDER_MEALS.map((fallback) => {
+    const meal = incoming.find((candidate) => candidate.slot === fallback.slot) ?? fallback;
+    return { ...meal, time: quarterHourFoodReminderTime(meal.time, fallback.time) };
+  });
 }
 
 const WaIcon = ({ size = 16 }: { size?: number }) => (
@@ -1178,8 +1204,7 @@ export default function DashboardPage() {
                             outline: "none",
                           }}
                         />
-                        <input
-                          type="time"
+                        <select
                           value={meal.time}
                           disabled={!foodReminderDraftEnabled || !meal.enabled}
                           onChange={(event) => updateFoodReminderDraftMeal(meal.slot, { time: event.target.value })}
@@ -1194,8 +1219,15 @@ export default function DashboardPage() {
                             fontWeight: 850,
                             padding: "0 10px",
                             outline: "none",
+                            cursor: foodReminderDraftEnabled && meal.enabled ? "pointer" : "not-allowed",
                           }}
-                        />
+                        >
+                          {FOOD_REMINDER_TIME_OPTIONS.map((option) => (
+                            <option key={option.value} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </select>
                         <button
                           type="button"
                           aria-label={`Remove ${meal.label || "reminder"}`}
