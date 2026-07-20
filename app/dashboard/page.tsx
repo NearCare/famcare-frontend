@@ -547,9 +547,9 @@ function getGreeting(): string {
 const WA_LINK = FAMCARE_WHATSAPP_LINK;
 
 const DEFAULT_FOOD_REMINDER_MEALS: FoodReminderMeal[] = [
-  { slot: "breakfast", label: "breakfast", time: "09:00", enabled: true },
-  { slot: "lunch", label: "lunch", time: "15:00", enabled: true },
-  { slot: "dinner", label: "dinner", time: "22:00", enabled: true },
+  { slot: "breakfast", label: "breakfast", time: "11:00", enabled: true },
+  { slot: "lunch", label: "lunch", time: "15:00", enabled: false },
+  { slot: "dinner", label: "dinner", time: "22:00", enabled: false },
   { slot: "snack", label: "snack", time: "18:00", enabled: false },
   { slot: "extra", label: "snack", time: "20:00", enabled: false },
 ];
@@ -824,7 +824,7 @@ export default function DashboardPage() {
       user_id: current?.user_id ?? user?.id ?? 0,
       enabled: foodReminderDraftEnabled,
       activated: current?.activated || foodReminderDraftEnabled,
-      breakfast_time: optimisticMeals.find((meal) => meal.slot === "breakfast")?.time ?? "09:00",
+      breakfast_time: optimisticMeals.find((meal) => meal.slot === "breakfast")?.time ?? "11:00",
       lunch_time: optimisticMeals.find((meal) => meal.slot === "lunch")?.time ?? "15:00",
       dinner_time: optimisticMeals.find((meal) => meal.slot === "dinner")?.time ?? "22:00",
       meals: optimisticMeals,
