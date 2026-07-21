@@ -6,6 +6,7 @@ import {
   Calculator, ChatCircleText, House, Users, FileText, List, Pill, SignOut, X,
 } from "@phosphor-icons/react";
 import { captureEvent, resetAnalytics } from "@/lib/analytics";
+import { clearStoredSession } from "@/lib/session";
 
 const navItems = [
   { label: "Home",             href: "/dashboard" },
@@ -38,8 +39,7 @@ export default function Sidebar() {
   function handleLogout() {
     captureEvent("logout");
     resetAnalytics();
-    localStorage.removeItem("auth_token");
-    localStorage.removeItem("auth_user");
+    clearStoredSession({ resetFeatureIntro: true });
     window.location.href = "/login";
   }
 

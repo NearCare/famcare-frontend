@@ -39,6 +39,7 @@ import StreakPill from "./components/StreakPill";
 import { FAMCARE_WHATSAPP_LINK } from "@/lib/whatsapp";
 import PageLoader from "./components/PageLoader";
 import { captureEvent, identifyUser, resetAnalytics } from "@/lib/analytics";
+import { clearStoredSession } from "@/lib/session";
 
 const IS_PRODUCTION = process.env.NODE_ENV === "production";
 
@@ -690,9 +691,7 @@ export default function DashboardPage() {
   const handleLogout = () => {
     captureEvent("logout");
     resetAnalytics();
-    if (user) localStorage.removeItem(`famcare_feature_intro_seen_${user.id}`);
-    localStorage.removeItem("auth_token");
-    localStorage.removeItem("auth_user");
+    clearStoredSession({ resetFeatureIntro: true });
     window.location.href = "/login";
   };
 

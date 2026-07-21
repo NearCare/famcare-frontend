@@ -416,10 +416,8 @@ export default function LandingPage() {
         localStorage.setItem("auth_user", JSON.stringify(authUser));
         router.replace(authUser.name ? "/dashboard" : "/onboarding/name");
       } catch {
-        if (!cancelled) {
-          localStorage.removeItem("auth_token");
-          localStorage.removeItem("auth_user");
-        }
+        // Preserve the saved session during temporary network/backend failures.
+        // getCurrentUser returns null for an actual 401/403, handled above.
       }
     }
 
