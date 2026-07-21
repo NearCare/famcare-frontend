@@ -38,7 +38,8 @@ import AddFamilyModal from "./components/AddFamilyModal";
 import StreakPill from "./components/StreakPill";
 import { FAMCARE_WHATSAPP_LINK } from "@/lib/whatsapp";
 import PageLoader from "./components/PageLoader";
-import { captureEvent, identifyUser } from "@/lib/analytics";
+import { captureEvent, identifyUser, resetAnalytics } from "@/lib/analytics";
+import { clearStoredSession } from "@/lib/session";
 
 const IS_PRODUCTION = process.env.NODE_ENV === "production";
 
@@ -547,16 +548,42 @@ function getGreeting(): string {
 const WA_LINK = FAMCARE_WHATSAPP_LINK;
 
 const DEFAULT_FOOD_REMINDER_MEALS: FoodReminderMeal[] = [
-  { slot: "breakfast", label: "breakfast", time: "09:00", enabled: true },
-  { slot: "lunch", label: "lunch", time: "15:00", enabled: true },
-  { slot: "dinner", label: "dinner", time: "22:00", enabled: true },
+  { slot: "breakfast", label: "breakfast", time: "11:00", enabled: true },
+  { slot: "lunch", label: "lunch", time: "15:00", enabled: false },
+  { slot: "dinner", label: "dinner", time: "22:00", enabled: false },
   { slot: "snack", label: "snack", time: "18:00", enabled: false },
   { slot: "extra", label: "snack", time: "20:00", enabled: false },
 ];
 
+function formatFoodReminderTime(time: string) {
+  const [hourPart = "0", minutePart = "0"] = time.split(":");
+  const hour = Number(hourPart);
+  const minute = Number(minutePart);
+  const period = hour >= 12 ? "PM" : "AM";
+  const hour12 = hour % 12 || 12;
+  return `${String(hour12).padStart(2, "0")}:${String(minute).padStart(2, "0")} ${period}`;
+}
+
+const FOOD_REMINDER_TIME_OPTIONS = Array.from({ length: 24 * 4 }, (_, index) => {
+  const totalMinutes = index * 15;
+  const hour = Math.floor(totalMinutes / 60);
+  const minute = totalMinutes % 60;
+  const value = `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+  return { value, label: formatFoodReminderTime(value) };
+});
+
+function quarterHourFoodReminderTime(time: string, fallback: string) {
+  return FOOD_REMINDER_TIME_OPTIONS.some((option) => option.value === time.slice(0, 5))
+    ? time.slice(0, 5)
+    : fallback;
+}
+
 function foodReminderMealsFromPreference(preference: FoodReminderPreference | null): FoodReminderMeal[] {
   const incoming = preference?.meals ?? [];
-  return DEFAULT_FOOD_REMINDER_MEALS.map((fallback) => incoming.find((meal) => meal.slot === fallback.slot) ?? fallback);
+  return DEFAULT_FOOD_REMINDER_MEALS.map((fallback) => {
+    const meal = incoming.find((candidate) => candidate.slot === fallback.slot) ?? fallback;
+    return { ...meal, time: quarterHourFoodReminderTime(meal.time, fallback.time) };
+  });
 }
 
 const WaIcon = ({ size = 16 }: { size?: number }) => (
@@ -662,9 +689,9 @@ export default function DashboardPage() {
   }, [foodReminderPreference]);
 
   const handleLogout = () => {
-    if (user) localStorage.removeItem(`famcare_feature_intro_seen_${user.id}`);
-    localStorage.removeItem("auth_token");
-    localStorage.removeItem("auth_user");
+    captureEvent("logout");
+    resetAnalytics();
+    clearStoredSession({ resetFeatureIntro: true });
     window.location.href = "/login";
   };
 
@@ -763,6 +790,14 @@ export default function DashboardPage() {
     });
   }, [foodReminderDraftEnabled]);
 
+  const setFoodReminderDraftMealEnabled = useCallback((slot: FoodReminderMeal["slot"], enabled: boolean) => {
+    if (!enabled) {
+      removeFoodReminderDraftMeal(slot);
+      return;
+    }
+    updateFoodReminderDraftMeal(slot, { enabled: true });
+  }, [removeFoodReminderDraftMeal, updateFoodReminderDraftMeal]);
+
   const addFoodReminderDraftMeal = useCallback(() => {
     setFoodReminderDraftError(null);
     setFoodReminderDraftMeals((current) => {
@@ -788,7 +823,7 @@ export default function DashboardPage() {
       user_id: current?.user_id ?? user?.id ?? 0,
       enabled: foodReminderDraftEnabled,
       activated: current?.activated || foodReminderDraftEnabled,
-      breakfast_time: optimisticMeals.find((meal) => meal.slot === "breakfast")?.time ?? "09:00",
+      breakfast_time: optimisticMeals.find((meal) => meal.slot === "breakfast")?.time ?? "11:00",
       lunch_time: optimisticMeals.find((meal) => meal.slot === "lunch")?.time ?? "15:00",
       dinner_time: optimisticMeals.find((meal) => meal.slot === "dinner")?.time ?? "22:00",
       meals: optimisticMeals,
@@ -1134,7 +1169,7 @@ export default function DashboardPage() {
                             type="checkbox"
                             checked={meal.enabled}
                             disabled={!foodReminderDraftEnabled}
-                            onChange={(event) => updateFoodReminderDraftMeal(meal.slot, { enabled: event.target.checked })}
+                            onChange={(event) => setFoodReminderDraftMealEnabled(meal.slot, event.target.checked)}
                             style={{ position: "absolute", opacity: 0, pointerEvents: "none" }}
                           />
                           <span
@@ -1168,8 +1203,7 @@ export default function DashboardPage() {
                             outline: "none",
                           }}
                         />
-                        <input
-                          type="time"
+                        <select
                           value={meal.time}
                           disabled={!foodReminderDraftEnabled || !meal.enabled}
                           onChange={(event) => updateFoodReminderDraftMeal(meal.slot, { time: event.target.value })}
@@ -1184,8 +1218,15 @@ export default function DashboardPage() {
                             fontWeight: 850,
                             padding: "0 10px",
                             outline: "none",
+                            cursor: foodReminderDraftEnabled && meal.enabled ? "pointer" : "not-allowed",
                           }}
-                        />
+                        >
+                          {FOOD_REMINDER_TIME_OPTIONS.map((option) => (
+                            <option key={option.value} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </select>
                         <button
                           type="button"
                           aria-label={`Remove ${meal.label || "reminder"}`}

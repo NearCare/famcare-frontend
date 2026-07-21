@@ -3,11 +3,11 @@ import type { MetadataRoute } from "next";
 const siteUrl = "https://famcarehealth.com";
 
 const lastModified = {
-  home: new Date("2026-06-30"),
-  privacy: new Date("2026-06-30"),
-  medicineRemindersForParents: new Date("2026-06-30"),
-  whatsappMedicineReminders: new Date("2026-06-30"),
-  elderlyParentCareApp: new Date("2026-06-30"),
+  home: new Date("2026-07-18"),
+  privacy: new Date("2026-07-18"),
+  medicineRemindersForParents: new Date("2026-07-18"),
+  whatsappMedicineReminders: new Date("2026-07-18"),
+  elderlyParentCareApp: new Date("2026-07-18"),
 };
 
 export default function sitemap(): MetadataRoute.Sitemap {

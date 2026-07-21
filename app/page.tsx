@@ -20,7 +20,22 @@ const structuredData = {
       name: "FamCare",
       alternateName: "FamCareHealth",
       url: "https://famcarehealth.com",
-      logo: "https://famcarehealth.com/family-sunset.png",
+      logo: {
+        "@type": "ImageObject",
+        url: "https://famcarehealth.com/famcare-logo.png",
+        width: 512,
+        height: 512,
+      },
+    },
+    {
+      "@type": "WebSite",
+      "@id": "https://famcarehealth.com/#website",
+      url: "https://famcarehealth.com",
+      name: "FamCare",
+      alternateName: "FamCareHealth",
+      publisher: {
+        "@id": "https://famcarehealth.com/#organization",
+      },
     },
     {
       "@type": "SoftwareApplication",
@@ -32,6 +47,9 @@ const structuredData = {
       operatingSystem: "Web, WhatsApp",
       description:
         "WhatsApp-first medicine reminders, dose confirmations, missed-dose alerts, and family adherence summaries for parents.",
+      isPartOf: {
+        "@id": "https://famcarehealth.com/#website",
+      },
       offers: {
         "@type": "Offer",
         price: "0",
@@ -398,10 +416,8 @@ export default function LandingPage() {
         localStorage.setItem("auth_user", JSON.stringify(authUser));
         router.replace(authUser.name ? "/dashboard" : "/onboarding/name");
       } catch {
-        if (!cancelled) {
-          localStorage.removeItem("auth_token");
-          localStorage.removeItem("auth_user");
-        }
+        // Preserve the saved session during temporary network/backend failures.
+        // getCurrentUser returns null for an actual 401/403, handled above.
       }
     }
 
