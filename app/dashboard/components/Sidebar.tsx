@@ -3,7 +3,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import {
-  Calculator, ChatCircleText, House, Users, FileText, List, Pill, SignOut, X,
+  Calculator, ChatCircleText, House, Users, FileText, List, Pill, SignOut, Sparkle, X,
 } from "@phosphor-icons/react";
 import { captureEvent, resetAnalytics } from "@/lib/analytics";
 import { clearStoredSession } from "@/lib/session";
@@ -14,6 +14,7 @@ const navItems = [
   { label: "Medications",      href: "/dashboard/medications" },
   { label: "Logs",             href: "/dashboard/logs" },
   { label: "Calorie Calculator", href: "/dashboard/calorie-calculator", isNew: true },
+  { label: "Health Assistant", href: "/dashboard/health-assistant", isNew: true },
   { label: "Review",           href: "/dashboard/review" },
 ];
 
@@ -23,6 +24,7 @@ const NAV_ICONS: Record<string, React.ElementType> = {
   "Medications":      Pill,
   "Logs":             FileText,
   "Calorie Calculator": Calculator,
+  "Health Assistant":  Sparkle,
   "Review":           ChatCircleText,
 };
 

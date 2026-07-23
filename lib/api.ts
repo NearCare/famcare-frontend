@@ -130,6 +130,49 @@ export type HealthLogEvent = {
   created_at: string;
 };
 
+export type ChatConversation = {
+  id: number;
+  owner_user_id: number;
+  subject_user_id: number;
+  title: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ChatMetric = {
+  label: string;
+  current: number | null;
+  target: number | null;
+  unit: string;
+  delta: number | null;
+};
+
+export type ChatBlock = {
+  type: string;
+  title: string;
+  metrics?: ChatMetric[];
+  items?: string[];
+  footnote?: string | null;
+  tone?: string;
+};
+
+export type ChatMessage = {
+  id: number;
+  conversation_id: number;
+  role: "user" | "assistant";
+  content: string;
+  blocks?: ChatBlock[];
+  suggestions?: string[];
+  created_at: string;
+};
+
+export type HealthAssistantReply = {
+  conversation_id: number;
+  message: ChatMessage;
+  intent: string;
+  tools_used: string[];
+};
+
 export type Summary = {
   period_days: number;
   avg_steps: number | null;
@@ -307,6 +350,70 @@ export async function getCurrentUser(token?: string): Promise<User | null> {
   }
 
   return res.json() as Promise<User>;
+}
+
+async function chatRequest<T>(path: string, token: string, init?: RequestInit): Promise<T> {
+  const res = await fetch(path, {
+    ...init,
+    headers: {
+      Accept: "application/json",
+      Authorization: `Bearer ${token}`,
+      ...(init?.body ? { "Content-Type": "application/json" } : {}),
+      ...init?.headers,
+    },
+    cache: "no-store",
+  });
+  if (res.status === 401) {
+    if (typeof window !== "undefined") window.location.href = "/login";
+    throw new Error("Your session has expired.");
+  }
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(body.error ?? body.message ?? "The assistant could not respond.");
+  return body as T;
+}
+
+export async function getChatConversations(token: string): Promise<ChatConversation[]> {
+  if (MOCK_API) return [];
+  const body = await chatRequest<{ conversations: ChatConversation[] }>("/api/chat/conversations", token);
+  return body.conversations;
+}
+
+export async function createChatConversation(token: string, subjectUserId: number): Promise<ChatConversation> {
+  return chatRequest<ChatConversation>("/api/chat/conversations", token, {
+    method: "POST",
+    body: JSON.stringify({ subject_user_id: subjectUserId }),
+  });
+}
+
+export async function getChatMessages(token: string, conversationId: number): Promise<ChatMessage[]> {
+  if (MOCK_API) return [];
+  const body = await chatRequest<{ messages: ChatMessage[] }>(
+    `/api/chat/conversations/${conversationId}/messages`, token,
+  );
+  return body.messages;
+}
+
+export async function clearChatMessages(token: string, conversationId: number): Promise<void> {
+  if (MOCK_API) return;
+  await chatRequest<Record<string, never>>(`/api/chat/conversations/${conversationId}/messages`, token, {
+    method: "DELETE",
+  });
+}
+
+export async function sendHealthAssistantMessage(
+  token: string,
+  conversationId: number,
+  subjectUserId: number,
+  message: string,
+): Promise<HealthAssistantReply> {
+  return chatRequest<HealthAssistantReply>("/api/chat/messages", token, {
+    method: "POST",
+    body: JSON.stringify({
+      conversation_id: conversationId,
+      subject_user_id: subjectUserId,
+      message,
+    }),
+  });
 }
 
 /**

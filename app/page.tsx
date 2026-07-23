@@ -11,6 +11,10 @@ import { FEShoe, FETarget } from "./dashboard/components/FluentEmoji";
 import { getCurrentUser } from "@/lib/api";
 import { FAMCARE_WHATSAPP_LINK } from "@/lib/whatsapp";
 
+const LOCAL_AUTH_BYPASS =
+  process.env.NODE_ENV !== "production" &&
+  process.env.NEXT_PUBLIC_LOCAL_AUTH_BYPASS === "true";
+
 const structuredData = {
   "@context": "https://schema.org",
   "@graph": [
@@ -400,6 +404,22 @@ export default function LandingPage() {
     let cancelled = false;
 
     async function resumeSavedSession() {
+      if (LOCAL_AUTH_BYPASS) {
+        localStorage.setItem("auth_token", "local-dashboard-session");
+        localStorage.setItem("auth_user", JSON.stringify({
+          id: 1,
+          phone: "+919999999999",
+          name: "Local Test User",
+          goal_steps: 8000,
+          goal_protein_g: 90,
+          goal_calories: 2100,
+          goal_sleep_hours: 8,
+          created_at: new Date().toISOString(),
+        }));
+        router.replace("/dashboard");
+        return;
+      }
+
       const token = localStorage.getItem("auth_token");
       if (!token) return;
 
