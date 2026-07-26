@@ -45,6 +45,8 @@ import {
   getUserLogs,
   getUserLogEvents,
   getUserSummary,
+  calculateStreak,
+  hasLoggedMetric,
   type FamilyMember,
   type FoodReminderPreference,
   type HealthLog,
@@ -152,7 +154,9 @@ export default function HomeV2Page() {
   const [showAddFamily, setShowAddFamily] = useState(false);
   const [chartRange, setChartRange] = useState<"week" | "month">("week");
   const [showRangeMenu, setShowRangeMenu] = useState(false);
+  const [showStreakCalendar, setShowStreakCalendar] = useState(false);
   const rangeMenuRef = useRef<HTMLDivElement>(null);
+  const streakCalendarRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!showRangeMenu) return;
@@ -166,6 +170,24 @@ export default function HomeV2Page() {
   }, [showRangeMenu]);
 
   useEffect(() => {
+    if (!showStreakCalendar) return;
+    const onClickOutside = (event: MouseEvent) => {
+      if (streakCalendarRef.current && !streakCalendarRef.current.contains(event.target as Node)) {
+        setShowStreakCalendar(false);
+      }
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setShowStreakCalendar(false);
+    };
+    document.addEventListener("mousedown", onClickOutside);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", onClickOutside);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [showStreakCalendar]);
+
+  useEffect(() => {
     const storedUser = localStorage.getItem("auth_user");
     const authUser = storedUser ? JSON.parse(storedUser) as ApiUser : null;
     const token = localStorage.getItem("auth_token");
@@ -174,7 +196,7 @@ export default function HomeV2Page() {
       return;
     }
     setUser(authUser);
-    getUserLogs(authUser.id, 31)
+    getUserLogs(authUser.id, 365)
       .then(setLogs)
       .catch(() => setLogs([]));
     getUserLogEvents(authUser.id, 7)
@@ -247,6 +269,35 @@ export default function HomeV2Page() {
     [logEvents]
   );
   const hasLoggedToday = todayLogCount > 0;
+  const streak = useMemo(() => calculateStreak(logs), [logs]);
+  const loggedDateSet = useMemo(
+    () => new Set(logs.filter(hasLoggedMetric).map((log) => log.logged_at)),
+    [logs],
+  );
+  const currentMonthCalendar = useMemo(() => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const leadingDays = new Date(year, month, 1).getDay();
+    const days = Array.from({ length: daysInMonth }, (_, index) => {
+      const day = index + 1;
+      const date = new Date(year, month, day);
+      const isoDate = date.toLocaleDateString("en-CA");
+      return {
+        day,
+        isoDate,
+        logged: loggedDateSet.has(isoDate),
+        future: date > now,
+      };
+    });
+    return {
+      label: now.toLocaleDateString("en-IN", { month: "long", year: "numeric" }),
+      leadingDays,
+      days,
+      loggedDays: days.filter((day) => day.logged).length,
+    };
+  }, [loggedDateSet]);
 
   const latestActivity = useMemo(() => {
     const candidates: NamedLogEvent[] = [
@@ -468,6 +519,61 @@ export default function HomeV2Page() {
 
           <div className="db-top-actions">
             {user && <FoodReminderControl userId={user.id} />}
+            <div className="homev2-streak-wrap" ref={streakCalendarRef}>
+              <button
+                className={`db-pill homev2-streak-trigger${showStreakCalendar ? " active" : ""}`}
+                type="button"
+                aria-expanded={showStreakCalendar}
+                aria-haspopup="dialog"
+                onClick={() => setShowStreakCalendar((visible) => !visible)}
+              >
+                <Fire size={16} weight="fill" />
+                <strong>{streak}</strong>
+                {streak === 1 ? "day streak" : "day streak"}
+              </button>
+
+              {showStreakCalendar && (
+                <div className="homev2-streak-calendar" role="dialog" aria-label="Monthly logging calendar">
+                  <div className="homev2-streak-calendar-head">
+                    <div>
+                      <span>Logging calendar</span>
+                      <h2>{currentMonthCalendar.label}</h2>
+                    </div>
+                    <span className="homev2-streak-total">
+                      <Fire size={13} weight="fill" />
+                      {currentMonthCalendar.loggedDays} logged
+                    </span>
+                  </div>
+
+                  <div className="homev2-calendar-weekdays" aria-hidden="true">
+                    {["S", "M", "T", "W", "T", "F", "S"].map((day, index) => (
+                      <span key={`${day}-${index}`}>{day}</span>
+                    ))}
+                  </div>
+
+                  <div className="homev2-calendar-grid" role="grid">
+                    {Array.from({ length: currentMonthCalendar.leadingDays }, (_, index) => (
+                      <span className="homev2-calendar-spacer" key={`spacer-${index}`} aria-hidden="true" />
+                    ))}
+                    {currentMonthCalendar.days.map((date) => (
+                      <div
+                        className={`homev2-calendar-day${date.logged ? " logged" : ""}${date.future ? " future" : ""}`}
+                        key={date.isoDate}
+                        role="gridcell"
+                        aria-label={`${date.day} ${currentMonthCalendar.label}: ${date.logged ? "logged" : "not logged"}`}
+                      >
+                        {date.logged ? <Fire size={17} weight="fill" /> : <span>{date.day}</span>}
+                        {date.logged && <small>{date.day}</small>}
+                      </div>
+                    ))}
+                  </div>
+
+                  <p className="homev2-streak-calendar-note">
+                    Fire marks a day with at least one health log.
+                  </p>
+                </div>
+              )}
+            </div>
             <a className="db-pill cta" href={FAMCARE_WHATSAPP_LINK} target="_blank" rel="noreferrer">
               <WhatsappLogo size={15} weight="fill" />
               Log via WhatsApp

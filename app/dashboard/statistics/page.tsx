@@ -500,6 +500,54 @@ export default function StatisticsPage() {
               </div>
             </div>
           </article>
+
+          <Link
+            href="/dashboard/logs"
+            className="stats-kpi-card stats-kpi-link-card"
+            aria-label="View logged foods"
+          >
+            <div className="stats-kpi-top">
+              <span className="stats-kpi-icon purple"><ForkKnife size={28} weight="fill" /></span>
+              <div className="stats-kpi-title-block">
+                <p className="stats-kpi-label">Food logs</p>
+                <strong>
+                  {foodPatternsLoading ? "—" : totalFoodLogs.toLocaleString("en-IN")}
+                  <small style={{ marginLeft: 5 }}>foods</small>
+                </strong>
+              </div>
+            </div>
+            <div className="stats-kpi-content">
+              <div style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 8,
+                minHeight: 22,
+              }}>
+                <span style={{
+                  color: "#5A6680",
+                  fontSize: 11.5,
+                  lineHeight: 1,
+                  fontWeight: 650,
+                  whiteSpace: "nowrap",
+                }}>
+                  {loggedDays} {loggedDays === 1 ? "day" : "days"} with entries
+                </span>
+                <span style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 5,
+                  color: "#765AF0",
+                  fontSize: 10.5,
+                  lineHeight: 1,
+                  fontWeight: 800,
+                  whiteSpace: "nowrap",
+                }}>
+                  View logs <ArrowRight size={13} weight="bold" />
+                </span>
+              </div>
+            </div>
+          </Link>
         </section>
 
         <section className="stats-chart-row" style={chartRowStyle}>
