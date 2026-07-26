@@ -731,10 +731,10 @@ export async function submitReviewFeedback(input: {
   });
 }
 
-export async function getFoodReminderPreference(token: string): Promise<FoodReminderPreference> {
+export async function getFoodReminderPreference(token: string, patientUserId?: number): Promise<FoodReminderPreference> {
   if (MOCK_API) {
     return {
-      user_id: MOCK_USER.id,
+      user_id: patientUserId ?? MOCK_USER.id,
       enabled: true,
       activated: true,
       breakfast_time: "11:00",
@@ -749,7 +749,10 @@ export async function getFoodReminderPreference(token: string): Promise<FoodRemi
       ],
     };
   }
-  return authedFetch<FoodReminderPreference>("/api/food-reminders/preference", token);
+  const path = patientUserId
+    ? `/api/food-reminders/preference?patientUserId=${patientUserId}`
+    : "/api/food-reminders/preference";
+  return authedFetch<FoodReminderPreference>(path, token);
 }
 
 export async function updateFoodReminderPreference(

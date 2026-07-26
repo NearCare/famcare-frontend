@@ -4427,6 +4427,12 @@ a {
   background: #FFE3E1;
   color: #FF4F4F;
 }
+.homev2-reminder-empty {
+  margin: 4px 0 12px;
+  color: #8A93AC;
+  font-size: 12px;
+  font-weight: 550;
+}
 .homev2-status-link {
   display: inline-flex;
   align-items: center;

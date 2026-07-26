@@ -37,15 +37,19 @@ import FoodReminderControl from "../components/FoodReminderControl";
 import { computeScore, scoreTier } from "../components/Score";
 import {
   getFamilyMembers,
+  getFoodReminderPreference,
   getMemberLogEvents,
   getMemberSummary,
+  getTodayMedicineDoses,
   getUserLogs,
   getUserLogEvents,
   getUserSummary,
   type FamilyMember,
+  type FoodReminderPreference,
   type HealthLog,
   type HealthLogEvent,
   type Summary,
+  type TodayDose,
   type User as ApiUser,
 } from "@/lib/api";
 import { FAMCARE_WHATSAPP_LINK } from "@/lib/whatsapp";
@@ -59,6 +63,9 @@ type FamilyRow = {
   score: number | null;
   loggedToday: boolean;
   lastUpdateLabel: string | null;
+  medicationLabel: string;
+  medicationOk: boolean;
+  remindersActive: boolean | null;
   isYou?: boolean;
 };
 
@@ -99,6 +106,30 @@ function yesterdayKey() {
   return d.toLocaleDateString("en-CA");
 }
 
+function medicationSummary(doses: TodayDose[]): { label: string; ok: boolean } {
+  if (!doses.length) return { label: "No meds", ok: true };
+  const missed = doses.filter((d) => d.status === "missed").length;
+  if (missed > 0) return { label: "Attention", ok: false };
+  const taken = doses.filter((d) => d.status === "taken").length;
+  if (taken === doses.length) return { label: "All done", ok: true };
+  return { label: "On track", ok: true };
+}
+
+const TODAYS_TIPS = [
+  "Add more colorful fruits and veggies to your meals for better energy, immunity, and overall well-being.",
+  "Stay hydrated — aim for at least 8 glasses of water throughout the day.",
+  "A short 10-minute walk after meals can help with digestion and blood sugar levels.",
+  "Prioritize protein at breakfast to feel fuller for longer and reduce cravings.",
+  "Getting 7-8 hours of sleep supports recovery, mood, and metabolism.",
+  "Swap sugary drinks for water, buttermilk, or fresh lime water when possible.",
+];
+
+function tipOfTheDay() {
+  const start = new Date(new Date().getFullYear(), 0, 0);
+  const dayOfYear = Math.floor((Date.now() - start.getTime()) / 86_400_000);
+  return TODAYS_TIPS[dayOfYear % TODAYS_TIPS.length];
+}
+
 function formatEventTime(event: HealthLogEvent) {
   const eventDate = new Date(event.created_at);
   const time = eventDate.toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit" });
@@ -114,6 +145,8 @@ export default function HomeV2Page() {
   const [memberLatestEvents, setMemberLatestEvents] = useState<NamedLogEvent[]>([]);
   const [familyMemberRows, setFamilyMemberRows] = useState<FamilyRow[]>([]);
   const [selfScore, setSelfScore] = useState<number | null>(null);
+  const [selfDoses, setSelfDoses] = useState<TodayDose[]>([]);
+  const [selfFoodPref, setSelfFoodPref] = useState<FoodReminderPreference | null>(null);
   const [showAddFamily, setShowAddFamily] = useState(false);
   const [chartRange, setChartRange] = useState<"week" | "month">("week");
   const [showRangeMenu, setShowRangeMenu] = useState(false);
@@ -148,21 +181,29 @@ export default function HomeV2Page() {
     getUserSummary(authUser.id)
       .then((summary: Summary | null) => setSelfScore(computeScore(summary)))
       .catch(() => setSelfScore(null));
+    getTodayMedicineDoses(authUser.id, token)
+      .then(setSelfDoses)
+      .catch(() => setSelfDoses([]));
+    getFoodReminderPreference(token)
+      .then(setSelfFoodPref)
+      .catch(() => setSelfFoodPref(null));
 
     getFamilyMembers(token)
       .then(async (members: FamilyMember[]) => {
         const active = members.filter((m) => m.status === "active");
         const results = await Promise.all(
           active.map(async (member) => {
-            const [events, summary] = await Promise.all([
+            const [events, summary, doses, foodPref] = await Promise.all([
               getMemberLogEvents(member.id, token, 7).catch(() => [] as HealthLogEvent[]),
               getMemberSummary(member.id, token).catch(() => null),
+              getTodayMedicineDoses(member.id, token).catch(() => [] as TodayDose[]),
+              getFoodReminderPreference(token, member.id).catch(() => null),
             ]);
             const latest = events.length
               ? events.reduce((a, b) => (a.created_at > b.created_at ? a : b))
               : null;
             const name = member.name?.trim() || member.label;
-            return { id: member.id, name, label: member.label, latest, summary };
+            return { id: member.id, name, label: member.label, latest, summary, doses, foodPref };
           })
         );
         setMemberLatestEvents(
@@ -171,14 +212,20 @@ export default function HomeV2Page() {
             .map((r) => ({ name: r.name, event: r.latest }))
         );
         setFamilyMemberRows(
-          results.map((r) => ({
-            id: r.id,
-            name: r.name,
-            label: r.label,
-            score: computeScore(r.summary),
-            loggedToday: r.latest?.logged_at === todayKey(),
-            lastUpdateLabel: r.latest ? formatEventTime(r.latest) : null,
-          }))
+          results.map((r) => {
+            const medication = medicationSummary(r.doses);
+            return {
+              id: r.id,
+              name: r.name,
+              label: r.label,
+              score: computeScore(r.summary),
+              loggedToday: r.latest?.logged_at === todayKey(),
+              lastUpdateLabel: r.latest ? formatEventTime(r.latest) : null,
+              medicationLabel: medication.label,
+              medicationOk: medication.ok,
+              remindersActive: r.foodPref?.enabled ?? null,
+            };
+          })
         );
       })
       .catch(() => {
@@ -223,6 +270,8 @@ export default function HomeV2Page() {
     return logEvents.reduce((a, b) => (a.created_at > b.created_at ? a : b));
   }, [logEvents]);
 
+  const selfMedication = useMemo(() => medicationSummary(selfDoses), [selfDoses]);
+
   const familyRows: FamilyRow[] = useMemo(() => {
     const rows: FamilyRow[] = [
       {
@@ -232,12 +281,15 @@ export default function HomeV2Page() {
         score: selfScore,
         loggedToday: hasLoggedToday,
         lastUpdateLabel: selfLastEvent ? formatEventTime(selfLastEvent) : null,
+        medicationLabel: selfMedication.label,
+        medicationOk: selfMedication.ok,
+        remindersActive: selfFoodPref?.enabled ?? null,
         isYou: true,
       },
       ...familyMemberRows,
     ];
     return rows.sort((a, b) => (b.score ?? -1) - (a.score ?? -1));
-  }, [user, selfScore, hasLoggedToday, selfLastEvent, familyMemberRows]);
+  }, [user, selfScore, hasLoggedToday, selfLastEvent, selfMedication, selfFoodPref, familyMemberRows]);
 
   const WEEKDAY_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
   const weeklyChartData = useMemo(() => {
@@ -256,6 +308,52 @@ export default function HomeV2Page() {
       });
   }, [logs, chartRange]);
   const chartTickInterval = chartRange === "month" ? Math.max(0, Math.ceil(weeklyChartData.length / 7) - 1) : 0;
+
+  const dosesToday = selfDoses.length;
+  const dosesTaken = useMemo(() => selfDoses.filter((d) => d.status === "taken").length, [selfDoses]);
+  const dosesMissed = useMemo(() => selfDoses.filter((d) => d.status === "missed").length, [selfDoses]);
+  const medicationValue = dosesToday === 0
+    ? "No meds"
+    : dosesMissed > 0
+    ? "Attention"
+    : dosesTaken === dosesToday
+    ? "All done"
+    : "On track";
+
+  const upcomingReminders = useMemo(() => {
+    type ReminderItem = { key: string; icon: typeof Fire; tone: "orange" | "coral"; label: string; time: Date; timeLabel: string };
+    const now = new Date();
+    const items: ReminderItem[] = [];
+    if (selfFoodPref) {
+      for (const meal of selfFoodPref.meals) {
+        if (!meal.enabled) continue;
+        const timeStr = meal.time.slice(0, 5);
+        const mealDate = new Date(`${todayKey()}T${timeStr}:00`);
+        if (mealDate.getTime() <= now.getTime()) continue;
+        items.push({
+          key: `food-${meal.slot}`,
+          icon: ForkKnife,
+          tone: "orange",
+          label: meal.label.charAt(0).toUpperCase() + meal.label.slice(1),
+          time: mealDate,
+          timeLabel: `Today, ${mealDate.toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit" })}`,
+        });
+      }
+    }
+    for (const dose of selfDoses) {
+      if (dose.status !== "upcoming" && dose.status !== "due") continue;
+      const doseDate = new Date(dose.scheduled_for);
+      items.push({
+        key: `dose-${dose.id}`,
+        icon: Pill,
+        tone: "coral",
+        label: dose.medicine.name,
+        time: doseDate,
+        timeLabel: `Today, ${doseDate.toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit" })}`,
+      });
+    }
+    return items.sort((a, b) => a.time.getTime() - b.time.getTime()).slice(0, 2);
+  }, [selfFoodPref, selfDoses]);
 
   const glanceCards: GlanceCard[] = useMemo(() => [
     {
@@ -278,22 +376,22 @@ export default function HomeV2Page() {
     },
     {
       label: "Medication status",
-      value: "On track",
-      sublabel: "2 of 3 taken",
-      progress: 67,
+      value: medicationValue,
+      sublabel: dosesToday ? `${dosesTaken} of ${dosesToday} taken` : "No doses scheduled",
+      progress: dosesToday ? percent(dosesTaken, dosesToday) : 0,
       tone: "green",
       icon: Pill,
     },
     {
       label: "Health score",
-      value: "78",
+      value: selfScore !== null ? String(selfScore) : "—",
       suffix: "/100",
-      sublabel: "Good",
-      progress: 78,
+      sublabel: scoreTier(selfScore).label,
+      progress: selfScore ?? 0,
       tone: "mint",
       icon: Heart,
     },
-  ], [calorieGoal, calories, protein, proteinGoal]);
+  ], [calorieGoal, calories, protein, proteinGoal, medicationValue, dosesToday, dosesTaken, selfScore]);
 
   const renderDayTick = (props: {
     x?: number | string;
@@ -660,22 +758,21 @@ export default function HomeV2Page() {
               <h3>Next reminders</h3>
             </div>
             <ul className="homev2-reminder-list">
-              <li>
-                <span className="homev2-reminder-icon orange"><ForkKnife size={14} weight="fill" /></span>
-                <div>
-                  <b>Lunch</b>
-                  <span>Today, 1:00 PM</span>
-                </div>
-                <em className="orange">Upcoming</em>
-              </li>
-              <li>
-                <span className="homev2-reminder-icon coral"><Pill size={14} weight="fill" /></span>
-                <div>
-                  <b>Vitamin D3</b>
-                  <span>Today, 8:00 PM</span>
-                </div>
-                <em className="coral">Upcoming</em>
-              </li>
+              {upcomingReminders.length ? upcomingReminders.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <li key={item.key}>
+                    <span className={`homev2-reminder-icon ${item.tone}`}><Icon size={14} weight="fill" /></span>
+                    <div>
+                      <b>{item.label}</b>
+                      <span>{item.timeLabel}</span>
+                    </div>
+                    <em className={item.tone}>Upcoming</em>
+                  </li>
+                );
+              }) : (
+                <li className="homev2-reminder-empty">No upcoming reminders today.</li>
+              )}
             </ul>
             <a className="homev2-status-link" href="/dashboard/medications">
               View all reminders <ArrowRight size={13} weight="bold" />
@@ -687,10 +784,7 @@ export default function HomeV2Page() {
               <Sparkle size={17} weight="fill" />
               <h3>Today&apos;s tip</h3>
             </div>
-            <p>
-              Add more colorful fruits and veggies to your meals for better energy,
-              immunity, and overall well-being.
-            </p>
+            <p>{tipOfTheDay()}</p>
             <div className="homev2-tip-glyph">
               <Image src="/wellness_leaf_illustration.png" alt="" width={140} height={115} />
             </div>
@@ -719,13 +813,13 @@ export default function HomeV2Page() {
                   </div>
                   <div className="homev2-family-meta">
                     <span className="homev2-family-meta-item">
-                      <CheckCircle size={15} weight="fill" className="ok" />
-                      Medication: On track
+                      <CheckCircle size={15} weight="fill" className={row.medicationOk ? "ok" : "coral"} />
+                      Medication: {row.medicationLabel}
                     </span>
                     <i className="homev2-family-meta-divider" />
                     <span className="homev2-family-meta-item">
-                      <Bell size={15} weight="fill" className="coral" />
-                      Reminders: Active
+                      <Bell size={15} weight="fill" className={row.remindersActive ? "coral" : ""} />
+                      Reminders: {row.remindersActive === null ? "—" : row.remindersActive ? "Active" : "Off"}
                     </span>
                     <i className="homev2-family-meta-divider" />
                     <span className="homev2-family-meta-item">
