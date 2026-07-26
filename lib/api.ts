@@ -173,6 +173,10 @@ export type HealthAssistantReply = {
   tools_used: string[];
 };
 
+export type FeatureFlags = {
+  v2: boolean;
+};
+
 export type Summary = {
   period_days: number;
   avg_steps: number | null;
@@ -370,6 +374,17 @@ async function chatRequest<T>(path: string, token: string, init?: RequestInit): 
   const body = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(body.error ?? body.message ?? "The assistant could not respond.");
   return body as T;
+}
+
+export async function getFeatureFlags(token?: string): Promise<FeatureFlags> {
+  if (MOCK_API) return { v2: true };
+  const sessionToken =
+    token ?? (typeof window !== "undefined" ? localStorage.getItem("auth_token") ?? "" : "");
+  if (!sessionToken) return { v2: false };
+  const body = await apiFetch<{ feature_flags: Partial<FeatureFlags> }>("/api/feature-flags");
+  return {
+    v2: body.feature_flags.v2 === true,
+  };
 }
 
 export async function getChatConversations(token: string): Promise<ChatConversation[]> {

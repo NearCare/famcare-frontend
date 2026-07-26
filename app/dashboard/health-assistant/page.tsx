@@ -13,6 +13,7 @@ import {
   getChatConversations,
   getChatMessages,
   getFamilyMembers,
+  getFeatureFlags,
   sendHealthAssistantMessage,
   type ChatBlock,
   type ChatMessage,
@@ -20,6 +21,14 @@ import {
   type User,
 } from "@/lib/api";
 import { captureEvent, identifyUser } from "@/lib/analytics";
+
+const IS_PRODUCTION = process.env.NODE_ENV === "production";
+
+function shouldRequireFeatureFlags() {
+  if (!IS_PRODUCTION) return false;
+  if (typeof window === "undefined") return true;
+  return !["localhost", "127.0.0.1"].includes(window.location.hostname);
+}
 
 type StarterPrompt = {
   label: string;
@@ -234,15 +243,35 @@ export default function HealthAssistantPage() {
 
   useEffect(() => {
     const stored = localStorage.getItem("auth_user");
+    const token = localStorage.getItem("auth_token") ?? "";
     const authUser = stored ? JSON.parse(stored) as User : null;
     if (!authUser) { window.location.href = "/login"; return; }
-    setUser(authUser);
-    setSubjectId(authUser.id);
-    identifyUser(authUser);
-    captureEvent("health_assistant_opened");
-    getFamilyMembers(localStorage.getItem("auth_token") ?? "")
-      .then((rows) => setMembers(rows.filter((row) => row.status === "active")))
-      .catch(() => setMembers([]));
+
+    function openHealthAssistant(verifiedUser: User) {
+      setUser(verifiedUser);
+      setSubjectId(verifiedUser.id);
+      identifyUser(verifiedUser);
+      captureEvent("health_assistant_opened");
+      getFamilyMembers(token)
+        .then((rows) => setMembers(rows.filter((row) => row.status === "active")))
+        .catch(() => setMembers([]));
+    }
+
+    getFeatureFlags(token)
+      .then((flags) => {
+        if (shouldRequireFeatureFlags() && !flags.v2) {
+          window.location.href = "/dashboard";
+          return;
+        }
+        openHealthAssistant(authUser);
+      })
+      .catch(() => {
+        if (shouldRequireFeatureFlags()) {
+          window.location.href = "/dashboard";
+          return;
+        }
+        openHealthAssistant(authUser);
+      });
   }, []);
 
   useEffect(() => {

@@ -41,8 +41,6 @@ import PageLoader from "./components/PageLoader";
 import { captureEvent, identifyUser, resetAnalytics } from "@/lib/analytics";
 import { clearStoredSession } from "@/lib/session";
 
-const IS_PRODUCTION = process.env.NODE_ENV === "production";
-
 /** Averages raw logs falling within [minDaysAgo, maxDaysAgo] of today — used to compare this week vs last week. */
 function rangeAverages(logs: HealthLog[], minDaysAgo: number, maxDaysAgo: number) {
   const today = new Date();
@@ -677,8 +675,8 @@ export default function DashboardPage() {
     }
 
     const storageKey = `famcare_feature_intro_seen_${user.id}`;
-    const seen = IS_PRODUCTION && localStorage.getItem(storageKey) === "true";
-    const shouldShow = IS_PRODUCTION ? logs.length === 0 && !seen : true;
+    const seen = localStorage.getItem(storageKey) === "true";
+    const shouldShow = logs.length === 0 && !seen;
     setShowFeatureIntro(shouldShow);
     setFeatureIntroChecked(true);
   }, [loading, logs.length, user]);
@@ -1009,9 +1007,7 @@ export default function DashboardPage() {
   const featureIntroOverlay = user && showFeatureIntro ? (
     <FeatureIntro
       onDone={() => {
-        if (IS_PRODUCTION) {
-          localStorage.setItem(`famcare_feature_intro_seen_${user.id}`, "true");
-        }
+        localStorage.setItem(`famcare_feature_intro_seen_${user.id}`, "true");
         setShowFeatureIntro(false);
       }}
     />

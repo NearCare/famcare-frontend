@@ -1,25 +1,36 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Calculator, ChatCircleText, House, Users, FileText, List, Pill, SignOut, Sparkle, X,
 } from "@phosphor-icons/react";
 import { captureEvent, resetAnalytics } from "@/lib/analytics";
+import { getFeatureFlags, type FeatureFlags } from "@/lib/api";
 import { clearStoredSession } from "@/lib/session";
+
+const IS_PRODUCTION = process.env.NODE_ENV === "production";
+
+function shouldRequireFeatureFlags() {
+  if (!IS_PRODUCTION) return false;
+  if (typeof window === "undefined") return true;
+  return !["localhost", "127.0.0.1"].includes(window.location.hostname);
+}
 
 const navItems = [
   { label: "Home",             href: "/dashboard" },
+  { label: "Home V2",          href: "/dashboard/homev2", isNew: true },
   { label: "Family Overview",  href: "/dashboard/family-overview" },
   { label: "Medications",      href: "/dashboard/medications" },
   { label: "Logs",             href: "/dashboard/logs" },
   { label: "Calorie Calculator", href: "/dashboard/calorie-calculator", isNew: true },
-  { label: "Health Assistant", href: "/dashboard/health-assistant", isNew: true },
+  { label: "Health Assistant", href: "/dashboard/health-assistant", isNew: true, featureFlag: "v2" as const },
   { label: "Review",           href: "/dashboard/review" },
 ];
 
 const NAV_ICONS: Record<string, React.ElementType> = {
   "Home":             House,
+  "Home V2":          Sparkle,
   "Family Overview":  Users,
   "Medications":      Pill,
   "Logs":             FileText,
@@ -36,7 +47,15 @@ function NavIcon({ name }: { name: string }) {
 export default function Sidebar() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [confirmLogoutOpen, setConfirmLogoutOpen] = useState(false);
+  const [featureFlags, setFeatureFlags] = useState<FeatureFlags>({ v2: false });
   const pathname = usePathname();
+  const requireFeatureFlags = shouldRequireFeatureFlags();
+
+  useEffect(() => {
+    getFeatureFlags()
+      .then(setFeatureFlags)
+      .catch(() => setFeatureFlags({ v2: false }));
+  }, []);
 
   function handleLogout() {
     captureEvent("logout");
@@ -70,7 +89,7 @@ export default function Sidebar() {
         </div>
 
         <nav className="db-nav">
-          {navItems.map((item) => {
+          {navItems.filter((item) => !item.featureFlag || !requireFeatureFlags || featureFlags[item.featureFlag]).map((item) => {
             const active = pathname === item.href;
             return (
               <Link
