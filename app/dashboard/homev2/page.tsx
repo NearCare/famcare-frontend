@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import {
   ArrowRight,
   Bell,
@@ -139,6 +140,7 @@ function formatEventTime(event: HealthLogEvent) {
 }
 
 export default function HomeV2Page() {
+  const router = useRouter();
   const [user, setUser] = useState<ApiUser | null>(null);
   const [logs, setLogs] = useState<HealthLog[]>([]);
   const [logEvents, setLogEvents] = useState<HealthLogEvent[]>([]);
@@ -300,14 +302,33 @@ export default function HomeV2Page() {
       .map((log) => {
         const d = new Date(`${log.logged_at}T00:00:00`);
         return {
-          day: chartRange === "month" ? `${d.getDate()}` : `${WEEKDAY_SHORT[d.getDay()]} ${d.getDate()}`,
+          day: chartRange === "month"
+            ? d.toLocaleDateString("en-IN", { day: "numeric", month: "short" })
+            : `${WEEKDAY_SHORT[d.getDay()]} ${d.getDate()}`,
           calories: log.calories ?? 0,
           protein: Math.round(log.protein_g ?? 0),
           isToday: log.logged_at === todayKey(),
         };
       });
   }, [logs, chartRange]);
-  const chartTickInterval = chartRange === "month" ? Math.max(0, Math.ceil(weeklyChartData.length / 7) - 1) : 0;
+  const chartTicks = useMemo(() => {
+    if (chartRange !== "month" || weeklyChartData.length === 0) return undefined;
+    const maxTicks = 7;
+    const step = Math.max(1, Math.ceil(weeklyChartData.length / maxTicks));
+    const indices: number[] = [];
+    for (let i = 0; i < weeklyChartData.length; i += step) indices.push(i);
+    const lastIndex = weeklyChartData.length - 1;
+    if (indices[indices.length - 1] !== lastIndex) indices.push(lastIndex);
+    return indices.map((i) => weeklyChartData[i].day);
+  }, [weeklyChartData, chartRange]);
+  const calorieAxisMax = useMemo(() => {
+    const dataMax = Math.max(0, ...weeklyChartData.map((d) => d.calories));
+    return Math.ceil((dataMax * 1.2) / 600) * 600 || 600;
+  }, [weeklyChartData]);
+  const proteinAxisMax = useMemo(() => {
+    const dataMax = Math.max(0, ...weeklyChartData.map((d) => d.protein));
+    return Math.ceil((dataMax * 1.2) / 25) * 25 || 25;
+  }, [weeklyChartData]);
 
   const dosesToday = selfDoses.length;
   const dosesTaken = useMemo(() => selfDoses.filter((d) => d.status === "taken").length, [selfDoses]);
@@ -401,22 +422,11 @@ export default function HomeV2Page() {
   }) => {
     const x = Number(props.x ?? 0);
     const y = Number(props.y ?? 0);
-    const { payload, index = 0 } = props;
-    const isToday = weeklyChartData[index]?.isToday;
-    if (!isToday) {
-      return (
-        <text x={x} y={y + 14} textAnchor="middle" fontSize={11} fontWeight={650} fill="#8A93AC">
-          {payload?.value}
-        </text>
-      );
-    }
+    const { payload } = props;
     return (
-      <g>
-        <rect x={x - 28} y={y - 2} width={56} height={20} rx={10} fill="#FFEAE8" />
-        <text x={x} y={y + 12} textAnchor="middle" fontSize={11} fontWeight={800} fill="#FF4F4F">
-          {payload?.value}
-        </text>
-      </g>
+      <text x={x} y={y + 14} textAnchor="middle" fontSize={11} fontWeight={650} fill="#8A93AC">
+        {payload?.value}
+      </text>
     );
   };
 
@@ -578,7 +588,11 @@ export default function HomeV2Page() {
             </ol>
           </article>
 
-          <article className="homev2-panel homev2-chart-card">
+          <article
+            className="homev2-panel homev2-chart-card"
+            onClick={() => router.push("/dashboard/statistics")}
+            style={{ cursor: "pointer" }}
+          >
             <div className="homev2-chart-head">
               <h2>{chartRange === "month" ? "Monthly" : "Weekly"} progress</h2>
               <div className="homev2-chart-legend">
@@ -591,7 +605,12 @@ export default function HomeV2Page() {
                   Protein (g)
                 </span>
               </div>
-              <div className="homev2-chart-range-wrap" ref={rangeMenuRef} style={{ position: "relative" }}>
+              <div
+                className="homev2-chart-range-wrap"
+                ref={rangeMenuRef}
+                style={{ position: "relative" }}
+                onClick={(e) => e.stopPropagation()}
+              >
                 <button
                   className="homev2-chart-range"
                   type="button"
@@ -676,7 +695,7 @@ export default function HomeV2Page() {
                     dataKey="day"
                     tickLine={false}
                     axisLine={false}
-                    interval={chartTickInterval}
+                    ticks={chartTicks}
                     tick={renderDayTick}
                   />
                   <YAxis
@@ -684,7 +703,7 @@ export default function HomeV2Page() {
                     tickLine={false}
                     axisLine={false}
                     width={44}
-                    domain={[0, (dataMax: number) => Math.ceil((dataMax * 1.2) / 600) * 600]}
+                    domain={[0, calorieAxisMax]}
                     tick={{ fontSize: 11, fill: "#2E7BE0", fontWeight: 650 }}
                   />
                   <YAxis
@@ -693,7 +712,7 @@ export default function HomeV2Page() {
                     tickLine={false}
                     axisLine={false}
                     width={34}
-                    domain={[0, (dataMax: number) => Math.ceil((dataMax * 1.2) / 25) * 25]}
+                    domain={[0, proteinAxisMax]}
                     tick={{ fontSize: 11, fill: "#FF4F4F", fontWeight: 650 }}
                   />
                   <ReTooltip content={renderChartTooltip} />
@@ -728,8 +747,63 @@ export default function HomeV2Page() {
           </article>
         </section>
 
+        <section className="homev2-panel homev2-family-card homev2-family-card-full">
+          <div className="homev2-family-head">
+            <h2><UsersThree size={20} weight="fill" className="homev2-family-head-icon" /> Family overview</h2>
+            <a href="/dashboard/family-overview">
+              View all family <CaretRight size={12} weight="bold" />
+            </a>
+          </div>
+
+          <div className="homev2-family-list">
+            {familyRows.map((row) => {
+              const tier = scoreTier(row.score);
+              return (
+                <div className="homev2-family-row" key={row.id || row.name}>
+                  <span className="homev2-family-avatar" style={{ background: tier.bg, color: tier.textColor }}>
+                    {row.name.charAt(0).toUpperCase()}
+                  </span>
+                  <div className="homev2-family-info">
+                    <b>{row.isYou ? "You" : row.name}</b>
+                  </div>
+                  <div className="homev2-family-meta">
+                    <span className="homev2-family-meta-item">
+                      <CheckCircle size={15} weight="fill" className={row.medicationOk ? "ok" : "coral"} />
+                      Medication: {row.medicationLabel}
+                    </span>
+                    <i className="homev2-family-meta-divider" />
+                    <span className="homev2-family-meta-item">
+                      <Bell size={15} weight="fill" className={row.remindersActive ? "coral" : ""} />
+                      Reminders: {row.remindersActive === null ? "—" : row.remindersActive ? "Active" : "Off"}
+                    </span>
+                    <i className="homev2-family-meta-divider" />
+                    <span className="homev2-family-meta-item">
+                      <CalendarBlank size={15} weight="regular" />
+                      Last update: {row.lastUpdateLabel ?? "—"}
+                    </span>
+                  </div>
+                  <span className={`homev2-family-status${row.loggedToday ? " ok" : ""}`}>
+                    <Clock size={13} weight="fill" />
+                    {row.loggedToday ? "Logged today" : "No log yet"}
+                  </span>
+                  <a className="homev2-family-view" href="/dashboard/family-overview">
+                    View <CaretRight size={12} weight="bold" />
+                  </a>
+                </div>
+              );
+            })}
+            {familyRows.length <= 1 && (
+              <p className="homev2-family-empty">Add a family member to see their health overview here.</p>
+            )}
+          </div>
+        </section>
+
         <section className="homev2-status-row">
-          <article className="homev2-status-card">
+          <article
+            className="homev2-status-card"
+            onClick={() => router.push("/dashboard/logs")}
+            style={{ cursor: "pointer" }}
+          >
             <div className="homev2-status-head">
               <CheckCircle size={16} weight="fill" className="ok" />
               <h3>Logging status</h3>
@@ -789,58 +863,6 @@ export default function HomeV2Page() {
               <Image src="/wellness_leaf_illustration.png" alt="" width={140} height={115} />
             </div>
           </article>
-        </section>
-
-        <section className="homev2-panel homev2-family-card homev2-family-card-full">
-          <div className="homev2-family-head">
-            <h2><UsersThree size={20} weight="fill" className="homev2-family-head-icon" /> Family overview</h2>
-            <a href="/dashboard/family-overview">
-              View all family <CaretRight size={12} weight="bold" />
-            </a>
-          </div>
-
-          <div className="homev2-family-list">
-            {familyRows.map((row) => {
-              const tier = scoreTier(row.score);
-              return (
-                <div className="homev2-family-row" key={row.id || row.name}>
-                  <span className="homev2-family-avatar" style={{ background: tier.bg, color: tier.textColor }}>
-                    {row.name.charAt(0).toUpperCase()}
-                  </span>
-                  <div className="homev2-family-info">
-                    <b>{row.isYou ? "You" : row.name}</b>
-                    <span>{row.isYou ? "You" : row.label}</span>
-                  </div>
-                  <div className="homev2-family-meta">
-                    <span className="homev2-family-meta-item">
-                      <CheckCircle size={15} weight="fill" className={row.medicationOk ? "ok" : "coral"} />
-                      Medication: {row.medicationLabel}
-                    </span>
-                    <i className="homev2-family-meta-divider" />
-                    <span className="homev2-family-meta-item">
-                      <Bell size={15} weight="fill" className={row.remindersActive ? "coral" : ""} />
-                      Reminders: {row.remindersActive === null ? "—" : row.remindersActive ? "Active" : "Off"}
-                    </span>
-                    <i className="homev2-family-meta-divider" />
-                    <span className="homev2-family-meta-item">
-                      <CalendarBlank size={15} weight="regular" />
-                      Last update: {row.lastUpdateLabel ?? "—"}
-                    </span>
-                  </div>
-                  <span className={`homev2-family-status${row.loggedToday ? " ok" : ""}`}>
-                    <Clock size={13} weight="fill" />
-                    {row.loggedToday ? "Logged today" : "No log yet"}
-                  </span>
-                  <a className="homev2-family-view" href="/dashboard/family-overview">
-                    View <CaretRight size={12} weight="bold" />
-                  </a>
-                </div>
-              );
-            })}
-            {familyRows.length <= 1 && (
-              <p className="homev2-family-empty">Add a family member to see their health overview here.</p>
-            )}
-          </div>
         </section>
       </main>
 
