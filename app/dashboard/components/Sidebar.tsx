@@ -3,7 +3,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
-  Calculator, ChatCircleText, House, Users, FileText, List, Pill, SignOut, Sparkle, X,
+  Calculator, ChartLine, ChatCircleText, House, Users, FileText, List, Pill, SignOut, Sparkle, X,
 } from "@phosphor-icons/react";
 import { captureEvent, resetAnalytics } from "@/lib/analytics";
 import { getFeatureFlags, type FeatureFlags } from "@/lib/api";
@@ -20,6 +20,7 @@ function shouldRequireFeatureFlags() {
 const navItems = [
   { label: "Home",             href: "/dashboard" },
   { label: "Home V2",          href: "/dashboard/homev2", isNew: true },
+  { label: "Statistics",       href: "/dashboard/statistics", isNew: true },
   { label: "Family Overview",  href: "/dashboard/family-overview" },
   { label: "Medications",      href: "/dashboard/medications" },
   { label: "Logs",             href: "/dashboard/logs" },
@@ -31,6 +32,7 @@ const navItems = [
 const NAV_ICONS: Record<string, React.ElementType> = {
   "Home":             House,
   "Home V2":          Sparkle,
+  "Statistics":       ChartLine,
   "Family Overview":  Users,
   "Medications":      Pill,
   "Logs":             FileText,

@@ -26,14 +26,14 @@ const MOCK_USER: User = {
   id: 1,
   phone: "+910000000000",
   name: "Test User",
-  goal_steps: null,
-  goal_protein_g: null,
-  goal_calories: null,
-  goal_sleep_hours: null,
+  goal_steps: 8000,
+  goal_protein_g: 90,
+  goal_calories: 2100,
+  goal_sleep_hours: 8,
   created_at: new Date().toISOString(),
 };
 
-const MOCK_LOGS: HealthLog[] = Array.from({ length: 14 }, (_, i) => {
+const MOCK_LOGS: HealthLog[] = Array.from({ length: 90 }, (_, i) => {
   const d = new Date();
   d.setDate(d.getDate() - i);
   return {
@@ -46,7 +46,7 @@ const MOCK_LOGS: HealthLog[] = Array.from({ length: 14 }, (_, i) => {
     sleep_hours: 5.5 + Math.round(Math.random() * 30) / 10,
     raw_message: i === 0 ? "8200 steps, chicken breast for lunch" : null,
   };
-}).filter((_, i) => i !== 4);
+}).filter((_, i) => i % 11 !== 4);
 
 const MOCK_LOG_EVENTS: HealthLogEvent[] = [
   {
@@ -128,6 +128,20 @@ export type HealthLogEvent = {
   calories: number | null;
   sleep_hours: number | null;
   created_at: string;
+};
+
+export type FoodPatternItem = {
+  food_name: string;
+  log_count: number;
+  total_protein_g: number;
+};
+
+export type FoodPatterns = {
+  unique_foods: number;
+  total_food_logs: number;
+  most_logged_food: string | null;
+  top_protein_food: string | null;
+  top_foods: FoodPatternItem[];
 };
 
 export type ChatConversation = {
@@ -575,7 +589,7 @@ export async function getUserLogs(
   userId: number,
   days = 30
 ): Promise<HealthLog[]> {
-  if (MOCK_API) return MOCK_LOGS;
+  if (MOCK_API) return MOCK_LOGS.slice(0, days);
   const data = await apiFetch<{ logs: HealthLog[] }>(
     `/api/users/${userId}/logs?days=${days}`
   );
@@ -588,6 +602,33 @@ export async function getUserLogEvents(userId: number, days = 7): Promise<Health
     `/api/users/${userId}/log-events?days=${days}`
   );
   return data.log_events;
+}
+
+export async function getUserFoodPatterns(
+  userId: number,
+  days = 30,
+  start?: string,
+  end?: string,
+): Promise<FoodPatterns> {
+  if (MOCK_API) {
+    return {
+      unique_foods: 8,
+      total_food_logs: 62,
+      most_logged_food: "Oats",
+      top_protein_food: "Grilled chicken",
+      top_foods: [
+        { food_name: "Oats", log_count: 12, total_protein_g: 96 },
+        { food_name: "Boiled eggs", log_count: 10, total_protein_g: 120 },
+        { food_name: "Dal", log_count: 9, total_protein_g: 108 },
+        { food_name: "Grilled chicken", log_count: 7, total_protein_g: 280 },
+        { food_name: "Banana", log_count: 6, total_protein_g: 8 },
+      ],
+    };
+  }
+  const query = new URLSearchParams({ days: String(days) });
+  if (start) query.set("start", start);
+  if (end) query.set("end", end);
+  return apiFetch<FoodPatterns>(`/api/users/${userId}/food-patterns?${query.toString()}`);
 }
 
 /**
@@ -699,7 +740,7 @@ export async function getMemberSummary(memberId: number, token: string): Promise
 }
 
 export async function getMemberLogs(memberId: number, token: string, days = 7): Promise<HealthLog[]> {
-  if (MOCK_API) return MOCK_LOGS;
+  if (MOCK_API) return MOCK_LOGS.slice(0, days);
   const data = await authedFetch<{ logs: HealthLog[] }>(
     `/family/members/${memberId}/logs?days=${days}`, token
   );
@@ -712,6 +753,23 @@ export async function getMemberLogEvents(memberId: number, token: string, days =
     `/family/members/${memberId}/log-events?days=${days}`, token
   );
   return data.log_events;
+}
+
+export async function getMemberFoodPatterns(
+  memberId: number,
+  token: string,
+  days = 30,
+  start?: string,
+  end?: string,
+): Promise<FoodPatterns> {
+  if (MOCK_API) return getUserFoodPatterns(memberId, days, start, end);
+  const query = new URLSearchParams({ days: String(days) });
+  if (start) query.set("start", start);
+  if (end) query.set("end", end);
+  return authedFetch<FoodPatterns>(
+    `/family/members/${memberId}/food-patterns?${query.toString()}`,
+    token,
+  );
 }
 
 export type ReviewFeedbackType = "feature" | "improvement" | "issue" | "praise" | "other";
