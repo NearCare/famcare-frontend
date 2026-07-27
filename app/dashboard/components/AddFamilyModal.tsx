@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { X, Users, UserCheck, WarningCircle } from "@phosphor-icons/react";
 import { FESmartphone } from "./FluentEmoji";
 import { inviteFamilyMember, verifyFamilyInviteOtp, getFamilyMembers, type FamilyMember } from "@/lib/api";
@@ -113,11 +114,31 @@ export default function AddFamilyModal({ onClose, onAdded, onActivated }: Props)
     return () => clearTimeout(t);
   }, [step, onClose]);
 
-  return (
+  useEffect(() => {
+    document.body.classList.add("mobile-sheet-open");
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.classList.remove("mobile-sheet-open");
+      document.body.style.overflow = previousOverflow;
+    };
+  }, []);
+
+  if (typeof document === "undefined") return null;
+
+  return createPortal(
     <div
       onClick={onClose}
       className="db-modal-overlay"
     >
+      <button
+        type="button"
+        className="mobile-sheet-close"
+        aria-label="Close"
+        onClick={onClose}
+      >
+        <X size={16} weight="bold" />
+      </button>
       <div
         onClick={e => e.stopPropagation()}
         className="db-modal-sheet"
@@ -130,7 +151,7 @@ export default function AddFamilyModal({ onClose, onAdded, onActivated }: Props)
         }}
       >
         {/* Close */}
-        <button onClick={onClose} style={{ ...closeBtnStyle, display: "flex", alignItems: "center", justifyContent: "center" }}><X size={15} weight="bold" /></button>
+        <button className="modal-inline-close" onClick={onClose} style={{ ...closeBtnStyle, display: "flex", alignItems: "center", justifyContent: "center" }}><X size={15} weight="bold" /></button>
 
         {/* Progress */}
         <div style={{ display: "flex", gap: 5, marginBottom: 28, paddingRight: 64 }}>
@@ -331,7 +352,8 @@ export default function AddFamilyModal({ onClose, onAdded, onActivated }: Props)
           </div>
         )}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 

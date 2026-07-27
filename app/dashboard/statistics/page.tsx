@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import {
   ArrowRight,
@@ -10,7 +11,9 @@ import {
   Fire,
   ForkKnife,
   Heart,
+  Sparkle,
   WhatsappLogo,
+  X,
 } from "@phosphor-icons/react";
 import {
   Area,
@@ -163,8 +166,29 @@ export default function StatisticsPage() {
   const [draftStart, setDraftStart] = useState("");
   const [draftEnd, setDraftEnd] = useState("");
   const [showMemberMenu, setShowMemberMenu] = useState(false);
+  const [isMobilePicker, setIsMobilePicker] = useState(false);
   const memberMenuRef = useRef<HTMLDivElement>(null);
   const customPickerRef = useRef<HTMLDivElement>(null);
+  const customPickerSheetRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const mql = window.matchMedia("(max-width: 900px)");
+    const update = () => setIsMobilePicker(mql.matches);
+    update();
+    mql.addEventListener("change", update);
+    return () => mql.removeEventListener("change", update);
+  }, []);
+
+  useEffect(() => {
+    if (!showCustomPicker) return;
+    document.body.classList.add("mobile-sheet-open");
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.classList.remove("mobile-sheet-open");
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [showCustomPicker]);
 
   useEffect(() => {
     const storedUser = localStorage.getItem("auth_user");
@@ -234,7 +258,10 @@ export default function StatisticsPage() {
   useEffect(() => {
     if (!showCustomPicker) return;
     const onClickOutside = (event: MouseEvent) => {
-      if (customPickerRef.current && !customPickerRef.current.contains(event.target as Node)) {
+      const target = event.target as Node;
+      const insideTabs = customPickerRef.current?.contains(target);
+      const insideSheet = customPickerSheetRef.current?.contains(target);
+      if (!insideTabs && !insideSheet) {
         setShowCustomPicker(false);
       }
     };
@@ -263,6 +290,9 @@ export default function StatisticsPage() {
   );
   const calorieGoal = user?.goal_calories ?? 2000;
   const proteinGoal = Math.round(user?.goal_protein_g ?? 100);
+  const isSelfView = selectedMemberId === 0;
+  const hasCalorieTarget = !isSelfView || Number(user?.goal_calories) > 0;
+  const hasProteinTarget = !isSelfView || Number(user?.goal_protein_g) > 0;
   const loggedDays = new Set(logs.map((log) => log.logged_at)).size;
   const consistencyPct = Math.min(100, Math.round((loggedDays / rangeDays) * 100));
 
@@ -398,47 +428,72 @@ export default function StatisticsPage() {
                 ))}
               </div>
 
-              {showCustomPicker && (
-                <div className="stats-custom-picker">
-                  <div className="stats-custom-picker-row">
-                    <label>
-                      Start date
-                      <input
-                        type="date"
-                        value={draftStart}
-                        max={draftEnd || undefined}
-                        onChange={(e) => setDraftStart(e.target.value)}
-                      />
-                    </label>
-                    <label>
-                      End date
-                      <input
-                        type="date"
-                        value={draftEnd}
-                        min={draftStart || undefined}
-                        max={toISODate(new Date())}
-                        onChange={(e) => setDraftEnd(e.target.value)}
-                      />
-                    </label>
+              {showCustomPicker && (() => {
+                const pickerBody = (
+                  <div className="stats-custom-picker" ref={customPickerSheetRef}>
+                    <div className="stats-custom-picker-row">
+                      <label>
+                        Start date
+                        <input
+                          type="date"
+                          value={draftStart}
+                          max={draftEnd || undefined}
+                          onChange={(e) => setDraftStart(e.target.value)}
+                        />
+                      </label>
+                      <label>
+                        End date
+                        <input
+                          type="date"
+                          value={draftEnd}
+                          min={draftStart || undefined}
+                          max={toISODate(new Date())}
+                          onChange={(e) => setDraftEnd(e.target.value)}
+                        />
+                      </label>
+                    </div>
+                    <div className="stats-custom-picker-actions">
+                      <button type="button" onClick={() => setShowCustomPicker(false)}>Cancel</button>
+                      <button
+                        type="button"
+                        className="primary"
+                        disabled={!draftStart || !draftEnd || draftStart > draftEnd}
+                        onClick={() => {
+                          setCustomStart(draftStart);
+                          setCustomEnd(draftEnd);
+                          setRange("custom");
+                          setShowCustomPicker(false);
+                        }}
+                      >
+                        Apply
+                      </button>
+                    </div>
                   </div>
-                  <div className="stats-custom-picker-actions">
-                    <button type="button" onClick={() => setShowCustomPicker(false)}>Cancel</button>
-                    <button
-                      type="button"
-                      className="primary"
-                      disabled={!draftStart || !draftEnd || draftStart > draftEnd}
-                      onClick={() => {
-                        setCustomStart(draftStart);
-                        setCustomEnd(draftEnd);
-                        setRange("custom");
-                        setShowCustomPicker(false);
-                      }}
-                    >
-                      Apply
-                    </button>
-                  </div>
-                </div>
-              )}
+                );
+                if (isMobilePicker && typeof document !== "undefined") {
+                  return createPortal(
+                    <div className="mobile-sheet-layer">
+                      <button
+                        type="button"
+                        className="mobile-sheet-backdrop"
+                        aria-label="Close"
+                        onClick={() => setShowCustomPicker(false)}
+                      />
+                      <button
+                        type="button"
+                        className="mobile-sheet-close"
+                        aria-label="Close"
+                        onClick={() => setShowCustomPicker(false)}
+                      >
+                        <X size={16} weight="bold" />
+                      </button>
+                      {pickerBody}
+                    </div>,
+                    document.body
+                  );
+                }
+                return pickerBody;
+              })()}
             </div>
           </div>
         </header>
@@ -453,13 +508,22 @@ export default function StatisticsPage() {
               </div>
             </div>
             <div className="stats-kpi-content">
-              <div className="stats-kpi-foot">
-                <span>Goal {calorieGoal.toLocaleString("en-IN")} kcal</span>
-              </div>
-              <div className="stats-kpi-progress-row">
-                <div className="stats-kpi-progress"><i className="orange" style={{ width: `${caloriePct}%` }} /></div>
-                <b className="orange">{caloriePct}%</b>
-              </div>
+              {!hasCalorieTarget ? (
+                <a href="/dashboard/calorie-calculator" className="homev2-target-card-entry orange">
+                  <span><Sparkle size={11} weight="fill" />Set calorie target</span>
+                  <ArrowRight size={13} weight="bold" />
+                </a>
+              ) : (
+                <>
+                  <div className="stats-kpi-foot">
+                    <span>Goal {calorieGoal.toLocaleString("en-IN")} kcal</span>
+                  </div>
+                  <div className="stats-kpi-progress-row">
+                    <div className="stats-kpi-progress"><i className="orange" style={{ width: `${caloriePct}%` }} /></div>
+                    <b className="orange">{caloriePct}%</b>
+                  </div>
+                </>
+              )}
             </div>
           </article>
 
@@ -472,13 +536,22 @@ export default function StatisticsPage() {
               </div>
             </div>
             <div className="stats-kpi-content">
-              <div className="stats-kpi-foot">
-                <span>Goal {proteinGoal} g</span>
-              </div>
-              <div className="stats-kpi-progress-row">
-                <div className="stats-kpi-progress"><i className="coral" style={{ width: `${proteinPct}%` }} /></div>
-                <b className="coral">{proteinPct}%</b>
-              </div>
+              {!hasProteinTarget ? (
+                <a href="/dashboard/calorie-calculator" className="homev2-target-card-entry">
+                  <span><Sparkle size={11} weight="fill" />Set protein target</span>
+                  <ArrowRight size={13} weight="bold" />
+                </a>
+              ) : (
+                <>
+                  <div className="stats-kpi-foot">
+                    <span>Goal {proteinGoal} g</span>
+                  </div>
+                  <div className="stats-kpi-progress-row">
+                    <div className="stats-kpi-progress"><i className="coral" style={{ width: `${proteinPct}%` }} /></div>
+                    <b className="coral">{proteinPct}%</b>
+                  </div>
+                </>
+              )}
             </div>
           </article>
 
@@ -517,14 +590,14 @@ export default function StatisticsPage() {
               </div>
             </div>
             <div className="stats-kpi-content">
-              <div style={{
+              <div className="stats-foodlog-foot" style={{
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "space-between",
                 gap: 8,
                 minHeight: 22,
               }}>
-                <span style={{
+                <span className="stats-foodlog-days" style={{
                   color: "#5A6680",
                   fontSize: 11.5,
                   lineHeight: 1,
@@ -533,7 +606,7 @@ export default function StatisticsPage() {
                 }}>
                   {loggedDays} {loggedDays === 1 ? "day" : "days"} with entries
                 </span>
-                <span style={{
+                <span className="stats-foodlog-cta" style={{
                   display: "inline-flex",
                   alignItems: "center",
                   gap: 5,
@@ -554,7 +627,14 @@ export default function StatisticsPage() {
           <article className="stats-chart-card" style={chartCardStyle}>
             <div className="stats-chart-head" style={chartHeadStyle}>
               <h2 style={chartTitleStyle}>Calories over time</h2>
-              <span style={{ ...chartGoalTagStyle, color: "#FF8A1E" }}><GoalSwatch color="#FF8A1E" />Goal {calorieGoal.toLocaleString("en-IN")} kcal</span>
+              {hasCalorieTarget ? (
+                <span style={{ ...chartGoalTagStyle, color: "#FF8A1E" }}><GoalSwatch color="#FF8A1E" />Goal {calorieGoal.toLocaleString("en-IN")} kcal</span>
+              ) : (
+                <a href="/dashboard/calorie-calculator" className="homev2-target-card-entry orange" style={{ marginTop: 0 }}>
+                  <span><Sparkle size={11} weight="fill" />Set calorie target</span>
+                  <ArrowRight size={13} weight="bold" />
+                </a>
+              )}
             </div>
             <ResponsiveContainer width="100%" height={200}>
               <ComposedChart data={chartData} margin={{ top: 10, right: 20, left: -6, bottom: 0 }}>
@@ -575,7 +655,14 @@ export default function StatisticsPage() {
           <article className="stats-chart-card" style={chartCardStyle}>
             <div className="stats-chart-head" style={chartHeadStyle}>
               <h2 style={chartTitleStyle}>Protein over time</h2>
-              <span style={{ ...chartGoalTagStyle, color: "#FF4F4F" }}><GoalSwatch color="#FF4F4F" />Goal {proteinGoal} g</span>
+              {hasProteinTarget ? (
+                <span style={{ ...chartGoalTagStyle, color: "#FF4F4F" }}><GoalSwatch color="#FF4F4F" />Goal {proteinGoal} g</span>
+              ) : (
+                <a href="/dashboard/calorie-calculator" className="homev2-target-card-entry" style={{ marginTop: 0 }}>
+                  <span><Sparkle size={11} weight="fill" />Set protein target</span>
+                  <ArrowRight size={13} weight="bold" />
+                </a>
+              )}
             </div>
             <ResponsiveContainer width="100%" height={200}>
               <ComposedChart data={chartData} margin={{ top: 10, right: 20, left: -6, bottom: 0 }}>

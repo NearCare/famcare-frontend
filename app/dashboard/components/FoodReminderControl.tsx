@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { CaretDown, Plus, Trash } from "@phosphor-icons/react";
+import { createPortal } from "react-dom";
+import { CaretDown, Plus, Trash, X } from "@phosphor-icons/react";
 import { FEAlarm } from "./FluentEmoji";
 import {
   getFoodReminderPreference,
@@ -57,7 +58,17 @@ export default function FoodReminderControl({ userId }: { userId: number }) {
   const [draftMeals, setDraftMeals] = useState<FoodReminderMeal[]>(DEFAULT_FOOD_REMINDER_MEALS);
   const [draftError, setDraftError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [isMobileSheet, setIsMobileSheet] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const sheetRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const mql = window.matchMedia("(max-width: 900px)");
+    const update = () => setIsMobileSheet(mql.matches);
+    update();
+    mql.addEventListener("change", update);
+    return () => mql.removeEventListener("change", update);
+  }, []);
 
   useEffect(() => {
     const token = localStorage.getItem("auth_token") ?? "";
@@ -77,12 +88,26 @@ export default function FoodReminderControl({ userId }: { userId: number }) {
   useEffect(() => {
     if (!showMenu) return;
     function handleClickOutside(e: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+      const target = e.target as Node;
+      const insideTrigger = menuRef.current?.contains(target);
+      const insideSheet = sheetRef.current?.contains(target);
+      if (!insideTrigger && !insideSheet) {
         setShowMenu(false);
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [showMenu]);
+
+  useEffect(() => {
+    if (!showMenu) return;
+    document.body.classList.add("mobile-sheet-open");
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.classList.remove("mobile-sheet-open");
+      document.body.style.overflow = previousOverflow;
+    };
   }, [showMenu]);
 
   const updateDraftMeal = useCallback((slot: FoodReminderMeal["slot"], patch: Partial<FoodReminderMeal>) => {
@@ -171,26 +196,23 @@ export default function FoodReminderControl({ userId }: { userId: number }) {
 
   const enabled = preference?.enabled ?? true;
 
-  return (
-    <div className="food-reminder-control" ref={menuRef} style={{ position: "relative" }}>
-      <button
-        type="button"
-        onClick={() => setShowMenu((current) => !current)}
-        disabled={saving}
-        aria-pressed={enabled}
-        aria-expanded={showMenu}
-        className={`db-pill food-reminder-trigger${enabled ? " enabled" : ""}`}
-        title={enabled
-          ? "Manage breakfast, lunch, dinner, and snack logging reminders"
-          : "Turn on meal logging reminders"}
-      >
-        <FEAlarm size={15} />
-        Food reminders
-        <span className="food-reminder-status">{enabled ? "ON" : "OFF"}</span>
-        <CaretDown size={14} weight="bold" />
-      </button>
-      {showMenu && (
-        <div
+  const sheetBody = (
+        <div className="mobile-sheet-layer" ref={sheetRef}>
+          <button
+            type="button"
+            className="mobile-sheet-backdrop"
+            aria-label="Close food reminders"
+            onClick={() => setShowMenu(false)}
+          />
+          <button
+            type="button"
+            className="mobile-sheet-close"
+            aria-label="Close food reminders"
+            onClick={() => setShowMenu(false)}
+          >
+            <X size={16} weight="bold" />
+          </button>
+          <div
           className="food-reminder-menu"
           style={{
             position: "absolute",
@@ -427,8 +449,32 @@ export default function FoodReminderControl({ userId }: { userId: number }) {
               {saving ? "Saving..." : "Save"}
             </button>
           </div>
+          </div>
         </div>
-      )}
+  );
+  const sheetContent = showMenu
+    ? (isMobileSheet && typeof document !== "undefined" ? createPortal(sheetBody, document.body) : sheetBody)
+    : null;
+
+  return (
+    <div className="food-reminder-control" ref={menuRef} style={{ position: "relative" }}>
+      <button
+        type="button"
+        onClick={() => setShowMenu((current) => !current)}
+        disabled={saving}
+        aria-pressed={enabled}
+        aria-expanded={showMenu}
+        className={`db-pill food-reminder-trigger${enabled ? " enabled" : ""}`}
+        title={enabled
+          ? "Manage breakfast, lunch, dinner, and snack logging reminders"
+          : "Turn on meal logging reminders"}
+      >
+        <FEAlarm size={15} />
+        Food reminders
+        <span className="food-reminder-status">{enabled ? "ON" : "OFF"}</span>
+        <CaretDown size={14} weight="bold" />
+      </button>
+      {sheetContent}
     </div>
   );
 }

@@ -27,8 +27,8 @@ const MOCK_USER: User = {
   phone: "+910000000000",
   name: "Test User",
   goal_steps: 8000,
-  goal_protein_g: 90,
-  goal_calories: 2100,
+  goal_protein_g: null,
+  goal_calories: null,
   goal_sleep_hours: 8,
   created_at: new Date().toISOString(),
 };
@@ -46,7 +46,7 @@ const MOCK_LOGS: HealthLog[] = Array.from({ length: 90 }, (_, i) => {
     sleep_hours: 5.5 + Math.round(Math.random() * 30) / 10,
     raw_message: i === 0 ? "8200 steps, chicken breast for lunch" : null,
   };
-}).filter((_, i) => i % 11 !== 4);
+}).filter((_, i) => i !== 1 && i % 11 !== 4);
 
 const MOCK_LOG_EVENTS: HealthLogEvent[] = [
   {
@@ -128,6 +128,19 @@ export type HealthLogEvent = {
   calories: number | null;
   sleep_hours: number | null;
   created_at: string;
+};
+
+export type BackfillYesterdayLogResponse = {
+  message: string;
+  log: HealthLog;
+  event: HealthLogEvent;
+};
+
+export type YesterdayFoodPreview = {
+  message: string;
+  summary: string;
+  protein_g: number;
+  calories: number;
 };
 
 export type FoodPatternItem = {
@@ -402,7 +415,6 @@ export async function getFeatureFlags(token?: string): Promise<FeatureFlags> {
 }
 
 export async function getChatConversations(token: string): Promise<ChatConversation[]> {
-  if (MOCK_API) return [];
   const body = await chatRequest<{ conversations: ChatConversation[] }>("/api/chat/conversations", token);
   return body.conversations;
 }
@@ -415,7 +427,6 @@ export async function createChatConversation(token: string, subjectUserId: numbe
 }
 
 export async function getChatMessages(token: string, conversationId: number): Promise<ChatMessage[]> {
-  if (MOCK_API) return [];
   const body = await chatRequest<{ messages: ChatMessage[] }>(
     `/api/chat/conversations/${conversationId}/messages`, token,
   );
@@ -423,7 +434,6 @@ export async function getChatMessages(token: string, conversationId: number): Pr
 }
 
 export async function clearChatMessages(token: string, conversationId: number): Promise<void> {
-  if (MOCK_API) return;
   await chatRequest<Record<string, never>>(`/api/chat/conversations/${conversationId}/messages`, token, {
     method: "DELETE",
   });
@@ -602,6 +612,68 @@ export async function getUserLogEvents(userId: number, days = 7): Promise<Health
     `/api/users/${userId}/log-events?days=${days}`
   );
   return data.log_events;
+}
+
+export async function previewYesterdayFood(
+  message: string,
+  token: string,
+): Promise<YesterdayFoodPreview> {
+  if (MOCK_API) {
+    return {
+      message,
+      summary: `Estimated nutrition for ${message}`,
+      protein_g: 18,
+      calories: 420,
+    };
+  }
+  return authedFetch<YesterdayFoodPreview>("/api/health-logs/backfill-yesterday/preview", token, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ message }),
+  });
+}
+
+export async function backfillYesterdayFood(
+  preview: YesterdayFoodPreview,
+  token: string,
+): Promise<BackfillYesterdayLogResponse> {
+  if (MOCK_API) {
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const loggedAt = yesterday.toLocaleDateString("en-CA");
+    const event: HealthLogEvent = {
+      id: Date.now(),
+      user_id: MOCK_USER.id,
+      logged_at: loggedAt,
+      source: "text",
+      raw_message: preview.message,
+      summary: preview.summary,
+      steps: null,
+      protein_g: preview.protein_g,
+      calories: preview.calories,
+      sleep_hours: null,
+      created_at: new Date().toISOString(),
+    };
+    return {
+      message: "Yesterday's food was logged",
+      event,
+      log: {
+        id: Date.now(),
+        user_id: MOCK_USER.id,
+        logged_at: loggedAt,
+        steps: null,
+        protein_g: event.protein_g,
+        calories: event.calories,
+        sleep_hours: null,
+        raw_message: preview.message,
+      },
+    };
+  }
+  return authedFetch<BackfillYesterdayLogResponse>("/api/health-logs/backfill-yesterday", token, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(preview),
+  });
 }
 
 export async function getUserFoodPatterns(
@@ -817,10 +889,11 @@ export async function updateFoodReminderPreference(
   enabled: boolean,
   token: string,
   meals?: FoodReminderMeal[],
+  patientUserId?: number,
 ): Promise<FoodReminderPreference> {
   if (MOCK_API) {
     return {
-      user_id: MOCK_USER.id,
+      user_id: patientUserId ?? MOCK_USER.id,
       enabled,
       activated: enabled,
       breakfast_time: "11:00",
@@ -835,7 +908,10 @@ export async function updateFoodReminderPreference(
       ],
     };
   }
-  return authedFetch<FoodReminderPreference>("/api/food-reminders/preference", token, {
+  const path = patientUserId
+    ? `/api/food-reminders/preference?patientUserId=${patientUserId}`
+    : "/api/food-reminders/preference";
+  return authedFetch<FoodReminderPreference>(path, token, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ enabled, meals }),

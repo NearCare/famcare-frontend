@@ -401,25 +401,27 @@ export default function LandingPage() {
   const router = useRouter();
 
   useEffect(() => {
+    if (LOCAL_AUTH_BYPASS) {
+      localStorage.setItem("auth_token", "local-dashboard-session");
+      localStorage.setItem("auth_user", JSON.stringify({
+        id: 1,
+        phone: "+919999999999",
+        name: "Local Test User",
+        goal_steps: 8000,
+        goal_protein_g: 90,
+        goal_calories: 2100,
+        goal_sleep_hours: 8,
+        created_at: new Date().toISOString(),
+      }));
+      window.location.replace("/dashboard/homev2");
+    }
+  }, []);
+
+  useEffect(() => {
+    if (LOCAL_AUTH_BYPASS) return;
     let cancelled = false;
 
     async function resumeSavedSession() {
-      if (LOCAL_AUTH_BYPASS) {
-        localStorage.setItem("auth_token", "local-dashboard-session");
-        localStorage.setItem("auth_user", JSON.stringify({
-          id: 1,
-          phone: "+919999999999",
-          name: "Local Test User",
-          goal_steps: 8000,
-          goal_protein_g: 90,
-          goal_calories: 2100,
-          goal_sleep_hours: 8,
-          created_at: new Date().toISOString(),
-        }));
-        router.replace("/dashboard");
-        return;
-      }
-
       const token = localStorage.getItem("auth_token");
       if (!token) return;
 
@@ -434,7 +436,7 @@ export default function LandingPage() {
         }
 
         localStorage.setItem("auth_user", JSON.stringify(authUser));
-        router.replace(authUser.name ? "/dashboard" : "/onboarding/name");
+        router.replace(authUser.name ? "/dashboard/homev2" : "/onboarding/name");
       } catch {
         // Preserve the saved session during temporary network/backend failures.
         // getCurrentUser returns null for an actual 401/403, handled above.
@@ -447,6 +449,17 @@ export default function LandingPage() {
       cancelled = true;
     };
   }, [router]);
+
+  if (LOCAL_AUTH_BYPASS) {
+    return (
+      <div style={{
+        display: "flex", alignItems: "center", justifyContent: "center",
+        minHeight: "100vh", background: "#fff", color: "#6B7A9A", fontSize: 14,
+      }}>
+        Opening dashboard…
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col min-h-screen bg-white">

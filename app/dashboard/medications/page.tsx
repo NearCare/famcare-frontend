@@ -1,12 +1,12 @@
 "use client";
 
-import { Fragment, Suspense, useEffect, useMemo, useState } from "react";
+import { Fragment, Suspense, useEffect, useMemo, useState, type CSSProperties } from "react";
+import { createPortal } from "react-dom";
 import { useSearchParams } from "next/navigation";
 import {
   CalendarBlank,
   CaretDown,
   CheckCircle,
-  Info,
   PencilSimple,
   Pill,
   Plus,
@@ -16,13 +16,11 @@ import {
 } from "@phosphor-icons/react";
 import Sidebar from "../components/Sidebar";
 import {
-  calculateStreak,
   createMedicine,
   deleteMedicine,
   getFamilyMembers,
   getMedicines,
   getTodayMedicineDoses,
-  getUserLogs,
   markMedicineDose,
   updateMedicine,
   type FamilyMember,
@@ -30,12 +28,8 @@ import {
   type TodayDose,
   type User,
 } from "@/lib/api";
-import StreakPill from "../components/StreakPill";
 import PageLoader from "../components/PageLoader";
 import { captureEvent, identifyUser } from "@/lib/analytics";
-import { FAMCARE_WHATSAPP_LINK } from "@/lib/whatsapp";
-
-const WA_LINK = FAMCARE_WHATSAPP_LINK;
 
 type PersonOption = {
   id: string;
@@ -79,6 +73,7 @@ type ScheduleRow = {
   id: string;
   medicineId: number;
   scheduleId: number;
+  ownerLabel: string;
   scheduledFor: string;
   timeLabel: string;
   name: string;
@@ -88,6 +83,18 @@ type ScheduleRow = {
   status: string;
   actionStatus: TodayDose["status"];
   canMarkTaken: boolean;
+};
+
+type OwnedMedicine = Medicine & {
+  ownerLabel: string;
+  ownerPersonId: string;
+  rowKey: string;
+};
+
+type OwnedTodayDose = TodayDose & {
+  ownerLabel: string;
+  ownerPersonId: string;
+  rowKey: string;
 };
 
 const todayISO = () => new Date().toLocaleDateString("en-CA");
@@ -415,6 +422,16 @@ function AddMedicineDrawer({
 }) {
   const [form, setForm] = useState<MedicineForm>(() => initialForm ?? defaultForm(initialPersonId));
   const [submitted, setSubmitted] = useState(false);
+
+  useEffect(() => {
+    document.body.classList.add("mobile-sheet-open");
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.classList.remove("mobile-sheet-open");
+      document.body.style.overflow = previousOverflow;
+    };
+  }, []);
   const selectedPerson = people.find((person) => person.id === form.personId);
   const invalidDateRange = Boolean(form.endDate && form.startDate && form.endDate < form.startDate);
   const errors = {
@@ -478,13 +495,23 @@ function AddMedicineDrawer({
     .map((schedule, index) => ({ schedule, index }))
     .sort((a, b) => DAY_PARTS.indexOf(a.schedule.dayPart) - DAY_PARTS.indexOf(b.schedule.dayPart));
 
-  return (
-    <div style={{ position: "fixed", inset: 0, zIndex: 400 }}>
+  if (typeof document === "undefined") return null;
+
+  return createPortal(
+    <div className="med-drawer-layer" style={{ position: "fixed", inset: 0, zIndex: 400 }}>
       <button
         aria-label="Close add medicine"
         onClick={onClose}
         style={{ position: "absolute", inset: 0, border: "none", background: "rgba(26, 20, 20, .24)", cursor: "pointer" }}
       />
+      <button
+        type="button"
+        className="med-drawer-close"
+        aria-label="Close"
+        onClick={onClose}
+      >
+        <X size={16} weight="bold" />
+      </button>
       <section
         className="med-drawer"
         style={{
@@ -511,7 +538,7 @@ function AddMedicineDrawer({
               Set reminders for {displayName(selectedPerson)}.
             </p>
           </div>
-          <button onClick={onClose} aria-label="Close" style={{ border: "none", background: "#FAF9FA", width: 34, height: 34, borderRadius: 11, display: "grid", placeItems: "center", cursor: "pointer" }}>
+          <button className="modal-inline-close" onClick={onClose} aria-label="Close" style={{ border: "none", background: "#FAF9FA", width: 34, height: 34, borderRadius: 11, display: "grid", placeItems: "center", cursor: "pointer" }}>
             <X size={17} weight="bold" color="var(--he-ink-2)" />
           </button>
         </div>
@@ -712,7 +739,8 @@ function AddMedicineDrawer({
           </button>
         </div>
       </section>
-    </div>
+    </div>,
+    document.body
   );
 }
 
@@ -729,21 +757,17 @@ function StatCard({
   detail: string;
   tone: "green" | "orange" | "blue" | "violet";
 }) {
-  const colors = toneColors(tone);
   return (
-    <div className="med-stat-card" style={{ border: `1.5px solid ${colors.border}`, background: "var(--he-card)", borderRadius: 18, padding: 20, minHeight: 132 }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-        <div style={{ width: 46, height: 46, borderRadius: 14, background: colors.bg, display: "grid", placeItems: "center", flex: "none" }}>
-          {icon}
-        </div>
+    <article className={`med-stat-card ${tone}`}>
+      <div className="med-stat-top">
+        <span className="med-stat-icon">{icon}</span>
         <div>
-          <p style={{ margin: 0, fontSize: 29, fontWeight: 800, color: "var(--he-ink-1)", lineHeight: 1 }}>{value}</p>
-          <p style={{ margin: "7px 0 0", fontSize: 13.5, fontWeight: 800, color: "var(--he-ink-1)" }}>{label}</p>
+          <p>{label}</p>
+          <strong>{value}</strong>
         </div>
       </div>
-      <div style={{ height: 1, background: "var(--he-hairline)", margin: "17px 0 13px" }} />
-      <p style={{ margin: 0, fontSize: 12.5, fontWeight: 600, color: "var(--he-ink-2)", lineHeight: 1.55 }}>{detail}</p>
-    </div>
+      <p className="med-stat-detail">{detail}</p>
+    </article>
   );
 }
 
@@ -770,12 +794,11 @@ function MedicationsContent() {
   const requestedPersonId = searchParams.get("person");
   const [user, setUser] = useState<User | null>(null);
   const [people, setPeople] = useState<PersonOption[]>([]);
-  const [selectedPersonId, setSelectedPersonId] = useState("self");
-  const [medicines, setMedicines] = useState<Medicine[]>([]);
-  const [todayDoses, setTodayDoses] = useState<TodayDose[]>([]);
+  const [selectedPersonId, setSelectedPersonId] = useState("all");
+  const [medicines, setMedicines] = useState<OwnedMedicine[]>([]);
+  const [todayDoses, setTodayDoses] = useState<OwnedTodayDose[]>([]);
   const [showAddDrawer, setShowAddDrawer] = useState(false);
   const [editingMedicine, setEditingMedicine] = useState<Medicine | null>(null);
-  const [streak, setStreak] = useState(0);
   const [initializing, setInitializing] = useState(true);
   const [loadingMedicines, setLoadingMedicines] = useState(false);
   const [savingMedicine, setSavingMedicine] = useState(false);
@@ -795,12 +818,8 @@ function MedicationsContent() {
         setUser(authUser);
 
         const token = localStorage.getItem("auth_token") ?? "";
-        const [members, logs] = await Promise.all([
-          getFamilyMembers(token).catch(() => [] as FamilyMember[]),
-          getUserLogs(authUser.id, 30).catch(() => []),
-        ]);
+        const members = await getFamilyMembers(token).catch(() => [] as FamilyMember[]);
         const activeMembers = members.filter((member) => member.status === "active");
-        setStreak(calculateStreak(logs));
         identifyUser(authUser);
         captureEvent("medications_viewed", {
           family_member_count: activeMembers.length,
@@ -817,7 +836,7 @@ function MedicationsContent() {
             })),
         ];
         setPeople(options);
-        setSelectedPersonId(options.some((option) => option.id === requestedPersonId) ? requestedPersonId! : options[0]?.id ?? "self");
+        setSelectedPersonId(options.some((option) => option.id === requestedPersonId) ? requestedPersonId! : "all");
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to load medications");
       } finally {
@@ -834,19 +853,40 @@ function MedicationsContent() {
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const selected = people.find((person) => person.id === selectedPersonId);
-      if (!selected) return;
+      const selectedPeople = selectedPersonId === "all"
+        ? people
+        : people.filter((person) => person.id === selectedPersonId);
+      if (selectedPeople.length === 0) return;
       const token = localStorage.getItem("auth_token") ?? "";
       setLoadingMedicines(true);
       setError(null);
       try {
-        const [nextMedicines, nextDoses] = await Promise.all([
-          getMedicines(selected.userId, token),
-          getTodayMedicineDoses(selected.userId, token),
-        ]);
+        const results = await Promise.all(selectedPeople.map(async (person) => {
+          const [personMedicines, personDoses] = await Promise.all([
+            getMedicines(person.userId, token),
+            getTodayMedicineDoses(person.userId, token),
+          ]);
+          const ownerLabel = person.label === "You"
+            ? "You"
+            : person.label?.trim() || person.name || "Family";
+          return {
+            personMedicines: personMedicines.map((medicine) => ({
+              ...medicine,
+              ownerLabel,
+              ownerPersonId: person.id,
+              rowKey: `${person.id}-medicine-${medicine.id}`,
+            })),
+            personDoses: personDoses.map((dose) => ({
+              ...dose,
+              ownerLabel,
+              ownerPersonId: person.id,
+              rowKey: `${person.id}-dose-${dose.id}`,
+            })),
+          };
+        }));
         if (cancelled) return;
-        setMedicines(nextMedicines);
-        setTodayDoses(nextDoses);
+        setMedicines(results.flatMap((result) => result.personMedicines));
+        setTodayDoses(results.flatMap((result) => result.personDoses));
       } catch (err) {
         if (cancelled) return;
         setError(err instanceof Error ? err.message : "Failed to load medicines");
@@ -879,11 +919,19 @@ function MedicationsContent() {
   const activeCount = activeMedicines.length;
   const dosesToday = todayDoses.length;
   const takenDoses = todayDoses.filter((dose) => dose.status === "taken");
-  const avatarLetter = (user?.name ?? "T").charAt(0).toUpperCase();
-  const selectedPersonOptions = people.map((person) => ({
-    value: person.id,
-    label: `${person.name} ${person.label === "You" ? "(You)" : ""}`,
-  }));
+  const memberFilters = [
+    { id: "all", label: "All" },
+    ...people.map((person) => ({
+      id: person.id,
+      label: person.label === "You"
+        ? "You"
+        : person.label?.trim() || person.name,
+    })),
+  ];
+  const activeMemberFilterIndex = Math.max(
+    0,
+    memberFilters.findIndex((filter) => filter.id === selectedPersonId),
+  );
   const calendarDays = useMemo(() => {
     const today = new Date();
     return Array.from({ length: 7 }, (_, index) => {
@@ -899,7 +947,7 @@ function MedicationsContent() {
               return days.includes(weekDay) && isDateInMedicineRange(dateKey, medicine);
             })
             .map((schedule) => ({
-              id: `${medicine.id}-${schedule.id}-${dateKey}`,
+              id: `${medicine.rowKey}-${schedule.id}-${dateKey}`,
               name: medicine.name,
               dose: medicine.dose,
               time: formatTimeLabel(schedule.time_of_day),
@@ -927,9 +975,10 @@ function MedicationsContent() {
           ? "violet"
           : index % 2 === 0 ? "blue" : "green";
     return {
-      id: dose.id,
+      id: dose.rowKey,
       medicineId: dose.medicine.id,
       scheduleId: dose.schedule.id,
+      ownerLabel: dose.ownerLabel,
       scheduledFor: dose.scheduled_for,
       timeLabel: formatTimeLabel(dose.schedule.time_of_day),
       name: `${dose.medicine.name}${dose.medicine.strength ? ` ${dose.medicine.strength}` : ""}`,
@@ -945,12 +994,13 @@ function MedicationsContent() {
   const openAdd = () => {
     setEditingMedicine(null);
     captureEvent("medicine_add_opened", {
-      patient_type: selectedPersonId === "self" ? "self" : "family",
+      patient_type: selectedPersonId === "self" ? "self" : selectedPersonId === "all" ? "all" : "family",
     });
     setShowAddDrawer(true);
   };
 
-  const openEdit = (medicine: Medicine) => {
+  const openEdit = (medicine: OwnedMedicine) => {
+    setSelectedPersonId(medicine.ownerPersonId);
     setEditingMedicine(medicine);
     setShowAddDrawer(true);
     captureEvent("medicine_edit_opened", {
@@ -963,12 +1013,55 @@ function MedicationsContent() {
       getMedicines(patientUserId, token),
       getTodayMedicineDoses(patientUserId, token),
     ]);
-    setMedicines(nextMedicines);
-    setTodayDoses(nextDoses);
+    const person = people.find((item) => item.userId === patientUserId);
+    const ownerLabel = person?.label === "You"
+      ? "You"
+      : person?.label?.trim() || person?.name || "Family";
+    const ownerPersonId = person?.id ?? `user-${patientUserId}`;
+    setMedicines(nextMedicines.map((medicine) => ({
+      ...medicine,
+      ownerLabel,
+      ownerPersonId,
+      rowKey: `${ownerPersonId}-medicine-${medicine.id}`,
+    })));
+    setTodayDoses(nextDoses.map((dose) => ({
+      ...dose,
+      ownerLabel,
+      ownerPersonId,
+      rowKey: `${ownerPersonId}-dose-${dose.id}`,
+    })));
   };
   const refreshSelectedMedicines = async () => {
-    if (!selectedPerson) return;
-    await refreshMedicinesFor(selectedPerson.userId);
+    if (selectedPersonId === "all") {
+      const token = localStorage.getItem("auth_token") ?? "";
+      const results = await Promise.all(people.map(async (person) => {
+        const [personMedicines, personDoses] = await Promise.all([
+          getMedicines(person.userId, token),
+          getTodayMedicineDoses(person.userId, token),
+        ]);
+        const ownerLabel = person.label === "You"
+          ? "You"
+          : person.label?.trim() || person.name || "Family";
+        return {
+          personMedicines: personMedicines.map((medicine) => ({
+            ...medicine,
+            ownerLabel,
+            ownerPersonId: person.id,
+            rowKey: `${person.id}-medicine-${medicine.id}`,
+          })),
+          personDoses: personDoses.map((dose) => ({
+            ...dose,
+            ownerLabel,
+            ownerPersonId: person.id,
+            rowKey: `${person.id}-dose-${dose.id}`,
+          })),
+        };
+      }));
+      setMedicines(results.flatMap((result) => result.personMedicines));
+      setTodayDoses(results.flatMap((result) => result.personDoses));
+      return;
+    }
+    if (selectedPerson) await refreshMedicinesFor(selectedPerson.userId);
   };
 
   const saveMedicine = async (form: MedicineForm) => {
@@ -1078,79 +1171,65 @@ function MedicationsContent() {
   return (
     <div className="db-page">
       <Sidebar />
-      <div className="db-main">
-        <div className="db-topbar">
+      <main className="db-main med-main">
+        <header className="med-header">
           <div>
-            <h1 className="db-greeting">Good afternoon, {user?.name ?? "Test User"}! 👋</h1>
-            <p className="db-subtitle">Here&apos;s your health overview for today.</p>
+            <h1>Medications</h1>
+            <p>Manage medicines, dose times, and reminders for your family.</p>
           </div>
-          <div className="db-top-actions">
-            <div className="db-pill db-topbar-date" style={{ cursor: "default" }}>
-              <CalendarBlank size={15} weight="bold" />
-              {new Date().toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
-            </div>
-            <StreakPill streak={streak} />
-            <a href={WA_LINK} target="_blank" rel="noopener noreferrer" className="db-pill cta">
-              Log via WhatsApp
-            </a>
-            <div className="db-avatar">{avatarLetter}</div>
-          </div>
-        </div>
-
-        <section className="db-card med-shell">
-          <div className="med-page-head">
-            <div>
-              <h2 style={{ margin: 0, fontSize: 27, fontWeight: 800, color: "var(--he-ink-1)", letterSpacing: "-.5px" }}>Medications</h2>
-              <p style={{ margin: "6px 0 0", fontSize: 14.5, fontWeight: 500, color: "var(--he-ink-2)" }}>
-                Manage medicines, doses and reminders for your family.
-              </p>
-            </div>
+          <div className="med-header-actions">
             <button onClick={openAdd} className="db-pill cta med-add-main">
-              <Plus size={18} weight="bold" />
-              Add New Medicine
+              <Plus size={15} weight="bold" />
+              Add medicine
             </button>
           </div>
+        </header>
 
-          <div className="med-context-row">
-            <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-              <span style={{ fontSize: 12.5, color: "var(--he-ink-3)", fontWeight: 800 }}>Viewing medicines for</span>
-              <FancySelect
-                value={selectedPersonId}
-                options={selectedPersonOptions}
-                onChange={setSelectedPersonId}
-                tone="green"
-                compact
-              />
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 7, color: "var(--he-ink-3)", fontSize: 12.5, fontWeight: 700 }}>
-              <Info size={15} weight="bold" />
-              Child can manage reminders for parents from here.
+        <section className="med-member-filters" aria-label="Filter medications by family member">
+          <span className="med-member-filter-label">View schedule</span>
+          <div className="med-member-filter-scroll">
+            <div
+              className="med-member-filter-list"
+              style={{
+                "--med-member-count": memberFilters.length,
+                "--med-member-index": activeMemberFilterIndex,
+              } as CSSProperties}
+            >
+              <span className="med-member-filter-slider" aria-hidden="true" />
+              {memberFilters.map((filter) => (
+                <button
+                  type="button"
+                  className={`med-member-filter${selectedPersonId === filter.id ? " active" : ""}`}
+                  key={filter.id}
+                  onClick={() => setSelectedPersonId(filter.id)}
+                  aria-pressed={selectedPersonId === filter.id}
+                >
+                  {filter.label}
+                </button>
+              ))}
             </div>
           </div>
+        </section>
 
-          <div className="med-stat-grid">
-            <StatCard icon={<Pill size={23} weight="bold" color="var(--he-green-deep)" />} value={`${activeCount}`} label="Active Medicines" detail={hasMedicines ? `All medicines for ${displayName(selectedPerson)} are tracked.` : "No medicines added yet"} tone="green" />
-            <StatCard icon={<CheckCircle size={23} weight="bold" color="var(--he-blue-deep)" />} value={`${takenDoses.length}/${dosesToday}`} label="Taken Today" detail={dosesToday ? `${takenDoses.length} of ${dosesToday} scheduled doses taken` : "Nothing scheduled today"} tone="blue" />
-          </div>
+        <section className="med-stat-grid" aria-label="Medication overview">
+            <StatCard icon={<Pill size={20} weight="bold" color="var(--he-green-deep)" />} value={`${activeCount}`} label="Active medicines" detail={hasMedicines ? selectedPersonId === "all" ? "Medicines across your family are tracked." : `All medicines for ${displayName(selectedPerson)} are tracked.` : "No medicines added yet"} tone="green" />
+            <StatCard icon={<CheckCircle size={20} weight="bold" color="var(--he-blue-deep)" />} value={`${takenDoses.length}/${dosesToday}`} label="Taken today" detail={dosesToday ? `${takenDoses.length} of ${dosesToday} scheduled doses taken` : "Nothing scheduled today"} tone="blue" />
+        </section>
 
-          <section className="med-schedule-card">
-            <div className="med-schedule-head" style={{ marginBottom: 14 }}>
-              <h3 style={{ margin: 0, fontSize: 17, fontWeight: 800, color: "var(--he-ink-1)" }}>Today&apos;s Schedule</h3>
+        <section className="med-schedule-card">
+            <div className="med-schedule-head">
+              <div>
+                <span className="med-section-eyebrow">Today</span>
+                <h2>Medicine schedule</h2>
+              </div>
               <button
                 type="button"
                 onClick={() => setShowCalendar((current) => !current)}
-                className="db-pill"
+                className={`med-calendar-trigger${showCalendar ? " active" : ""}`}
                 aria-expanded={showCalendar}
-                style={{
-                  height: 38,
-                  boxShadow: "none",
-                  borderColor: showCalendar ? "var(--he-green)" : "var(--he-card-border)",
-                  color: showCalendar ? "var(--he-green-deep)" : "var(--he-ink-2)",
-                  background: showCalendar ? "var(--he-green-bg)" : "#fff",
-                }}
               >
                 <CalendarBlank size={15} weight="bold" />
-                {showCalendar ? "Hide Calendar" : "View Calendar"}
+                {showCalendar ? "Hide week" : "View week"}
               </button>
             </div>
 
@@ -1205,26 +1284,26 @@ function MedicationsContent() {
 
             {loadingMedicines ? (
               <div className="med-empty-state">
-                <div style={{ width: 72, height: 72, borderRadius: 24, background: "var(--he-blue-bg)", display: "grid", placeItems: "center", margin: "0 auto 18px" }}>
-                  <Pill size={34} weight="bold" color="var(--he-blue-deep)" />
+                <div style={{ width: 52, height: 52, borderRadius: 17, background: "var(--he-blue-bg)", display: "grid", placeItems: "center", margin: "0 auto 13px" }}>
+                  <Pill size={25} weight="bold" color="var(--he-blue-deep)" />
                 </div>
-                <h3 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: "var(--he-ink-1)", letterSpacing: "-.4px" }}>Loading medicines...</h3>
+                <h3 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: "var(--he-ink-1)", letterSpacing: "-.25px" }}>Loading medicines...</h3>
               </div>
             ) : !hasMedicines ? (
               <div className="med-empty-state">
-                <div style={{ width: 72, height: 72, borderRadius: 24, background: "linear-gradient(150deg, var(--he-coral-bg), var(--he-green-bg))", display: "grid", placeItems: "center", margin: "0 auto 18px" }}>
-                  <Pill size={34} weight="bold" color="var(--he-coral)" />
+                <div style={{ width: 52, height: 52, borderRadius: 17, background: "linear-gradient(150deg, var(--he-coral-bg), var(--he-green-bg))", display: "grid", placeItems: "center", margin: "0 auto 13px" }}>
+                  <Pill size={25} weight="bold" color="var(--he-coral)" />
                 </div>
-                <h3 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: "var(--he-ink-1)", letterSpacing: "-.4px" }}>No medicines added yet</h3>
-                <p style={{ margin: "8px auto 0", maxWidth: 500, fontSize: 14, lineHeight: 1.65, color: "var(--he-ink-2)", fontWeight: 500 }}>
-                  Add your first medicine for {displayName(selectedPerson)} to track doses, reminders, and family adherence in one place.
+                <h3 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: "var(--he-ink-1)", letterSpacing: "-.25px" }}>No medicines added yet</h3>
+                <p style={{ margin: "6px auto 0", maxWidth: 460, fontSize: 11.5, lineHeight: 1.55, color: "var(--he-ink-2)", fontWeight: 520 }}>
+                  Add your first medicine to track doses, reminders, and family adherence in one place.
                 </p>
                 <div className="med-empty-actions">
-                  <button onClick={openAdd} className="db-pill cta" style={{ height: 44 }}>
-                    <Plus size={17} weight="bold" />
-                    Add First Medicine
+                  <button onClick={openAdd} className="db-pill cta" style={{ height: 38, fontSize: 11 }}>
+                    <Plus size={15} weight="bold" />
+                    Add first medicine
                   </button>
-                  <button style={{ border: "none", background: "transparent", color: "var(--he-ink-2)", fontSize: 13, fontWeight: 800, fontFamily: "inherit", cursor: "pointer" }}>
+                  <button style={{ border: "none", background: "transparent", color: "var(--he-ink-2)", fontSize: 10.5, fontWeight: 780, fontFamily: "inherit", cursor: "pointer" }}>
                     Learn how reminders work
                   </button>
                 </div>
@@ -1236,16 +1315,18 @@ function MedicationsContent() {
               </div>
             ) : scheduleRows.length === 0 ? (
               <div className="med-empty-state">
-                <div style={{ width: 72, height: 72, borderRadius: 24, background: "var(--he-green-bg)", display: "grid", placeItems: "center", margin: "0 auto 18px" }}>
-                  <CalendarBlank size={34} weight="bold" color="var(--he-green-deep)" />
+                <div style={{ width: 52, height: 52, borderRadius: 17, background: "var(--he-green-bg)", display: "grid", placeItems: "center", margin: "0 auto 13px" }}>
+                  <CalendarBlank size={25} weight="bold" color="var(--he-green-deep)" />
                 </div>
-                <h3 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: "var(--he-ink-1)", letterSpacing: "-.4px" }}>No doses today</h3>
-                <p style={{ margin: "8px auto 0", maxWidth: 500, fontSize: 14, lineHeight: 1.65, color: "var(--he-ink-2)", fontWeight: 500 }}>
-                  Medicines are saved for {displayName(selectedPerson)}, but nothing is scheduled for today.
+                <h3 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: "var(--he-ink-1)", letterSpacing: "-.25px" }}>No doses today</h3>
+                <p style={{ margin: "6px auto 0", maxWidth: 460, fontSize: 11.5, lineHeight: 1.55, color: "var(--he-ink-2)", fontWeight: 520 }}>
+                  {selectedPersonId === "all"
+                    ? "Your family has medicines saved, but nothing is scheduled for today."
+                    : `Medicines are saved for ${displayName(selectedPerson)}, but nothing is scheduled for today.`}
                 </p>
               </div>
             ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              <div className="med-dose-list">
                 {scheduleRows.map((row, index) => {
                   const colors = toneColors(row.tone);
                   const startsEarlierGroup = index === upcomingDoses.length && earlierDoses.length > 0;
@@ -1253,44 +1334,43 @@ function MedicationsContent() {
                   return (
                     <Fragment key={row.id}>
                       {(index === 0 || startsEarlierGroup) && (
-                        <div style={{
-                          marginTop: startsEarlierGroup && upcomingDoses.length > 0 ? 10 : 0,
-                          color: "var(--he-ink-2)",
-                          fontSize: 12.5,
-                          fontWeight: 900,
-                        }}>
+                        <div
+                          className="med-dose-group-label"
+                          style={{ marginTop: startsEarlierGroup && upcomingDoses.length > 0 ? 8 : 0 }}
+                        >
                           {startsEarlierGroup || upcomingDoses.length === 0 ? "Earlier today" : "Upcoming"}
                         </div>
                       )}
-                      <div
-                        className="med-dose-row"
-                      >
-                      <div style={{ width: 72, minWidth: 72, height: 62, borderRadius: 13, background: colors.bg, color: colors.text, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 800, lineHeight: 1.15, textAlign: "center", flex: "none" }}>
+                      <div className="med-dose-row">
+                      <div className="med-dose-time" style={{ background: colors.bg, color: colors.text }}>
                         <span>{time}</span>
                         <span>{period}</span>
                       </div>
-                      <div style={{ width: 48, height: 48, borderRadius: 13, background: colors.bg, display: "grid", placeItems: "center", flex: "none" }}>
-                        <Pill size={23} weight="bold" color={colors.text} />
+                      <div className="med-dose-icon" style={{ background: colors.bg }}>
+                        <Pill size={19} weight="bold" color={colors.text} />
                       </div>
-                      <div style={{ minWidth: 0, flex: 1 }}>
-                        <p style={{ margin: 0, color: "var(--he-ink-1)", fontSize: 15.5, fontWeight: 800 }}>{row.name}</p>
-                        <p style={{ margin: "4px 0 0", color: "var(--he-ink-2)", fontSize: 12.5, fontWeight: 600 }}>
+                      <div className="med-dose-copy">
+                        <div className="med-row-title">
+                          <p>{row.name}</p>
+                          <span className="med-person-chip">For {row.ownerLabel}</span>
+                        </div>
+                        <span className="med-row-detail">
                           {row.timing ? `${row.dose} • ${row.timing}` : row.dose}
-                        </p>
+                        </span>
                       </div>
                       {row.canMarkTaken ? (
                         <button
+                          className="med-dose-mark"
                           onClick={(event) => {
                             event.stopPropagation();
                             markTaken(row);
                           }}
                           disabled={markingDoseId === row.id}
-                          style={{ border: "1px solid #FFD79A", borderRadius: 999, padding: "9px 14px", background: "var(--he-orange-bg)", color: "var(--he-orange-deep)", fontFamily: "inherit", fontSize: 12, fontWeight: 900, cursor: markingDoseId === row.id ? "wait" : "pointer", whiteSpace: "nowrap" }}
                         >
                           {markingDoseId === row.id ? "Saving..." : "Mark taken"}
                         </button>
                       ) : (
-                        <span style={{ background: colors.bg, color: colors.text, borderRadius: 99, padding: "8px 13px", fontSize: 12, fontWeight: 900, whiteSpace: "nowrap" }}>{row.status}</span>
+                        <span className="med-dose-status" style={{ background: colors.bg, color: colors.text }}>{row.status}</span>
                       )}
                       </div>
                     </Fragment>
@@ -1300,66 +1380,57 @@ function MedicationsContent() {
             )}
 
             {hasMedicines && (
-              <div style={{ marginTop: 18, paddingTop: 16, borderTop: "1px solid var(--he-hairline)" }}>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 10 }}>
-                  <h3 style={{ margin: 0, fontSize: 16, fontWeight: 900, color: "var(--he-ink-1)" }}>All medicines</h3>
-                  <span style={{ color: "var(--he-ink-3)", fontSize: 12, fontWeight: 800 }}>{activeMedicines.length} active</span>
+              <div className="med-all-medicines">
+                <div className="med-all-head">
+                  <h3>All medicines</h3>
+                  <span>{activeMedicines.length} active</span>
                 </div>
-                <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
+                <div className="med-all-list">
                   {activeMedicines.map((medicine) => {
                     const nextTimes = medicine.schedules.map((schedule) => formatTimeLabel(schedule.time_of_day)).join(", ");
                     return (
-                      <div
-                        key={medicine.id}
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 12,
-                          border: "1.5px solid var(--he-card-border)",
-                          borderRadius: 14,
-                          padding: "11px 12px",
-                          background: "#fff",
-                        }}
-                      >
-                        <div style={{ width: 42, height: 42, borderRadius: 13, background: "var(--he-coral-bg)", display: "grid", placeItems: "center", flex: "none" }}>
-                          <Pill size={20} weight="bold" color="var(--he-coral)" />
-                        </div>
-                        <div style={{ minWidth: 0, flex: 1 }}>
-                          <p style={{ margin: 0, fontSize: 14, fontWeight: 900, color: "var(--he-ink-1)" }}>
-                            {medicine.name}{medicine.strength ? ` ${medicine.strength}` : ""}
-                          </p>
-                          <p style={{ margin: "3px 0 0", fontSize: 12, fontWeight: 700, color: "var(--he-ink-3)" }}>
+                      <article className="med-medicine-row" key={medicine.rowKey}>
+                        <span className="med-medicine-icon">
+                          <Pill size={18} weight="bold" color="var(--he-coral)" />
+                        </span>
+                        <div className="med-medicine-copy">
+                          <div className="med-row-title">
+                            <p>
+                              {medicine.name}{medicine.strength ? ` ${medicine.strength}` : ""}
+                            </p>
+                            <span className="med-person-chip">For {medicine.ownerLabel}</span>
+                          </div>
+                          <span className="med-row-detail">
                             {medicine.dose} • {nextTimes || "No reminder time"}
                             {medicine.end_date ? ` • until ${medicine.end_date}` : ""}
-                          </p>
+                          </span>
                         </div>
                         <button
+                          className="med-row-action edit"
                           onClick={() => openEdit(medicine)}
-                          style={{ border: "1.5px solid var(--he-blue-bg-2)", borderRadius: 11, background: "var(--he-blue-bg)", color: "var(--he-blue-deep)", height: 36, padding: "0 11px", display: "inline-flex", alignItems: "center", gap: 6, fontFamily: "inherit", fontSize: 12, fontWeight: 900, cursor: "pointer" }}
                         >
                           <PencilSimple size={14} weight="bold" /> Edit
                         </button>
                         <button
+                          className="med-row-action delete"
                           onClick={() => setPendingDeleteMedicine(medicine)}
                           disabled={deletingMedicineId === medicine.id}
-                          style={{ border: "1.5px solid #FFD7D7", borderRadius: 11, background: "#fff", color: "var(--he-coral-deep)", height: 36, padding: "0 11px", display: "inline-flex", alignItems: "center", gap: 6, fontFamily: "inherit", fontSize: 12, fontWeight: 900, cursor: deletingMedicineId === medicine.id ? "wait" : "pointer", opacity: deletingMedicineId === medicine.id ? .65 : 1 }}
                         >
                           <Trash size={14} weight="bold" /> {deletingMedicineId === medicine.id ? "Deleting" : "Delete"}
                         </button>
-                      </div>
+                      </article>
                     );
                   })}
                 </div>
               </div>
             )}
-          </section>
         </section>
-      </div>
+      </main>
 
       {showAddDrawer && (
         <AddMedicineDrawer
           people={people}
-          initialPersonId={selectedPersonId}
+          initialPersonId={selectedPersonId === "all" ? people[0]?.id ?? "self" : selectedPersonId}
           initialForm={editingMedicine && selectedPerson ? formFromMedicine(editingMedicine, selectedPerson.id) : undefined}
           mode={editingMedicine ? "edit" : "add"}
           saving={savingMedicine}

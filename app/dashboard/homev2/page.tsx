@@ -1,12 +1,14 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import {
   ArrowRight,
   Bell,
   CalendarBlank,
+  CalendarPlus,
   CaretDown,
   CaretRight,
   CheckCircle,
@@ -17,8 +19,10 @@ import {
   Pill,
   Pulse,
   Sparkle,
+  Star,
   UsersThree,
   WhatsappLogo,
+  X,
 } from "@phosphor-icons/react";
 import {
   CartesianGrid,
@@ -37,8 +41,11 @@ import AddFamilyModal from "../components/AddFamilyModal";
 import FoodReminderControl from "../components/FoodReminderControl";
 import { computeScore, scoreTier } from "../components/Score";
 import {
+  backfillYesterdayFood,
+  previewYesterdayFood,
   getFamilyMembers,
   getFoodReminderPreference,
+  getCurrentUser,
   getMemberLogEvents,
   getMemberSummary,
   getTodayMedicineDoses,
@@ -54,6 +61,7 @@ import {
   type Summary,
   type TodayDose,
   type User as ApiUser,
+  type YesterdayFoodPreview,
 } from "@/lib/api";
 import { FAMCARE_WHATSAPP_LINK } from "@/lib/whatsapp";
 
@@ -78,6 +86,8 @@ type GlanceCard = {
   suffix?: string;
   sublabel: string;
   progress: number;
+  targetMissing?: boolean;
+  targetCta?: string;
   tone: "orange" | "coral" | "green" | "mint";
   icon: typeof Fire;
 };
@@ -155,6 +165,13 @@ export default function HomeV2Page() {
   const [chartRange, setChartRange] = useState<"week" | "month">("week");
   const [showRangeMenu, setShowRangeMenu] = useState(false);
   const [showStreakCalendar, setShowStreakCalendar] = useState(false);
+  const [logsLoaded, setLogsLoaded] = useState(false);
+  const [showYesterdayLogger, setShowYesterdayLogger] = useState(false);
+  const [yesterdayBannerDismissed, setYesterdayBannerDismissed] = useState(false);
+  const [yesterdayMessage, setYesterdayMessage] = useState("");
+  const [yesterdayPreview, setYesterdayPreview] = useState<YesterdayFoodPreview | null>(null);
+  const [backfillLoading, setBackfillLoading] = useState(false);
+  const [backfillError, setBackfillError] = useState<string | null>(null);
   const rangeMenuRef = useRef<HTMLDivElement>(null);
   const streakCalendarRef = useRef<HTMLDivElement>(null);
 
@@ -188,6 +205,22 @@ export default function HomeV2Page() {
   }, [showStreakCalendar]);
 
   useEffect(() => {
+    if (!showYesterdayLogger) return;
+    document.body.classList.add("mobile-sheet-open");
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && !backfillLoading) setShowYesterdayLogger(false);
+    };
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.body.classList.remove("mobile-sheet-open");
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [backfillLoading, showYesterdayLogger]);
+
+  useEffect(() => {
     const storedUser = localStorage.getItem("auth_user");
     const authUser = storedUser ? JSON.parse(storedUser) as ApiUser : null;
     const token = localStorage.getItem("auth_token");
@@ -196,9 +229,19 @@ export default function HomeV2Page() {
       return;
     }
     setUser(authUser);
+    getCurrentUser(token)
+      .then((currentUser) => {
+        if (!currentUser) return;
+        setUser(currentUser);
+        localStorage.setItem("auth_user", JSON.stringify(currentUser));
+      })
+      .catch(() => {
+        // Keep the stored session user when profile refresh is temporarily unavailable.
+      });
     getUserLogs(authUser.id, 365)
       .then(setLogs)
-      .catch(() => setLogs([]));
+      .catch(() => setLogs([]))
+      .finally(() => setLogsLoaded(true));
     getUserLogEvents(authUser.id, 7)
       .then(setLogEvents)
       .catch(() => setLogEvents([]));
@@ -259,8 +302,11 @@ export default function HomeV2Page() {
   }, []);
 
   const today = getTodayLog(logs);
-  const calorieGoal = user?.goal_calories ?? 2000;
-  const proteinGoal = Math.round(user?.goal_protein_g ?? 100);
+  const hasCalorieTarget = Number(user?.goal_calories) > 0;
+  const hasProteinTarget = Number(user?.goal_protein_g) > 0;
+  const hasNutritionTargets = hasCalorieTarget && hasProteinTarget;
+  const calorieGoal = hasCalorieTarget ? Number(user?.goal_calories) : 0;
+  const proteinGoal = hasProteinTarget ? Math.round(Number(user?.goal_protein_g)) : 0;
   const calories = today?.calories ?? 1580;
   const protein = Math.round(today?.protein_g ?? 86);
 
@@ -274,6 +320,7 @@ export default function HomeV2Page() {
     () => new Set(logs.filter(hasLoggedMetric).map((log) => log.logged_at)),
     [logs],
   );
+  const hasYesterdayLog = loggedDateSet.has(yesterdayKey());
   const currentMonthCalendar = useMemo(() => {
     const now = new Date();
     const year = now.getFullYear();
@@ -432,8 +479,10 @@ export default function HomeV2Page() {
       label: "Calories today",
       value: calories.toLocaleString("en-IN"),
       suffix: "kcal",
-      sublabel: `Goal ${calorieGoal.toLocaleString("en-IN")} kcal`,
+      sublabel: hasCalorieTarget ? `Goal ${calorieGoal.toLocaleString("en-IN")} kcal` : "No calorie target yet",
       progress: percent(calories, calorieGoal),
+      targetMissing: !hasCalorieTarget,
+      targetCta: "Set calorie target",
       tone: "orange",
       icon: Fire,
     },
@@ -441,8 +490,10 @@ export default function HomeV2Page() {
       label: "Protein today",
       value: protein.toLocaleString("en-IN"),
       suffix: "g",
-      sublabel: `Goal ${proteinGoal.toLocaleString("en-IN")} g`,
+      sublabel: hasProteinTarget ? `Goal ${proteinGoal.toLocaleString("en-IN")} g` : "No protein target yet",
       progress: percent(protein, proteinGoal),
+      targetMissing: !hasProteinTarget,
+      targetCta: "Set protein target",
       tone: "coral",
       icon: Heart,
     },
@@ -463,7 +514,7 @@ export default function HomeV2Page() {
       tone: "mint",
       icon: Heart,
     },
-  ], [calorieGoal, calories, protein, proteinGoal, medicationValue, dosesToday, dosesTaken, selfScore]);
+  ], [calorieGoal, calories, hasCalorieTarget, hasProteinTarget, protein, proteinGoal, medicationValue, dosesToday, dosesTaken, selfScore]);
 
   const renderDayTick = (props: {
     x?: number | string;
@@ -507,14 +558,79 @@ export default function HomeV2Page() {
     );
   };
 
+  function closeYesterdayLogger() {
+    if (backfillLoading) return;
+    setShowYesterdayLogger(false);
+    setYesterdayPreview(null);
+    setBackfillError(null);
+  }
+
+  async function estimateYesterdayFood(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const message = yesterdayMessage.trim();
+    if (message.length < 2 || backfillLoading) {
+      setBackfillError("Tell us what you ate yesterday.");
+      return;
+    }
+    const token = localStorage.getItem("auth_token") ?? "";
+    if (!token) {
+      window.location.href = "/login";
+      return;
+    }
+
+    setBackfillLoading(true);
+    setBackfillError(null);
+    try {
+      const preview = await previewYesterdayFood(message, token);
+      setYesterdayPreview(preview);
+    } catch (submitError) {
+      setBackfillError(submitError instanceof Error ? submitError.message : "Could not estimate yesterday's food.");
+    } finally {
+      setBackfillLoading(false);
+    }
+  }
+
+  async function confirmYesterdayFood() {
+    if (!yesterdayPreview || backfillLoading) return;
+    const token = localStorage.getItem("auth_token") ?? "";
+    if (!token) {
+      window.location.href = "/login";
+      return;
+    }
+
+    setBackfillLoading(true);
+    setBackfillError(null);
+    try {
+      const result = await backfillYesterdayFood(yesterdayPreview, token);
+      setLogs((current) => [
+        result.log,
+        ...current.filter((log) => log.logged_at !== result.log.logged_at),
+      ]);
+      setLogEvents((current) => [
+        result.event,
+        ...current.filter((logEvent) => logEvent.id !== result.event.id),
+      ]);
+      setYesterdayMessage("");
+      setYesterdayPreview(null);
+      setShowYesterdayLogger(false);
+    } catch (submitError) {
+      setBackfillError(submitError instanceof Error ? submitError.message : "Could not log yesterday's food.");
+    } finally {
+      setBackfillLoading(false);
+    }
+  }
+
   return (
     <div className="db-page">
       <Sidebar />
       <main className="db-main homev2-main">
         <header className="homev2-topbar">
-          <div>
-            <h1 className="db-greeting">{greeting()}, {user?.name ?? "there"}! 👋</h1>
-            <p className="db-subtitle">Here&apos;s your health overview for today.</p>
+          <div className="homev2-greeting-row">
+            <img className="homev2-greeting-logo" src="/famcare-logo.png" alt="" />
+            <h1 className="db-greeting homev2-greeting">
+              <span className="homev2-greeting-hello">{greeting()} 👋</span>
+              <span className="homev2-greeting-name">{user?.name ?? "there"}</span>
+            </h1>
           </div>
 
           <div className="db-top-actions">
@@ -529,7 +645,6 @@ export default function HomeV2Page() {
               >
                 <Fire size={16} weight="fill" />
                 <strong>{streak}</strong>
-                {streak === 1 ? "day streak" : "day streak"}
               </button>
 
               {showStreakCalendar && (
@@ -578,19 +693,59 @@ export default function HomeV2Page() {
               <WhatsappLogo size={15} weight="fill" />
               Log via WhatsApp
             </a>
-            <button className="db-avatar homev2-profile-button" type="button" aria-label="Open profile menu">
+            <button
+              className="db-avatar homev2-profile-button"
+              type="button"
+              aria-label="Open profile"
+              onClick={() => router.push("/dashboard/profile")}
+            >
               {(user?.name ?? "S").charAt(0).toUpperCase()}
             </button>
           </div>
         </header>
+
+        {logsLoaded && !hasYesterdayLog && !yesterdayBannerDismissed && (
+          <section className="homev2-backfill-banner homev2-backfill-banner-first" aria-label="Log yesterday's meals">
+            <button
+              type="button"
+              className="homev2-backfill-dismiss"
+              onClick={() => setYesterdayBannerDismissed(true)}
+              aria-label="Dismiss"
+            >
+              <X size={13} weight="bold" />
+            </button>
+            <span className="homev2-backfill-icon"><CalendarPlus size={22} weight="duotone" /></span>
+            <div className="homev2-backfill-copy">
+              <div>
+                <h2>Missed yesterday&apos;s log?</h2>
+              </div>
+              <p>Add yesterday&apos;s meals today to keep your streak and weekly insights accurate.</p>
+            </div>
+            <span className="homev2-backfill-streak">
+              <Star size={13} weight="bold" />
+              Counts toward streak
+            </span>
+            <button
+              type="button"
+              className="homev2-backfill-action"
+              onClick={() => {
+                setBackfillError(null);
+                setYesterdayPreview(null);
+                setShowYesterdayLogger(true);
+              }}
+            >
+              Log yesterday&apos;s meals
+            </button>
+          </section>
+        )}
 
         <section className="homev2-panel homev2-glance">
           <h2>Today at a glance</h2>
           <div className="homev2-glance-grid">
             {glanceCards.map((card) => {
               const Icon = card.icon;
-              return (
-                <article className={`homev2-glance-card ${card.tone}`} key={card.label}>
+              const cardContent = (
+                <>
                   <div className="homev2-card-head">
                     <span className="homev2-card-icon"><Icon size={21} weight="fill" /></span>
                     <div>
@@ -598,13 +753,38 @@ export default function HomeV2Page() {
                       <strong>{card.value} {card.suffix && <small>{card.suffix}</small>}</strong>
                     </div>
                   </div>
-                  <div className="homev2-card-foot">
-                    <span>{card.sublabel}</span>
-                    <b>{card.progress}%</b>
-                  </div>
-                  <div className="homev2-progress" aria-hidden="true">
-                    <i style={{ width: `${card.progress}%` }} />
-                  </div>
+                  {card.targetMissing ? (
+                    <div className="homev2-target-card-entry">
+                      <span>
+                        <Sparkle size={11} weight="fill" />
+                        {card.targetCta}
+                      </span>
+                      <ArrowRight size={13} weight="bold" />
+                    </div>
+                  ) : (
+                    <>
+                      <div className="homev2-card-foot">
+                        <span>{card.sublabel}</span>
+                        <b>{card.progress}%</b>
+                      </div>
+                      <div className="homev2-progress" aria-hidden="true">
+                        <i style={{ width: `${card.progress}%` }} />
+                      </div>
+                    </>
+                  )}
+                </>
+              );
+              return card.targetMissing ? (
+                <a
+                  className={`homev2-glance-card homev2-target-card ${card.tone}`}
+                  href="/dashboard/calorie-calculator"
+                  key={card.label}
+                >
+                  {cardContent}
+                </a>
+              ) : (
+                <article className={`homev2-glance-card ${card.tone}`} key={card.label}>
+                  {cardContent}
                 </article>
               );
             })}
@@ -637,7 +817,7 @@ export default function HomeV2Page() {
 
                 <div className="homev2-onboard-actions">
                   {familyMemberRows.length > 0 ? (
-                    <a className="homev2-onboard-cta primary" href="/dashboard/family-overview">
+                    <a className="homev2-onboard-cta primary" href="/dashboard/family-overviewv2">
                       <UsersThree size={16} weight="bold" />
                       View details
                     </a>
@@ -787,6 +967,31 @@ export default function HomeV2Page() {
               </div>
             </div>
 
+            {!hasNutritionTargets && (
+              <a
+                className="homev2-chart-target-entry"
+                href="/dashboard/calorie-calculator"
+                onClick={(event) => event.stopPropagation()}
+              >
+                <span className="homev2-chart-target-icon">
+                  <Sparkle size={16} weight="fill" />
+                </span>
+                <span>
+                  <strong>
+                    {!hasCalorieTarget && !hasProteinTarget
+                      ? "Set your calorie and protein targets"
+                      : !hasCalorieTarget
+                        ? "Set your calorie target"
+                        : "Set your protein target"}
+                  </strong>
+                  <small>Get a personal recommendation to make your progress easier to understand.</small>
+                </span>
+                <span className="homev2-chart-target-action">
+                  Calculate targets <ArrowRight size={13} weight="bold" />
+                </span>
+              </a>
+            )}
+
             <div className="homev2-chart-body">
               <ResponsiveContainer width="100%" height={172}>
                 <ComposedChart data={weeklyChartData} margin={{ top: 12, right: 6, left: -6, bottom: 0 }}>
@@ -856,7 +1061,7 @@ export default function HomeV2Page() {
         <section className="homev2-panel homev2-family-card homev2-family-card-full">
           <div className="homev2-family-head">
             <h2><UsersThree size={20} weight="fill" className="homev2-family-head-icon" /> Family overview</h2>
-            <a href="/dashboard/family-overview">
+            <a href="/dashboard/family-overviewv2">
               View all family <CaretRight size={12} weight="bold" />
             </a>
           </div>
@@ -866,11 +1071,13 @@ export default function HomeV2Page() {
               const tier = scoreTier(row.score);
               return (
                 <div className="homev2-family-row" key={row.id || row.name}>
-                  <span className="homev2-family-avatar" style={{ background: tier.bg, color: tier.textColor }}>
-                    {row.name.charAt(0).toUpperCase()}
-                  </span>
-                  <div className="homev2-family-info">
-                    <b>{row.isYou ? "You" : row.name}</b>
+                  <div className="homev2-family-identity">
+                    <span className="homev2-family-avatar" style={{ background: tier.bg, color: tier.textColor }}>
+                      {row.name.charAt(0).toUpperCase()}
+                    </span>
+                    <div className="homev2-family-info">
+                      <b>{row.isYou ? "You" : row.name}</b>
+                    </div>
                   </div>
                   <div className="homev2-family-meta">
                     <span className="homev2-family-meta-item">
@@ -888,13 +1095,15 @@ export default function HomeV2Page() {
                       Last update: {row.lastUpdateLabel ?? "—"}
                     </span>
                   </div>
-                  <span className={`homev2-family-status${row.loggedToday ? " ok" : ""}`}>
-                    <Clock size={13} weight="fill" />
-                    {row.loggedToday ? "Logged today" : "No log yet"}
-                  </span>
-                  <a className="homev2-family-view" href="/dashboard/family-overview">
-                    View <CaretRight size={12} weight="bold" />
-                  </a>
+                  <div className="homev2-family-footer">
+                    <span className={`homev2-family-status${row.loggedToday ? " ok" : ""}`}>
+                      <Clock size={13} weight="fill" />
+                      {row.loggedToday ? "Logged today" : "No log yet"}
+                    </span>
+                    <a className="homev2-family-view" href="/dashboard/family-overviewv2">
+                      View <CaretRight size={12} weight="bold" />
+                    </a>
+                  </div>
                 </div>
               );
             })}
@@ -977,6 +1186,148 @@ export default function HomeV2Page() {
           onClose={() => setShowAddFamily(false)}
           onAdded={() => setShowAddFamily(false)}
         />
+      )}
+
+      {showYesterdayLogger && typeof document !== "undefined" && createPortal(
+        <div className="homev2-backfill-layer" role="presentation">
+          <button
+            className="homev2-backfill-backdrop"
+            type="button"
+            aria-label="Close yesterday's meal logger"
+            onClick={closeYesterdayLogger}
+          />
+          <button
+            type="button"
+            className="mobile-sheet-close"
+            aria-label="Close"
+            onClick={closeYesterdayLogger}
+          >
+            <X size={16} weight="bold" />
+          </button>
+          <section
+            className="homev2-backfill-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="yesterday-log-title"
+          >
+            <header>
+              <span><CalendarPlus size={21} weight="duotone" /></span>
+              <div>
+                <h2 id="yesterday-log-title">
+                  {yesterdayPreview ? "Review yesterday's meal" : "Log yesterday's meals"}
+                </h2>
+                <p>
+                  {yesterdayPreview
+                    ? "Check the nutrition estimate before adding it."
+                    : "We'll estimate calories and protein before anything is saved."}
+                </p>
+              </div>
+              <button
+                className="modal-inline-close"
+                type="button"
+                onClick={closeYesterdayLogger}
+                aria-label="Close"
+                disabled={backfillLoading}
+              >
+                <X size={16} weight="bold" />
+              </button>
+            </header>
+
+            <form onSubmit={estimateYesterdayFood}>
+              {!yesterdayPreview ? (
+                <>
+                  <label htmlFor="yesterday-food-message">What did you eat yesterday?</label>
+                  <textarea
+                    id="yesterday-food-message"
+                    value={yesterdayMessage}
+                    onChange={(messageEvent) => {
+                      setYesterdayMessage(messageEvent.target.value);
+                      setYesterdayPreview(null);
+                      setBackfillError(null);
+                    }}
+                    placeholder="For example: 1 plate biryani and a bowl of curd"
+                    maxLength={500}
+                    rows={4}
+                    autoFocus
+                    disabled={backfillLoading}
+                  />
+                </>
+              ) : (
+                <div className="homev2-backfill-preview">
+                  <div className="homev2-backfill-preview-heading">
+                    <span>Meal to add</span>
+                    <strong>{yesterdayPreview.message}</strong>
+                  </div>
+                  <div className="homev2-backfill-preview-metrics" aria-label="Estimated nutrition">
+                    <div>
+                      <span className="homev2-backfill-preview-metric-icon calories">
+                        <Fire size={17} weight="fill" />
+                      </span>
+                      <p>
+                        <span>Estimated calories</span>
+                        <strong>~{yesterdayPreview.calories.toLocaleString("en-IN")} <small>kcal</small></strong>
+                      </p>
+                    </div>
+                    <div>
+                      <span className="homev2-backfill-preview-metric-icon protein">
+                        <ForkKnife size={17} weight="fill" />
+                      </span>
+                      <p>
+                        <span>Estimated protein</span>
+                        <strong>
+                          {Number.isInteger(yesterdayPreview.protein_g)
+                            ? yesterdayPreview.protein_g
+                            : yesterdayPreview.protein_g.toFixed(1)}
+                          <small>g</small>
+                        </strong>
+                      </p>
+                    </div>
+                  </div>
+                  <div className="homev2-backfill-preview-foot">
+                    <span><Sparkle size={12} weight="fill" /> Estimated from your food description</span>
+                    <span><Fire size={12} weight="fill" /> Counts for yesterday&apos;s streak</span>
+                  </div>
+                </div>
+              )}
+              {!yesterdayPreview && (
+                <div className="homev2-backfill-hint">
+                  <Star size={13} weight="fill" />
+                  This entry will count for yesterday and keep your streak accurate.
+                </div>
+              )}
+              {backfillError && <p className="homev2-backfill-error" role="alert">{backfillError}</p>}
+              <div className="homev2-backfill-form-actions">
+                {yesterdayPreview ? (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setYesterdayPreview(null);
+                        setBackfillError(null);
+                      }}
+                      disabled={backfillLoading}
+                    >
+                      Edit
+                    </button>
+                    <button type="button" onClick={confirmYesterdayFood} disabled={backfillLoading}>
+                      {backfillLoading ? <><i /> Adding…</> : "Confirm and add"}
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button type="button" onClick={closeYesterdayLogger} disabled={backfillLoading}>
+                      Cancel
+                    </button>
+                    <button type="submit" disabled={backfillLoading || yesterdayMessage.trim().length < 2}>
+                      {backfillLoading ? <><i /> Estimating…</> : "Estimate nutrition"}
+                    </button>
+                  </>
+                )}
+              </div>
+            </form>
+          </section>
+        </div>,
+        document.body
       )}
     </div>
   );

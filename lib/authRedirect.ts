@@ -1,4 +1,4 @@
-const DEFAULT_AUTH_DESTINATION = "/dashboard";
+const DEFAULT_AUTH_DESTINATION = "/dashboard/homev2";
 
 export function safeAuthDestination(
   value: string | null | undefined,
