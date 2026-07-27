@@ -726,7 +726,7 @@ export default function LandingPage() {
             <span style={{ color: "#E85C5C" }}>even from afar</span>
           </h1>
 
-          <div className="lp-mobile-whatsapp-proof">
+          <div className="lp-mobile-whatsapp-proof" style={{ display: "none" }}>
             <WhatsAppProofVisual />
           </div>
 

@@ -3649,7 +3649,7 @@ a {
   .lp-hero-left { flex: none !important; width: 100% !important; }
   .lp-hero-title { font-size: 36px !important; }
   .lp-mobile-whatsapp-proof {
-    display: flex;
+    display: flex !important;
     height: 300px;
     align-items: flex-start;
     justify-content: center;
