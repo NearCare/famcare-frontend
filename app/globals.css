@@ -2955,21 +2955,27 @@ a {
   .med-member-filter-scroll { width: 100%; }
   .med-dose-row {
     display: grid;
-    grid-template-columns: 60px 38px minmax(0, 1fr);
+    grid-template-columns: 60px minmax(0, 1fr);
     column-gap: 11px;
-    row-gap: 8px;
-    align-items: center;
+    row-gap: 6px;
+    align-items: start;
   }
   .med-dose-time { grid-column: 1; grid-row: 1; }
-  .med-dose-icon { grid-column: 2; grid-row: 1; }
+  .med-dose-icon {
+    grid-column: 1;
+    grid-row: 2;
+    justify-self: stretch;
+    width: 60px;
+    height: 48px;
+  }
   .med-dose-copy {
-    grid-column: 3;
+    grid-column: 2;
     grid-row: 1;
     min-width: 0;
   }
   .med-dose-mark,
   .med-dose-status {
-    grid-column: 3;
+    grid-column: 2;
     grid-row: 2;
     margin-left: 0;
     justify-self: start;
