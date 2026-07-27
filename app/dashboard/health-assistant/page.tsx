@@ -2,7 +2,7 @@
 
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import {
-  ChartBar, CheckCircle, ForkKnife, PaperPlaneTilt, ShieldCheck, Sparkle, Trash, TrendUp,
+  ChartBar, CheckCircle, ForkKnife, PaperPlaneTilt, ShieldCheck, Sparkle, ThumbsDown, ThumbsUp, Trash, TrendUp,
 } from "@phosphor-icons/react";
 import Image from "next/image";
 import Sidebar from "../components/Sidebar";
@@ -15,6 +15,7 @@ import {
   getFamilyMembers,
   getFeatureFlags,
   sendHealthAssistantMessage,
+  submitChatFeedback,
   type ChatBlock,
   type ChatMessage,
   type FamilyMember,
@@ -40,6 +41,15 @@ const TYPING_STEPS = [
   "Reading calorie and protein targets",
   "Preparing a simple answer",
 ];
+
+const FEEDBACK_REASONS = [
+  { value: "wrong_data", label: "Wrong data" },
+  { value: "misunderstood", label: "Misunderstood me" },
+  { value: "unhelpful", label: "Not helpful" },
+  { value: "too_long", label: "Too long" },
+  { value: "unsafe", label: "Unsafe advice" },
+  { value: "other", label: "Other" },
+] as const;
 
 function shouldShowStructuredDetails(message: ChatMessage, previousMessage?: ChatMessage) {
   if (message.role !== "assistant") return false;
@@ -213,6 +223,7 @@ export default function HealthAssistantPage() {
   const [streamingMessageId, setStreamingMessageId] = useState<number | null>(null);
   const [typingStep, setTypingStep] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [feedbackMessageId, setFeedbackMessageId] = useState<number | null>(null);
   const endRef = useRef<HTMLDivElement>(null);
 
   const people = useMemo(() => user ? [
@@ -352,6 +363,27 @@ export default function HealthAssistantPage() {
     }
   }
 
+  async function saveFeedback(
+    messageId: number,
+    rating: "up" | "down",
+    issueType?: typeof FEEDBACK_REASONS[number]["value"],
+  ) {
+    try {
+      const feedback = await submitChatFeedback(
+        localStorage.getItem("auth_token") ?? "",
+        messageId,
+        { rating, issue_type: issueType ?? null },
+      );
+      setMessages((current) => current.map((message) => (
+        message.id === messageId ? { ...message, feedback } : message
+      )));
+      setFeedbackMessageId(null);
+      captureEvent("health_assistant_feedback_submitted", { rating, issue_type: issueType ?? null });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not save your feedback.");
+    }
+  }
+
   return (
     <div className="db-page">
       <Sidebar />
@@ -414,6 +446,45 @@ export default function HealthAssistantPage() {
                             .filter((block) => block.type !== "ai_takeaway")
                             .map((block, blockIndex) => <AssistantBlock block={block} key={`${message.id}-${blockIndex}`} />)}
                         </div>
+                        {message.role === "assistant" && message.id > 0 && (
+                          <div className="ha-feedback">
+                            <span>Was this helpful?</span>
+                            <button
+                              type="button"
+                              className={message.feedback?.rating === "up" ? "selected" : ""}
+                              onClick={() => saveFeedback(message.id, "up")}
+                              aria-label="Helpful response"
+                              title="Helpful"
+                            >
+                              <ThumbsUp size={15} weight={message.feedback?.rating === "up" ? "fill" : "regular"} />
+                            </button>
+                            <button
+                              type="button"
+                              className={message.feedback?.rating === "down" ? "selected negative" : ""}
+                              onClick={() => setFeedbackMessageId((current) => current === message.id ? null : message.id)}
+                              aria-label="Unhelpful response"
+                              title="Not helpful"
+                            >
+                              <ThumbsDown size={15} weight={message.feedback?.rating === "down" ? "fill" : "regular"} />
+                            </button>
+                            {feedbackMessageId === message.id && (
+                              <div className="ha-feedback-reasons">
+                                <small>What went wrong?</small>
+                                <div>
+                                  {FEEDBACK_REASONS.map((reason) => (
+                                    <button
+                                      type="button"
+                                      key={reason.value}
+                                      onClick={() => saveFeedback(message.id, "down", reason.value)}
+                                    >
+                                      {reason.label}
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
                       {message.role === "user" && <div className="ha-user-avatar">{user?.name?.charAt(0).toUpperCase() ?? "Y"}</div>}
                     </article>

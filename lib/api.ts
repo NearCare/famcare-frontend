@@ -191,6 +191,13 @@ export type ChatMessage = {
   blocks?: ChatBlock[];
   suggestions?: string[];
   created_at: string;
+  feedback?: ChatFeedback | null;
+};
+
+export type ChatFeedback = {
+  rating: "up" | "down";
+  issue_type?: "wrong_data" | "misunderstood" | "unhelpful" | "too_long" | "unsafe" | "other" | null;
+  comment?: string | null;
 };
 
 export type HealthAssistantReply = {
@@ -452,6 +459,17 @@ export async function sendHealthAssistantMessage(
       subject_user_id: subjectUserId,
       message,
     }),
+  });
+}
+
+export async function submitChatFeedback(
+  token: string,
+  messageId: number,
+  feedback: ChatFeedback,
+): Promise<ChatFeedback> {
+  return chatRequest<ChatFeedback>(`/api/chat/messages/${messageId}/feedback`, token, {
+    method: "POST",
+    body: JSON.stringify(feedback),
   });
 }
 
