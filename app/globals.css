@@ -1382,6 +1382,77 @@ a {
 .ha-message.user .ha-message-body>p {
   color: #fff;
 }
+.ha-feedback {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 7px;
+  color: #929BAD;
+  font-size: 11px;
+  font-weight: 600;
+}
+.ha-feedback > button {
+  width: 27px;
+  height: 27px;
+  display: grid;
+  place-items: center;
+  border: 1px solid #E8EAF0;
+  border-radius: 50%;
+  background: #fff;
+  color: #8C96A9;
+  cursor: pointer;
+  transition: .18s ease;
+}
+.ha-feedback > button:hover,
+.ha-feedback > button.selected {
+  border-color: #FFC7BE;
+  background: #FFF5F3;
+  color: #F06462;
+  transform: translateY(-1px);
+}
+.ha-feedback > button.selected.negative {
+  border-color: #FFD7D3;
+  color: #E44F50;
+}
+.ha-feedback-reasons {
+  position: absolute;
+  z-index: 4;
+  left: 0;
+  top: 34px;
+  min-width: 300px;
+  padding: 11px;
+  border: 1px solid #ECE8EA;
+  border-radius: 14px;
+  background: rgba(255,255,255,.98);
+  box-shadow: 0 14px 35px rgba(25, 35, 62, .12);
+}
+.ha-feedback-reasons small {
+  display: block;
+  margin-bottom: 8px;
+  color: #556078;
+  font-size: 11px;
+}
+.ha-feedback-reasons > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.ha-feedback-reasons button {
+  padding: 6px 9px;
+  border: 1px solid #E6E8ED;
+  border-radius: 999px;
+  background: #FAFAFC;
+  color: #566077;
+  font-size: 10px;
+  font-weight: 650;
+  cursor: pointer;
+}
+.ha-feedback-reasons button:hover {
+  border-color: #FFB9AF;
+  background: #FFF4F2;
+  color: #D95757;
+}
 .ha-block {
   margin-top: 13px;
   padding: 16px;
@@ -4051,33 +4122,6 @@ a {
 
 .cc-form { padding: 24px; }
 
-.cc-form-progress {
-  margin-bottom: 26px;
-  padding: 14px 16px;
-  border-radius: 15px;
-  background: #FAF8F9;
-}
-
-.cc-form-progress > div:first-child {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 9px;
-  color: var(--he-ink-2);
-  font-size: 11.5px;
-  font-weight: 800;
-}
-
-.cc-form-progress strong { color: var(--cc-primary-deep); }
-.cc-progress-track { height: 5px; overflow: hidden; border-radius: 999px; background: #EEE9EC; }
-.cc-progress-track span {
-  display: block;
-  height: 100%;
-  border-radius: inherit;
-  background: linear-gradient(90deg, var(--cc-primary), var(--cc-primary-deep));
-  transition: width .25s var(--he-ease);
-}
-
 .cc-question-section + .cc-question-section {
   margin-top: 28px;
   padding-top: 28px;
@@ -4654,14 +4698,27 @@ a {
   .planet-moon { right: 2%; bottom: 18%; }
   .cc-galaxy-chip { display: none; }
   .cc-form { padding: 17px; border-radius: 18px; }
-  .cc-number-grid { grid-template-columns: 1fr; }
-  .cc-two-options,
-  .cc-activity-grid { grid-template-columns: 1fr; }
-  .cc-goal-grid { grid-template-columns: 1fr; }
-  .cc-goal { min-height: 74px; display: grid; grid-template-columns: 25px minmax(0, 1fr); align-content: center; column-gap: 9px; }
-  .cc-goal svg { grid-row: 1 / 3; }
-  .cc-goal strong { align-self: end; }
-  .cc-goal span { align-self: start; }
+  .cc-number-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .cc-height-field { grid-column: 1 / -1; margin-top: 8px; }
+  .cc-height-label { margin-bottom: 12px; }
+  .cc-height-unit-pill { top: -3px; }
+  .cc-activity-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .cc-activity {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    min-height: 110px;
+    padding: 12px 30px 12px 12px;
+    gap: 7px;
+  }
+  .cc-activity-icon { grid-row: auto; }
+  .cc-activity strong { align-self: flex-start; }
+  .cc-activity > span:not(.cc-activity-icon) { align-self: flex-start; }
+  .cc-goal-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+  .cc-goal { min-height: 88px; padding: 10px; gap: 5px; }
+  .cc-goal strong { font-size: 10.5px; }
+  .cc-goal span { font-size: 8.5px; }
   .cc-result-empty,
   .cc-result-content { padding: 25px 18px; }
   .cc-result-single .cc-result-content { padding: 30px 18px 24px; }
@@ -4670,7 +4727,6 @@ a {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .cc-progress-track span,
   .cc-submit,
   .cc-choice,
   .cc-activity,
