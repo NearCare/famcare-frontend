@@ -397,6 +397,213 @@ const DashboardMockup = () => (
   </div>
 );
 
+const CurrentDashboardPreview = () => (
+  <div className="lp-current-dashboard" aria-label="Preview of the current FamCare family dashboard">
+    <style dangerouslySetInnerHTML={{ __html: `
+      .lp-current-dashboard{width:min(620px,100%);height:404px;display:grid;grid-template-columns:126px minmax(0,1fr);overflow:hidden;border:1px solid #ebecef;border-radius:16px;color:#172541;background:#fff;box-shadow:0 18px 55px rgba(29,42,68,.14);font-family:var(--font-jakarta),'Plus Jakarta Sans',sans-serif}
+      .lp-current-dashboard-sidebar{display:flex;flex-direction:column;padding:16px 10px 12px;border-right:1px solid #eceef2;background:#fff}
+      .lp-current-dashboard-brand{display:flex;align-items:center;gap:6px;padding:0 5px 13px}.lp-current-dashboard-brand img{width:24px;height:24px;object-fit:contain}.lp-current-dashboard-brand strong{font-size:12px;letter-spacing:-.35px}.lp-current-dashboard-brand em{color:#f05d5e;font-style:normal}
+      .lp-current-dashboard-nav{display:flex;flex-direction:column;gap:4px}.lp-current-dashboard-nav span{display:flex;align-items:center;gap:8px;padding:8px 9px;border-radius:9px;color:#667086;font-size:8px;font-weight:700}.lp-current-dashboard-nav span.active{color:#ed5559;background:#fff1f0}
+      .lp-current-dashboard-note{display:flex;flex-direction:column;gap:6px;margin-top:auto;padding:12px 9px;border-radius:11px;background:linear-gradient(145deg,#fff4ef,#fff0f1)}.lp-current-dashboard-note span{font-size:17px}.lp-current-dashboard-note strong{max-width:88px;font-size:7.5px;line-height:1.45}
+      .lp-current-dashboard-main{min-width:0;padding:15px 14px;background:linear-gradient(180deg,#fff 0%,#fdfcfc 100%)}.lp-current-dashboard-main>header{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:13px}.lp-current-dashboard-main>header>div{display:flex;flex-direction:column;gap:2px}.lp-current-dashboard-main>header strong{font-size:11px;letter-spacing:-.2px}.lp-current-dashboard-main>header small{color:#929aab;font-size:6.5px;font-weight:600}
+      .lp-dashboard-whatsapp{padding:7px 10px;border-radius:8px;color:#fff;background:linear-gradient(135deg,#ff6968,#ef4d51);box-shadow:0 5px 13px rgba(239,77,81,.18);font-size:6.5px;font-weight:800;white-space:nowrap}
+      .lp-dashboard-glance{padding:10px;border:1px solid #eceef2;border-radius:12px;background:#fff;box-shadow:0 5px 17px rgba(29,42,68,.04)}.lp-dashboard-section-label{display:block;margin-bottom:7px;font-size:8px}.lp-dashboard-glance-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+      .lp-dashboard-glance-card{min-width:0;padding:8px;border:1px solid #edf0f4;border-radius:9px;background:#fff}.lp-dashboard-card-head{display:flex;align-items:center;gap:6px}.lp-dashboard-card-head>span{width:25px;height:25px;display:grid;flex:none;place-items:center;border-radius:50%;background:#fff1ef}.lp-dashboard-card-head>div{min-width:0}.lp-dashboard-card-head small{display:block;overflow:hidden;color:#667086;font-size:5px;font-weight:700;text-overflow:ellipsis;white-space:nowrap}.lp-dashboard-card-head strong{display:block;margin-top:2px;font-size:10px;line-height:1;white-space:nowrap}.lp-dashboard-card-head em{font-size:5px;font-style:normal}
+      .lp-dashboard-card-detail{display:flex;justify-content:space-between;gap:4px;margin-top:8px;color:#8e97a8;font-size:5px;font-weight:700}.lp-dashboard-card-detail b{font-size:5px}.lp-dashboard-glance-card>i{height:3px;display:block;margin-top:5px;overflow:hidden;border-radius:9px;background:#edf0f3}.lp-dashboard-glance-card>i span{height:100%;display:block;border-radius:inherit;background:#ef5c62}
+      .lp-dashboard-lower-grid{display:grid;grid-template-columns:.95fr 1.18fr;gap:8px;margin-top:8px}.lp-dashboard-family-prompt,.lp-dashboard-weekly{min-width:0;height:186px;overflow:hidden;border:1px solid #eceef2;border-radius:12px;background:#fff}
+      .lp-dashboard-family-prompt{display:grid;grid-template-columns:43% minmax(0,1fr);align-items:end;padding:12px 9px 10px;background:linear-gradient(145deg,#fff7f3,#fffafa)}.lp-dashboard-family-art{align-self:end;height:112px;overflow:hidden}.lp-dashboard-family-art img{width:118%;height:auto;display:block;transform:translate(-8%,2px)}
+      .lp-dashboard-family-prompt>div:last-child{align-self:center;min-width:0}.lp-dashboard-family-prompt small{display:inline-block;padding:3px 6px;border-radius:9px;color:#ef5c62;background:#fff;font-size:5px;font-weight:800}.lp-dashboard-family-prompt strong{display:block;margin-top:5px;font-size:9px;line-height:1.25}.lp-dashboard-family-prompt p{margin-top:5px;color:#768096;font-size:5.5px;font-weight:600;line-height:1.45}.lp-dashboard-family-prompt button{margin-top:7px;padding:6px 10px;border:0;border-radius:7px;color:#fff;background:#ef5c62;font-size:5.5px;font-weight:800}
+      .lp-dashboard-weekly{padding:11px 10px 6px}.lp-dashboard-weekly-head{display:flex;align-items:center;justify-content:space-between;gap:8px}.lp-dashboard-weekly-head>strong{font-size:8px}.lp-dashboard-weekly-head>span{display:flex;align-items:center;gap:4px;color:#7c8597;font-size:5px;font-weight:700}.lp-dashboard-weekly-head i{width:8px;height:2px;display:inline-block;border-radius:5px;background:#f58b44}.lp-dashboard-weekly svg{width:100%;height:135px;margin-top:4px}
+    ` }} />
+    <aside className="lp-current-dashboard-sidebar">
+      <div className="lp-current-dashboard-brand">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/famcare-logo.png" alt="" />
+        <strong>Fam<em>Care</em></strong>
+      </div>
+
+      <div className="lp-current-dashboard-nav">
+        <span className="active"><House size={12} weight="fill" /> Home</span>
+        <span><TrendUp size={12} weight="bold" /> Statistics</span>
+        <span><Users size={12} weight="bold" /> Family overview</span>
+        <span><Bell size={12} weight="bold" /> Medications</span>
+      </div>
+
+      <div className="lp-current-dashboard-note">
+        <span>🌱</span>
+        <strong>Small steps, lasting change.</strong>
+      </div>
+    </aside>
+
+    <div className="lp-current-dashboard-main">
+      <header>
+        <div>
+          <strong>Good morning, Samarth 👋</strong>
+          <small>Here&apos;s your family health overview.</small>
+        </div>
+        <span className="lp-dashboard-whatsapp">◉ Log via WhatsApp</span>
+      </header>
+
+      <section className="lp-dashboard-glance">
+        <strong className="lp-dashboard-section-label">Today at a glance</strong>
+        <div className="lp-dashboard-glance-grid">
+          {[
+            { className: "calories", icon: <Fire size={13} weight="fill" />, label: "Calories today", value: "1,580", unit: "kcal", detail: "Goal 2,000 kcal", progress: "79%" },
+            { className: "protein", icon: <ForkKnife size={13} weight="fill" />, label: "Protein today", value: "86", unit: "g", detail: "Goal 100 g", progress: "86%" },
+            { className: "medication", icon: <Bell size={13} weight="fill" />, label: "Medication", value: "On track", unit: "", detail: "2 of 3 taken", progress: "67%" },
+            { className: "score", icon: <Heart size={13} weight="fill" />, label: "Health score", value: "78", unit: "/100", detail: "Good", progress: "78%" },
+          ].map((item) => (
+            <div className={`lp-dashboard-glance-card ${item.className}`} key={item.label}>
+              <div className="lp-dashboard-card-head">
+                <span>{item.icon}</span>
+                <div><small>{item.label}</small><strong>{item.value} <em>{item.unit}</em></strong></div>
+              </div>
+              <div className="lp-dashboard-card-detail"><small>{item.detail}</small><b>{item.progress}</b></div>
+              <i><span style={{ width: item.progress }} /></i>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <div className="lp-dashboard-lower-grid">
+        <section className="lp-dashboard-family-prompt">
+          <div className="lp-dashboard-family-art">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/parent_care_illustration.png" alt="" />
+          </div>
+          <div>
+            <small>♥ Let&apos;s get started</small>
+            <strong>Add your parents to start caring together</strong>
+            <p>View their meals, progress, and medication updates in one place.</p>
+            <button type="button">Add parents</button>
+          </div>
+        </section>
+
+        <section className="lp-dashboard-weekly">
+          <div className="lp-dashboard-weekly-head">
+            <strong>Weekly progress</strong>
+            <span><i /> Calories <i /> Protein</span>
+          </div>
+          <svg viewBox="0 0 300 112" role="img" aria-label="Weekly calories and protein trend">
+            <defs>
+              <linearGradient id="lp-calorie-fill" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#F58B44" stopOpacity=".18" />
+                <stop offset="100%" stopColor="#F58B44" stopOpacity="0" />
+              </linearGradient>
+            </defs>
+            {[28, 54, 80].map((y) => <line key={y} x1="8" y1={y} x2="292" y2={y} stroke="#EEF0F4" strokeWidth="1" />)}
+            <path d="M8 76 L54 57 L101 68 L148 42 L195 61 L242 33 L292 45 L292 98 L8 98 Z" fill="url(#lp-calorie-fill)" />
+            <polyline points="8,76 54,57 101,68 148,42 195,61 242,33 292,45" fill="none" stroke="#F58B44" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+            <polyline points="8,72 54,64 101,82 148,70 195,73 242,52 292,55" fill="none" stroke="#F25E63" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+            {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((day, index) => (
+              <text key={day} x={8 + index * 47} y="108" fill="#9AA3B3" fontSize="7" textAnchor={index === 0 ? "start" : index === 6 ? "end" : "middle"}>{day}</text>
+            ))}
+          </svg>
+        </section>
+      </div>
+    </div>
+  </div>
+);
+
+const WhatsAppProofVisual = () => (
+  <div
+    className="lp-whatsapp-proof-visual"
+    aria-label="Examples of a food log and medication reminder on WhatsApp"
+    style={{
+      position: "relative",
+      width: 270,
+      height: 330,
+      flexShrink: 0,
+    }}
+  >
+    <div
+      style={{
+        position: "absolute",
+        inset: "58px 22px 48px",
+        borderRadius: "50%",
+        background: "radial-gradient(circle, rgba(64,191,112,.13) 0%, rgba(64,191,112,.04) 57%, transparent 72%)",
+      }}
+    />
+
+    {/* eslint-disable-next-line @next/next/no-img-element */}
+    <img
+      src="/whats_app_circle.webp"
+      alt=""
+      style={{
+        position: "absolute",
+        width: 156,
+        height: 156,
+        objectFit: "contain",
+        left: "50%",
+        top: "50%",
+        transform: "translate(-50%,-50%)",
+        filter: "drop-shadow(0 14px 24px rgba(44,169,89,.18))",
+      }}
+    />
+
+    <div
+      style={{
+        position: "absolute",
+        top: 2,
+        left: 0,
+        width: 168,
+        padding: "8px 8px 7px",
+        border: "1px solid #E5E9E7",
+        borderRadius: 15,
+        background: "#fff",
+        boxShadow: "0 12px 28px rgba(31,49,67,.13)",
+        transform: "rotate(-2deg)",
+      }}
+    >
+      <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
+        <span style={{ width: 19, height: 19, display: "grid", placeItems: "center", borderRadius: "50%", background: "#E8F8EE", fontSize: 10 }}>🥗</span>
+        <strong style={{ color: "#23324B", fontSize: 9 }}>Food logged</strong>
+        <span style={{ marginLeft: "auto", color: "#25A55F", fontSize: 8, fontWeight: 800 }}>WhatsApp</span>
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 5, fontSize: 7.5, lineHeight: 1.35 }}>
+        <span style={{ alignSelf: "flex-end", maxWidth: 137, padding: "7px 8px", borderRadius: "9px 9px 3px 9px", color: "#244434", background: "#DCF8C6" }}>
+          Aaj 2 roti, dal, chawal khaya 💪
+        </span>
+        <span style={{ maxWidth: 139, padding: "7px 8px", borderRadius: "9px 9px 9px 3px", color: "#30405B", background: "#F5F6F7" }}>
+          Logged! ✅<br />
+          <strong>650 kcal · 28g protein</strong>
+        </span>
+      </div>
+    </div>
+
+    <div
+      style={{
+        position: "absolute",
+        right: 0,
+        bottom: 0,
+        width: 177,
+        padding: 10,
+        border: "1px solid #E5E9E7",
+        borderRadius: 15,
+        background: "#fff",
+        boxShadow: "0 12px 28px rgba(31,49,67,.13)",
+        transform: "rotate(2deg)",
+      }}
+    >
+      <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 7 }}>
+        <span style={{ width: 19, height: 19, display: "grid", placeItems: "center", borderRadius: "50%", background: "#FFF0EF", fontSize: 10 }}>💊</span>
+        <strong style={{ color: "#23324B", fontSize: 9 }}>Medicine reminder</strong>
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 5, fontSize: 8, lineHeight: 1.35 }}>
+        <span style={{ maxWidth: 134, padding: "7px 8px", borderRadius: "9px 9px 9px 3px", color: "#30405B", background: "#F5F6F7" }}>
+          Time for your 8:00 PM medicine 💊
+        </span>
+        <span style={{ alignSelf: "flex-end", padding: "6px 8px", borderRadius: "9px 9px 3px 9px", color: "#244434", background: "#DCF8C6" }}>
+          Taken ✅
+        </span>
+        <span style={{ maxWidth: 138, padding: "7px 8px", borderRadius: "9px 9px 9px 3px", color: "#30405B", background: "#F5F6F7" }}>
+          Great—your family is updated.
+        </span>
+      </div>
+    </div>
+  </div>
+);
+
 export default function LandingPage() {
   const router = useRouter();
 
@@ -515,12 +722,16 @@ export default function LandingPage() {
           </div>
 
           <h1 className="lp-hero-title" style={{ fontSize: 54, fontWeight: 700, lineHeight: 1.08, letterSpacing: "-1.5px" }}>
-            <span style={{ color: "#1A2744" }}>Know if your parents</span><br />
-            <span style={{ color: "#E85C5C" }}>took their medicines today.</span>
+            <span style={{ color: "#1A2744" }}>Stay close to your parents&apos; health,</span><br />
+            <span style={{ color: "#E85C5C" }}>even from afar</span>
           </h1>
 
-          <p style={{ fontSize: 15, color: "#6B7A9A", lineHeight: 1.78, marginTop: 18, maxWidth: 390 }}>
-            FamCare sends WhatsApp medicine reminders to parents, lets them confirm doses, and alerts family members when a dose is missed.
+          <div className="lp-mobile-whatsapp-proof">
+            <WhatsAppProofVisual />
+          </div>
+
+          <p style={{ fontSize: 15, color: "#6B7A9A", lineHeight: 1.78, marginTop: 18, maxWidth: 410 }}>
+            Parents can log meals and confirm medicine reminders on WhatsApp, while you stay updated from anywhere.
           </p>
 
           <div className="lp-hero-cta" style={{ display: "flex", alignItems: "center", gap: 18, marginTop: 30 }}>
@@ -529,23 +740,6 @@ export default function LandingPage() {
               borderRadius: 8, fontSize: 15, fontWeight: 700,
               boxShadow: "0 4px 18px rgba(232,92,92,.32)",
             }}>Get Started for Free</Link>
-            <button
-              onClick={() => document.getElementById("features")?.scrollIntoView({ behavior: "smooth" })}
-              style={{
-                display: "flex", alignItems: "center", gap: 10, background: "none", border: "none",
-                fontSize: 14, fontWeight: 600, color: "#6B7A9A", cursor: "pointer",
-              }}>
-              <div style={{
-                width: 32, height: 32, background: "#fff", borderRadius: "50%",
-                boxShadow: "0 2px 12px rgba(26,20,20,.07)",
-                display: "flex", alignItems: "center", justifyContent: "center",
-              }}>
-                <svg width="9" height="11" viewBox="0 0 10 12" fill="none">
-                  <path d="M1 1l8 5-8 5V1z" fill="#1A2744" />
-                </svg>
-              </div>
-              See how it works
-            </button>
           </div>
 
           <div className="lp-hero-badges" style={{ display: "flex", gap: 20, marginTop: 32 }}>
@@ -573,13 +767,12 @@ export default function LandingPage() {
 
         {/* Center — WhatsApp circle */}
         <div className="lp-hero-circle" style={{ display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/whats_app_circle.webp" alt="Log health via WhatsApp" style={{ width: 280, height: 280, objectFit: "contain" }} />
+          <WhatsAppProofVisual />
         </div>
 
         {/* Right — mockup */}
         <div className="lp-hero-mockup" style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <DashboardMockup />
+          <CurrentDashboardPreview />
         </div>
       </section>
 
