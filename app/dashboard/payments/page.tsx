@@ -5,6 +5,7 @@ import Script from "next/script";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  ArrowsClockwise,
   CalendarCheck,
   CheckCircle,
   Crown,
@@ -24,10 +25,12 @@ import {
   cancelSubscription,
   createExtraParentCheckout,
   createSubscriptionCheckout,
+  getBillingInvoices,
   getBillingPlans,
   getSubscriptionDetails,
   verifySubscriptionCheckout,
   type BillingPlanKey,
+  type BillingInvoice,
   type BillingPlansResponse,
   type SubscriptionCheckout,
   type SubscriptionDetails,
@@ -103,6 +106,8 @@ function PaymentsPageContent() {
   const [planNotice, setPlanNotice] = useState<{ tone: "success" | "error"; text: string } | null>(null);
   const [cancelOpen, setCancelOpen] = useState(false);
   const [cancelling, setCancelling] = useState(false);
+  const [invoices, setInvoices] = useState<BillingInvoice[] | null>(null);
+  const [invoicesError, setInvoicesError] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -120,6 +125,17 @@ function PaymentsPageContent() {
   useEffect(() => {
     void refreshSubscription();
   }, [refreshSubscription]);
+
+  // Only accounts that have actually been billed have receipts to show.
+  const hasBillingHistory = subscription != null && subscription.plan_key !== "free";
+  useEffect(() => {
+    if (!hasBillingHistory) return;
+    let cancelled = false;
+    getBillingInvoices()
+      .then((rows) => { if (!cancelled) setInvoices(rows); })
+      .catch(() => { if (!cancelled) setInvoicesError(true); });
+    return () => { cancelled = true; };
+  }, [hasBillingHistory]);
 
   const plan = plansData?.plans.find((entry) => entry.plan_key === planKey) ?? null;
   const formattedPrice = plan ? rupees(plan.amount_paise) : null;
@@ -182,6 +198,14 @@ function PaymentsPageContent() {
         : renewalDateFormatter.format(nextRenewal),
     };
   }, [hasSuccessParams, successKind, successPlanKey, successAmountPaise, plansData, subscription, confirmed]);
+
+  // The timeout is not a dead end: let the user re-run the same poll cycle
+  // instead of stranding them with "check back later" and no control.
+  function retryReconcile() {
+    if (reconcileTimer.current) clearTimeout(reconcileTimer.current);
+    setReconcileAttempt(0);
+    void refreshSubscription();
+  }
 
   async function confirmCancel() {
     setPlanNotice(null);
@@ -341,6 +365,12 @@ function PaymentsPageContent() {
                       ? "This is taking longer than usual. Your payment is safe — check back here or on Profile → Payment in a few minutes."
                       : "Your payment was received. We're waiting for the bank/Razorpay confirmation to activate your plan."}
                 </p>
+
+                {timedOut && (
+                  <button type="button" className="payment-retry-btn" onClick={retryReconcile}>
+                    <ArrowsClockwise size={16} weight="bold" /> Check again
+                  </button>
+                )}
 
                 <div className="payment-success-stats">
                   <div>
@@ -575,6 +605,10 @@ function PaymentsPageContent() {
             </section>
           )}
 
+          {hasBillingHistory && (
+            <BillingHistory invoices={invoices} failed={invoicesError} />
+          )}
+
           {cancelOpen && subscription && (
             <CancelPlanDialog
               planName={
@@ -706,6 +740,63 @@ function CancelPlanDialog({
         </div>
       </div>
     </div>
+  );
+}
+
+/**
+ * Receipts, straight from Razorpay. Each row links to Razorpay's own hosted
+ * invoice page rather than a receipt we render ourselves, so what the user
+ * downloads always matches what they were actually charged.
+ */
+function BillingHistory({ invoices, failed }: { invoices: BillingInvoice[] | null; failed: boolean }) {
+  return (
+    <section className="payment-history">
+      <h3><Receipt size={18} weight="duotone" /> Billing history</h3>
+
+      {failed ? (
+        <p className="payment-history-empty">
+          Your billing history could not be loaded right now. Refresh to try again.
+        </p>
+      ) : invoices === null ? (
+        <p className="payment-history-empty">
+          <SpinnerGap size={18} className="payment-spin" /> Loading receipts…
+        </p>
+      ) : invoices.length === 0 ? (
+        <p className="payment-history-empty">
+          No receipts yet. Your first one appears here once a payment is collected.
+        </p>
+      ) : (
+        <ul className="payment-history-list">
+          {invoices.map((invoice) => {
+            const when = invoice.paid_at ?? invoice.issued_at;
+            return (
+              <li key={invoice.id}>
+                <div className="payment-history-main">
+                  <strong>{invoice.description}</strong>
+                  <span>{when ? renewalDateFormatter.format(new Date(when)) : "Date pending"}</span>
+                </div>
+                <span className={`payment-history-status ${invoice.status === "paid" ? "paid" : "other"}`}>
+                  {invoice.status === "paid" ? "Paid" : invoice.status.replace(/_/g, " ")}
+                </span>
+                <strong className="payment-history-amount">₹{rupees(invoice.amount_paise)}</strong>
+                {invoice.receipt_url ? (
+                  <a
+                    className="payment-history-link"
+                    href={invoice.receipt_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Receipt
+                  </a>
+                ) : (
+                  <span className="payment-history-link disabled">—</span>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </section>
   );
 }
 

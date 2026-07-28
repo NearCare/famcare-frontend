@@ -296,6 +296,17 @@ export type FamilySeatStatus = {
   extra_parents: number;
 };
 
+export type BillingInvoice = {
+  id: string;
+  description: string;
+  amount_paise: number;
+  currency: string;
+  status: string;
+  issued_at?: string | null;
+  paid_at?: string | null;
+  receipt_url?: string | null;
+};
+
 export type CancelSubscriptionResult = {
   cancel_at_period_end: boolean;
   current_period_end?: string | null;
@@ -660,6 +671,15 @@ export async function getFamilySeats(): Promise<FamilySeatStatus> {
   const token = typeof window !== "undefined" ? localStorage.getItem("auth_token") : null;
   if (!token) throw new Error("Please log in again to continue.");
   return authedFetch<FamilySeatStatus>("/api/billing/seats", token);
+}
+
+export async function getBillingInvoices(): Promise<BillingInvoice[]> {
+  if (MOCK_API) return [];
+
+  const token = typeof window !== "undefined" ? localStorage.getItem("auth_token") : null;
+  if (!token) throw new Error("Please log in again to continue.");
+  const body = await authedFetch<{ invoices: BillingInvoice[] }>("/api/billing/invoices", token);
+  return body.invoices;
 }
 
 export async function cancelSubscription(): Promise<CancelSubscriptionResult> {
