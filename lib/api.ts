@@ -211,6 +211,27 @@ export type FeatureFlags = {
   v2: boolean;
 };
 
+export type MonthlyUsageItem = {
+  key: "reminder_delivered" | "ai_chat_answer" | "whatsapp_text_log" | "whatsapp_image_analysis";
+  label: string;
+  used: number;
+  limit: number;
+  warning_at: number;
+  percentage: number;
+  blocked: boolean;
+};
+
+export type MonthlyUsageSnapshot = {
+  billing_user_id: number;
+  period_start: string;
+  period_end: string;
+  plan_key: "free" | "individual" | "family";
+  status: "free" | "trialing" | "active" | "past_due" | "cancelled" | "expired";
+  unlimited: boolean;
+  items: MonthlyUsageItem[];
+  upgrade_url: string;
+};
+
 export type Summary = {
   period_days: number;
   avg_steps: number | null;
@@ -419,6 +440,28 @@ export async function getFeatureFlags(token?: string): Promise<FeatureFlags> {
   return {
     v2: body.feature_flags.v2 === true,
   };
+}
+
+export async function getMonthlyUsage(): Promise<MonthlyUsageSnapshot> {
+  if (MOCK_API) {
+    return {
+      billing_user_id: MOCK_USER.id,
+      period_start: new Date().toLocaleDateString("en-CA").slice(0, 8) + "01",
+      period_end: new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1)
+        .toLocaleDateString("en-CA"),
+      plan_key: "free",
+      status: "free",
+      unlimited: false,
+      upgrade_url: "/dashboard/profile",
+      items: [
+        { key: "reminder_delivered", label: "Reminders", used: 18, limit: 30, warning_at: 24, percentage: 60, blocked: false },
+        { key: "ai_chat_answer", label: "AI Coach answers", used: 8, limit: 20, warning_at: 16, percentage: 40, blocked: false },
+        { key: "whatsapp_text_log", label: "WhatsApp food logs", used: 25, limit: 40, warning_at: 32, percentage: 63, blocked: false },
+        { key: "whatsapp_image_analysis", label: "WhatsApp photo analyses", used: 2, limit: 5, warning_at: 4, percentage: 40, blocked: false },
+      ],
+    };
+  }
+  return apiFetch<MonthlyUsageSnapshot>("/api/usage/monthly");
 }
 
 export async function getChatConversations(token: string): Promise<ChatConversation[]> {

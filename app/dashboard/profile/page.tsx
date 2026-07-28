@@ -7,6 +7,7 @@ import {
   Calculator,
   ChatCircleText,
   FileText,
+  Gauge,
   SignOut,
   Users,
   X,
@@ -15,7 +16,7 @@ import Sidebar from "../components/Sidebar";
 import V2RouteGate from "../components/V2RouteGate";
 import { captureEvent, resetAnalytics } from "@/lib/analytics";
 import { clearStoredSession } from "@/lib/session";
-import type { User } from "@/lib/api";
+import { getMonthlyUsage, type MonthlyUsageSnapshot, type User } from "@/lib/api";
 
 const profileLinks = [
   {
@@ -43,6 +44,7 @@ const profileLinks = [
 
 export default function ProfilePage() {
   const [user, setUser] = useState<User | null>(null);
+  const [usage, setUsage] = useState<MonthlyUsageSnapshot | null>(null);
   const [confirmLogoutOpen, setConfirmLogoutOpen] = useState(false);
 
   useEffect(() => {
@@ -53,6 +55,12 @@ export default function ProfilePage() {
     } catch {
       setUser(null);
     }
+  }, []);
+
+  useEffect(() => {
+    void getMonthlyUsage()
+      .then(setUsage)
+      .catch((error) => console.warn("[Profile] Failed to load monthly usage", error));
   }, []);
 
   function handleLogout() {
@@ -88,6 +96,36 @@ export default function ProfilePage() {
             <p>Account, family and health tools</p>
           </div>
         </header>
+
+        {usage && (
+          <section className="profile-usage-card" aria-label="Monthly free usage">
+            <div className="profile-usage-head">
+              <span><Gauge size={18} weight="duotone" /></span>
+              <div>
+                <h2>{usage.unlimited ? `${usage.plan_key === "family" ? "Family" : "Individual"} plan` : "Free usage this month"}</h2>
+                <p>{usage.unlimited ? "Unlimited FamCare usage is active" : "Shared across your family account"}</p>
+              </div>
+            </div>
+            <div className="profile-usage-list">
+              {usage.items.map((item) => (
+                <div className="profile-usage-item" key={item.key}>
+                  <div>
+                    <span>{item.label}</span>
+                    <strong>{usage.unlimited ? item.used : `${item.used} / ${item.limit}`}</strong>
+                  </div>
+                  <i aria-hidden="true">
+                    <b style={{ width: `${Math.min(item.percentage, 100)}%` }} />
+                  </i>
+                </div>
+              ))}
+            </div>
+            {!usage.unlimited && usage.items.some((item) => item.used >= item.warning_at) && (
+              <a className="profile-usage-upgrade" href={usage.upgrade_url}>
+                Upgrade FamCare
+              </a>
+            )}
+          </section>
+        )}
 
         <div className="profile-page-links">
           {profileLinks.map((item) => {
