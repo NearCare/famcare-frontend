@@ -1,4 +1,6 @@
-const DEFAULT_AUTH_DESTINATION = "/dashboard/homev2";
+import { isV2Enabled } from "@/lib/v2Feature";
+
+const DEFAULT_AUTH_DESTINATION = "/dashboard";
 
 export function safeAuthDestination(
   value: string | null | undefined,
@@ -24,4 +26,12 @@ export function authPath(path: "/login" | "/onboarding/name", destination: strin
 export function requestedAuthDestination(): string {
   if (typeof window === "undefined") return DEFAULT_AUTH_DESTINATION;
   return safeAuthDestination(new URLSearchParams(window.location.search).get("next"));
+}
+
+export async function resolvedAuthDestination(token?: string): Promise<string> {
+  if (typeof window !== "undefined") {
+    const requested = new URLSearchParams(window.location.search).get("next");
+    if (requested) return safeAuthDestination(requested);
+  }
+  return (await isV2Enabled(token)) ? "/dashboard/homev2" : DEFAULT_AUTH_DESTINATION;
 }

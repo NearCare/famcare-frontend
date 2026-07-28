@@ -15,6 +15,7 @@ import {
   Minus,
 } from "@phosphor-icons/react";
 import Sidebar from "../components/Sidebar";
+import V2RouteGate from "../components/V2RouteGate";
 import { calculateUserCalorieTarget, getCurrentUser, updateUserGoals, type User } from "@/lib/api";
 import { authPath } from "@/lib/authRedirect";
 import { captureEvent, identifyUser, resetAnalytics } from "@/lib/analytics";
@@ -393,6 +394,7 @@ export default function CalorieCalculatorPage() {
   if (!authReady) return null;
 
   return (
+    <V2RouteGate>
     <div className="db-page">
       <Sidebar />
       <main className="db-main cc-main">
@@ -636,5 +638,6 @@ export default function CalorieCalculatorPage() {
         </div>
       </main>
     </div>
+    </V2RouteGate>
   );
 }

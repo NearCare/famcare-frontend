@@ -2,7 +2,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { updateUserName, type User } from "@/lib/api";
-import { authPath, requestedAuthDestination } from "@/lib/authRedirect";
+import { authPath, requestedAuthDestination, resolvedAuthDestination } from "@/lib/authRedirect";
 import { captureEvent, identifyUser } from "@/lib/analytics";
 
 export default function OnboardingNamePage() {
@@ -17,9 +17,15 @@ export default function OnboardingNamePage() {
     const stored = localStorage.getItem("auth_user");
     const user: User | null = stored ? JSON.parse(stored) : null;
 
-    const destination = requestedAuthDestination();
-    if (!token || !user) { router.replace(authPath("/login", destination)); return; }
-    if (user.name) { router.replace(destination); return; }
+    if (!token || !user) {
+      router.replace(authPath("/login", requestedAuthDestination()));
+      return;
+    }
+
+    if (user.name) {
+      void resolvedAuthDestination(token).then((destination) => router.replace(destination));
+      return;
+    }
 
     identifyUser(user);
     captureEvent("onboarding_started");
@@ -37,14 +43,13 @@ export default function OnboardingNamePage() {
       const token = localStorage.getItem("auth_token") ?? "";
       const stored = localStorage.getItem("auth_user");
       const user: User | null = stored ? JSON.parse(stored) : null;
-      const destination = requestedAuthDestination();
-      if (!user) { router.replace(authPath("/login", destination)); return; }
+      if (!user) { router.replace(authPath("/login", requestedAuthDestination())); return; }
 
       const updated = await updateUserName(user.id, trimmed, token);
       localStorage.setItem("auth_user", JSON.stringify(updated));
       identifyUser(updated);
       captureEvent("onboarding_completed");
-      router.replace(destination);
+      router.replace(await resolvedAuthDestination(token));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to save name");
     } finally {

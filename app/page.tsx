@@ -9,6 +9,7 @@ import {
 } from "@phosphor-icons/react";
 import { FEShoe, FETarget } from "./dashboard/components/FluentEmoji";
 import { getCurrentUser } from "@/lib/api";
+import { authPath, resolvedAuthDestination } from "@/lib/authRedirect";
 import { FAMCARE_WHATSAPP_LINK } from "@/lib/whatsapp";
 
 const LOCAL_AUTH_BYPASS =
@@ -620,7 +621,9 @@ export default function LandingPage() {
         goal_sleep_hours: 8,
         created_at: new Date().toISOString(),
       }));
-      window.location.replace("/dashboard/homev2");
+      void resolvedAuthDestination("local-dashboard-session").then((destination) => {
+        window.location.replace(destination);
+      });
     }
   }, []);
 
@@ -643,7 +646,8 @@ export default function LandingPage() {
         }
 
         localStorage.setItem("auth_user", JSON.stringify(authUser));
-        router.replace(authUser.name ? "/dashboard/homev2" : "/onboarding/name");
+        const destination = await resolvedAuthDestination(token);
+        router.replace(authUser.name ? destination : authPath("/onboarding/name", destination));
       } catch {
         // Preserve the saved session during temporary network/backend failures.
         // getCurrentUser returns null for an actual 401/403, handled above.

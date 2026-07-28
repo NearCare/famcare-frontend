@@ -4,27 +4,34 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import {
-  ChartLine, ChatCircleText, House, Users, Pill, SignOut, Sparkle, X,
+  ChartLine, ChatCircleText, FileText, House, Users, Pill, SignOut, Sparkle, X,
 } from "@phosphor-icons/react";
 import { captureEvent, resetAnalytics } from "@/lib/analytics";
 import { getFeatureFlags, type FeatureFlags } from "@/lib/api";
 import { clearStoredSession } from "@/lib/session";
+import { bypassV2FeatureFlagLocally } from "@/lib/v2Feature";
 import MobileBottomNav from "./MobileBottomNav";
 
-const IS_PRODUCTION = process.env.NODE_ENV === "production";
+type NavigationItem = {
+  label: string;
+  href: string;
+  isNew?: boolean;
+};
 
-function shouldRequireFeatureFlags() {
-  if (!IS_PRODUCTION) return false;
-  if (typeof window === "undefined") return true;
-  return !["localhost", "127.0.0.1"].includes(window.location.hostname);
-}
-
-const navItems = [
+const v2NavItems: NavigationItem[] = [
   { label: "Home",             href: "/dashboard/homev2" },
   { label: "Statistics",       href: "/dashboard/statistics", isNew: true },
   { label: "Family Overview",  href: "/dashboard/family-overviewv2" },
   { label: "Medications",      href: "/dashboard/medications" },
-  { label: "Health Assistant", href: "/dashboard/health-assistant", isNew: true, featureFlag: "v2" as const },
+  { label: "Health Assistant", href: "/dashboard/health-assistant", isNew: true },
+  { label: "Review",           href: "/dashboard/review" },
+];
+
+const legacyNavItems: NavigationItem[] = [
+  { label: "Home",             href: "/dashboard" },
+  { label: "Family Overview",  href: "/dashboard/family-overview" },
+  { label: "Medications",      href: "/dashboard/medications" },
+  { label: "Logs",             href: "/dashboard/logs" },
   { label: "Review",           href: "/dashboard/review" },
 ];
 
@@ -33,6 +40,7 @@ const NAV_ICONS: Record<string, React.ElementType> = {
   "Statistics":       ChartLine,
   "Family Overview":  Users,
   "Medications":      Pill,
+  "Logs":              FileText,
   "Health Assistant":  Sparkle,
   "Review":           ChatCircleText,
 };
@@ -44,15 +52,18 @@ function NavIcon({ name }: { name: string }) {
 
 export default function Sidebar() {
   const [confirmLogoutOpen, setConfirmLogoutOpen] = useState(false);
-  const [featureFlags, setFeatureFlags] = useState<FeatureFlags>({ v2: false });
+  const localBypass = bypassV2FeatureFlagLocally();
+  const [featureFlags, setFeatureFlags] = useState<FeatureFlags>({ v2: localBypass });
   const pathname = usePathname();
-  const requireFeatureFlags = shouldRequireFeatureFlags();
 
   useEffect(() => {
     getFeatureFlags()
       .then(setFeatureFlags)
       .catch(() => setFeatureFlags({ v2: false }));
-  }, []);
+  }, [localBypass]);
+
+  const v2Enabled = localBypass || featureFlags.v2;
+  const navItems = v2Enabled ? v2NavItems : legacyNavItems;
 
   useEffect(() => {
     if (!confirmLogoutOpen) return;
@@ -81,7 +92,7 @@ export default function Sidebar() {
         </div>
 
         <nav className="db-nav">
-          {navItems.filter((item) => !item.featureFlag || !requireFeatureFlags || featureFlags[item.featureFlag]).map((item) => {
+          {navItems.map((item) => {
             const active = pathname === item.href;
             return (
               <Link
@@ -117,10 +128,12 @@ export default function Sidebar() {
         </div>
       </aside>
 
-      <MobileBottomNav
-        assistantEnabled={!requireFeatureFlags || featureFlags.v2}
-        onLogout={() => setConfirmLogoutOpen(true)}
-      />
+      {v2Enabled && (
+        <MobileBottomNav
+          assistantEnabled
+          onLogout={() => setConfirmLogoutOpen(true)}
+        />
+      )}
 
       {confirmLogoutOpen && typeof document !== "undefined" && createPortal(
         <div

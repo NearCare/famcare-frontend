@@ -37,6 +37,7 @@ import {
 } from "recharts";
 import type { NameType, ValueType } from "recharts/types/component/DefaultTooltipContent";
 import Sidebar from "../components/Sidebar";
+import V2RouteGate from "../components/V2RouteGate";
 import AddFamilyModal from "../components/AddFamilyModal";
 import FoodReminderControl from "../components/FoodReminderControl";
 import { computeScore, scoreTier } from "../components/Score";
@@ -621,6 +622,7 @@ export default function HomeV2Page() {
   }
 
   return (
+    <V2RouteGate>
     <div className="db-page">
       <Sidebar />
       <main className="db-main homev2-main">
@@ -1330,5 +1332,6 @@ export default function HomeV2Page() {
         document.body
       )}
     </div>
+    </V2RouteGate>
   );
 }

@@ -271,14 +271,14 @@ export default function HealthAssistantPage() {
     getFeatureFlags(token)
       .then((flags) => {
         if (shouldRequireFeatureFlags() && !flags.v2) {
-          window.location.href = "/dashboard/homev2";
+          window.location.href = "/dashboard";
           return;
         }
         openHealthAssistant(authUser);
       })
       .catch(() => {
         if (shouldRequireFeatureFlags()) {
-          window.location.href = "/dashboard/homev2";
+          window.location.href = "/dashboard";
           return;
         }
         openHealthAssistant(authUser);

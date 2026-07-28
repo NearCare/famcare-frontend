@@ -15,6 +15,7 @@ import {
   UsersThree,
 } from "@phosphor-icons/react";
 import Sidebar from "../components/Sidebar";
+import V2RouteGate from "../components/V2RouteGate";
 import AddFamilyModal from "../components/AddFamilyModal";
 import FamilyFoodReminderDrawer from "../components/FamilyFoodReminderDrawer";
 import PageLoader from "../components/PageLoader";
@@ -211,6 +212,7 @@ export default function FamilyOverviewV2Page() {
   }
 
   return (
+    <V2RouteGate>
     <div className="db-page">
       <Sidebar />
       <main className="db-main familyv2-main">
@@ -416,5 +418,6 @@ export default function FamilyOverviewV2Page() {
         />
       )}
     </div>
+    </V2RouteGate>
   );
 }
