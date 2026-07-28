@@ -21,6 +21,7 @@ const BOTTOM_NAV_ROUTES = [
   "/dashboard/medications",
   "/dashboard/statistics",
   "/dashboard/profile",
+  "/dashboard/payments",
   "/dashboard/health-assistant",
 ];
 

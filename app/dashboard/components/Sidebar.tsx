@@ -10,7 +10,9 @@ import { captureEvent, resetAnalytics } from "@/lib/analytics";
 import { getFeatureFlags, type FeatureFlags } from "@/lib/api";
 import { clearStoredSession } from "@/lib/session";
 import { bypassV2FeatureFlagLocally } from "@/lib/v2Feature";
+import BrandName from "./BrandName";
 import MobileBottomNav from "./MobileBottomNav";
+import ProfileMenu from "./ProfileMenu";
 
 type NavigationItem = {
   label: string;
@@ -83,12 +85,17 @@ export default function Sidebar() {
     window.location.href = "/login";
   }
 
+  // Home renders its own copy inside the top bar; every other page gets the pinned one.
+  const showFloatingProfile = pathname !== "/dashboard/homev2";
+
   return (
     <>
+      {showFloatingProfile && <ProfileMenu floating />}
+
       <aside className="db-sidebar">
         <div className="db-brand">
           <img className="db-brand-mark" src="/famcare-logo.png" alt="" />
-          <span className="db-brand-name">Fam<span className="care">Care</span></span>
+          <BrandName className="db-brand-name" />
         </div>
 
         <nav className="db-nav">

@@ -232,6 +232,36 @@ export type MonthlyUsageSnapshot = {
   upgrade_url: string;
 };
 
+export type BillingPlanKey = "individual" | "family";
+
+export type SubscriptionCheckout = {
+  key_id: string;
+  subscription_id: string;
+  plan_key: BillingPlanKey;
+  amount_paise: number;
+  currency: "INR";
+  customer_name: string;
+  customer_phone: string;
+};
+
+export type SubscriptionCheckoutVerification = {
+  verified: boolean;
+  status: "pending";
+  message: string;
+};
+
+export type SubscriptionDetails = {
+  active: boolean;
+  plan_key: BillingPlanKey | "free";
+  status: string;
+  amount_paise: number;
+  provider_subscription_id?: string | null;
+  started_at?: string | null;
+  paid_at?: string | null;
+  current_period_end?: string | null;
+  cancel_at_period_end?: boolean;
+};
+
 export type Summary = {
   period_days: number;
   avg_steps: number | null;
@@ -452,7 +482,7 @@ export async function getMonthlyUsage(): Promise<MonthlyUsageSnapshot> {
       plan_key: "free",
       status: "free",
       unlimited: false,
-      upgrade_url: "/dashboard/profile",
+      upgrade_url: "/dashboard/payments",
       items: [
         { key: "reminder_delivered", label: "Reminders", used: 18, limit: 30, warning_at: 24, percentage: 60, blocked: false },
         { key: "ai_chat_answer", label: "AI Coach answers", used: 8, limit: 20, warning_at: 16, percentage: 40, blocked: false },
@@ -462,6 +492,67 @@ export async function getMonthlyUsage(): Promise<MonthlyUsageSnapshot> {
     };
   }
   return apiFetch<MonthlyUsageSnapshot>("/api/usage/monthly");
+}
+
+export async function createSubscriptionCheckout(
+  planKey: BillingPlanKey,
+): Promise<SubscriptionCheckout> {
+  if (MOCK_API) {
+    return {
+      key_id: "rzp_test_famcare",
+      subscription_id: `sub_mock_${planKey}`,
+      plan_key: planKey,
+      amount_paise: planKey === "family" ? 49_900 : 19_900,
+      currency: "INR",
+      customer_name: MOCK_USER.name ?? "FamCare user",
+      customer_phone: MOCK_USER.phone,
+    };
+  }
+
+  const token = typeof window !== "undefined" ? localStorage.getItem("auth_token") : null;
+  if (!token) throw new Error("Please log in again to continue.");
+  return authedFetch<SubscriptionCheckout>("/api/billing/subscriptions", token, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ plan_key: planKey }),
+  });
+}
+
+export async function verifySubscriptionCheckout(input: {
+  razorpay_payment_id: string;
+  razorpay_subscription_id: string;
+  razorpay_signature: string;
+}): Promise<SubscriptionCheckoutVerification> {
+  if (MOCK_API) {
+    return {
+      verified: true,
+      status: "pending",
+      message: "Payment verified. Your plan will activate in a moment.",
+    };
+  }
+
+  const token = typeof window !== "undefined" ? localStorage.getItem("auth_token") : null;
+  if (!token) throw new Error("Please log in again to continue.");
+  return authedFetch<SubscriptionCheckoutVerification>("/api/billing/checkout/verify", token, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+}
+
+export async function getSubscriptionDetails(): Promise<SubscriptionDetails> {
+  if (MOCK_API) {
+    return {
+      active: false,
+      plan_key: "free",
+      status: "free",
+      amount_paise: 0,
+    };
+  }
+
+  const token = typeof window !== "undefined" ? localStorage.getItem("auth_token") : null;
+  if (!token) throw new Error("Please log in again to continue.");
+  return authedFetch<SubscriptionDetails>("/api/billing/subscription", token);
 }
 
 export async function getChatConversations(token: string): Promise<ChatConversation[]> {

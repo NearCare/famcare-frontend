@@ -13,6 +13,7 @@ import {
   CaretRight,
   CheckCircle,
   Clock,
+  Crown,
   ForkKnife,
   Heart,
   Fire,
@@ -40,6 +41,7 @@ import Sidebar from "../components/Sidebar";
 import V2RouteGate from "../components/V2RouteGate";
 import AddFamilyModal from "../components/AddFamilyModal";
 import FoodReminderControl from "../components/FoodReminderControl";
+import ProfileMenu from "../components/ProfileMenu";
 import { computeScore, scoreTier } from "../components/Score";
 import {
   backfillYesterdayFood,
@@ -49,6 +51,7 @@ import {
   getCurrentUser,
   getMemberLogEvents,
   getMemberSummary,
+  getMonthlyUsage,
   getTodayMedicineDoses,
   getUserLogs,
   getUserLogEvents,
@@ -59,6 +62,7 @@ import {
   type FoodReminderPreference,
   type HealthLog,
   type HealthLogEvent,
+  type MonthlyUsageSnapshot,
   type Summary,
   type TodayDose,
   type User as ApiUser,
@@ -162,6 +166,7 @@ export default function HomeV2Page() {
   const [selfScore, setSelfScore] = useState<number | null>(null);
   const [selfDoses, setSelfDoses] = useState<TodayDose[]>([]);
   const [selfFoodPref, setSelfFoodPref] = useState<FoodReminderPreference | null>(null);
+  const [monthlyUsage, setMonthlyUsage] = useState<MonthlyUsageSnapshot | null>(null);
   const [showAddFamily, setShowAddFamily] = useState(false);
   const [chartRange, setChartRange] = useState<"week" | "month">("week");
   const [showRangeMenu, setShowRangeMenu] = useState(false);
@@ -255,6 +260,9 @@ export default function HomeV2Page() {
     getFoodReminderPreference(token)
       .then(setSelfFoodPref)
       .catch(() => setSelfFoodPref(null));
+    getMonthlyUsage()
+      .then(setMonthlyUsage)
+      .catch(() => setMonthlyUsage(null));
 
     getFamilyMembers(token)
       .then(async (members: FamilyMember[]) => {
@@ -695,19 +703,12 @@ export default function HomeV2Page() {
               <WhatsappLogo size={15} weight="fill" />
               Log via WhatsApp
             </a>
-            <button
-              className="db-avatar homev2-profile-button"
-              type="button"
-              aria-label="Open profile"
-              onClick={() => router.push("/dashboard/profile")}
-            >
-              {(user?.name ?? "S").charAt(0).toUpperCase()}
-            </button>
+            <ProfileMenu name={user?.name} />
           </div>
         </header>
 
         {logsLoaded && !hasYesterdayLog && !yesterdayBannerDismissed && (
-          <section className="homev2-backfill-banner homev2-backfill-banner-first" aria-label="Log yesterday's meals">
+          <section className="homev2-backfill-banner" aria-label="Log yesterday's meals">
             <button
               type="button"
               className="homev2-backfill-dismiss"
@@ -792,6 +793,24 @@ export default function HomeV2Page() {
             })}
           </div>
         </section>
+
+        {monthlyUsage && !monthlyUsage.unlimited && (
+          <a className="homev2-plus-banner" href="/dashboard/payments" aria-label="Explore FamCare Plus plans">
+            <span className="homev2-plus-icon" aria-hidden="true">
+              <Crown size={20} weight="fill" />
+            </span>
+            <div className="homev2-plus-copy">
+              <span>FamCare Plus</span>
+              <h2>Unlock more care for every check-in</h2>
+              <p>Get more WhatsApp health logs, AI guidance and reminders for you and your family.</p>
+            </div>
+            <span className="homev2-plus-price">Plans from ₹199/month</span>
+            <span className="homev2-plus-action">
+              Explore Plus
+              <ArrowRight size={14} weight="bold" />
+            </span>
+          </a>
+        )}
 
         <section className="homev2-hero-row">
           <article className="homev2-panel homev2-onboard">
