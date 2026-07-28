@@ -237,7 +237,7 @@ export type BillingPlanKey = "individual" | "family";
 export type SubscriptionCheckout = {
   key_id: string;
   subscription_id: string;
-  plan_key: BillingPlanKey;
+  plan_key: BillingPlanKey | "extra_parent";
   amount_paise: number;
   currency: "INR";
   customer_name: string;
@@ -260,6 +260,51 @@ export type SubscriptionDetails = {
   paid_at?: string | null;
   current_period_end?: string | null;
   cancel_at_period_end?: boolean;
+  extra_parents?: number;
+};
+
+export type PlanFeature = { title: string; description: string };
+
+export type BillingPlanInfo = {
+  plan_key: BillingPlanKey;
+  name: string;
+  eyebrow: string;
+  description: string;
+  included: string;
+  amount_paise: number;
+  currency: string;
+  billing_cycle: string;
+  /** Parents this plan can add, before any extra-parent add-ons. */
+  parent_seats: number;
+  features: PlanFeature[];
+};
+
+export type ExtraParentPlanInfo = {
+  plan_key: "extra_parent";
+  name: string;
+  description: string;
+  amount_paise: number;
+  currency: string;
+  billing_cycle: string;
+};
+
+export type FamilySeatStatus = {
+  plan_key: string;
+  used: number;
+  limit: number;
+  can_add: boolean;
+  extra_parents: number;
+};
+
+export type CancelSubscriptionResult = {
+  cancel_at_period_end: boolean;
+  current_period_end?: string | null;
+  message: string;
+};
+
+export type BillingPlansResponse = {
+  plans: BillingPlanInfo[];
+  extra_parent: ExtraParentPlanInfo;
 };
 
 export type Summary = {
@@ -494,6 +539,58 @@ export async function getMonthlyUsage(): Promise<MonthlyUsageSnapshot> {
   return apiFetch<MonthlyUsageSnapshot>("/api/usage/monthly");
 }
 
+const MOCK_PLANS: BillingPlansResponse = {
+  plans: [
+    {
+      plan_key: "individual",
+      name: "Individual plan",
+      eyebrow: "For your own health",
+      description: "Smart WhatsApp health tracking for one person.",
+      included: "Your account",
+      amount_paise: 14_900,
+      currency: "INR",
+      billing_cycle: "monthly",
+      parent_seats: 1,
+      features: [
+        { title: "WhatsApp food logs", description: "Log meals by text or photo" },
+        { title: "Medication reminders", description: "Stay on time with every dose" },
+        { title: "AI health coach", description: "Understand your nutrition trends" },
+        { title: "Health insights", description: "See calories, protein and consistency" },
+      ],
+    },
+    {
+      plan_key: "family",
+      name: "Family plan",
+      eyebrow: "Most popular",
+      description: "Everything you need to stay close to your parents’ health.",
+      included: "You + 2 parents",
+      amount_paise: 29_900,
+      currency: "INR",
+      billing_cycle: "monthly",
+      parent_seats: 2,
+      features: [
+        { title: "Track meals on WhatsApp", description: "Parents log naturally, you see the insights" },
+        { title: "Medication reminders", description: "Help everyone stay on schedule" },
+        { title: "Family dashboard", description: "See your family’s progress together" },
+        { title: "AI health coach", description: "Ask about your family’s nutrition trends" },
+      ],
+    },
+  ],
+  extra_parent: {
+    plan_key: "extra_parent",
+    name: "Extra parent",
+    description: "Add another parent to an active Family plan.",
+    amount_paise: 14_900,
+    currency: "INR",
+    billing_cycle: "monthly",
+  },
+};
+
+export async function getBillingPlans(): Promise<BillingPlansResponse> {
+  if (MOCK_API) return MOCK_PLANS;
+  return apiFetch<BillingPlansResponse>("/api/billing/plans");
+}
+
 export async function createSubscriptionCheckout(
   planKey: BillingPlanKey,
 ): Promise<SubscriptionCheckout> {
@@ -502,7 +599,7 @@ export async function createSubscriptionCheckout(
       key_id: "rzp_test_famcare",
       subscription_id: `sub_mock_${planKey}`,
       plan_key: planKey,
-      amount_paise: planKey === "family" ? 49_900 : 19_900,
+      amount_paise: planKey === "family" ? 29_900 : 14_900,
       currency: "INR",
       customer_name: MOCK_USER.name ?? "FamCare user",
       customer_phone: MOCK_USER.phone,
@@ -553,6 +650,49 @@ export async function getSubscriptionDetails(): Promise<SubscriptionDetails> {
   const token = typeof window !== "undefined" ? localStorage.getItem("auth_token") : null;
   if (!token) throw new Error("Please log in again to continue.");
   return authedFetch<SubscriptionDetails>("/api/billing/subscription", token);
+}
+
+export async function getFamilySeats(): Promise<FamilySeatStatus> {
+  if (MOCK_API) {
+    return { plan_key: "free", used: 0, limit: 1, can_add: true, extra_parents: 0 };
+  }
+
+  const token = typeof window !== "undefined" ? localStorage.getItem("auth_token") : null;
+  if (!token) throw new Error("Please log in again to continue.");
+  return authedFetch<FamilySeatStatus>("/api/billing/seats", token);
+}
+
+export async function cancelSubscription(): Promise<CancelSubscriptionResult> {
+  if (MOCK_API) {
+    return {
+      cancel_at_period_end: true,
+      message: "Your plan will stay active until the end of this billing period, then stop renewing.",
+    };
+  }
+
+  const token = typeof window !== "undefined" ? localStorage.getItem("auth_token") : null;
+  if (!token) throw new Error("Please log in again to continue.");
+  return authedFetch<CancelSubscriptionResult>("/api/billing/cancel", token, { method: "POST" });
+}
+
+export async function createExtraParentCheckout(): Promise<SubscriptionCheckout> {
+  if (MOCK_API) {
+    return {
+      key_id: "rzp_test_famcare",
+      subscription_id: `sub_mock_extra_parent_${Date.now()}`,
+      plan_key: "extra_parent",
+      amount_paise: MOCK_PLANS.extra_parent.amount_paise,
+      currency: "INR",
+      customer_name: MOCK_USER.name ?? "FamCare user",
+      customer_phone: MOCK_USER.phone,
+    };
+  }
+
+  const token = typeof window !== "undefined" ? localStorage.getItem("auth_token") : null;
+  if (!token) throw new Error("Please log in again to continue.");
+  return authedFetch<SubscriptionCheckout>("/api/billing/extra-parent", token, {
+    method: "POST",
+  });
 }
 
 export async function getChatConversations(token: string): Promise<ChatConversation[]> {

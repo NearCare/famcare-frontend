@@ -22,6 +22,7 @@ import {
   Sparkle,
   Star,
   UsersThree,
+  WarningCircle,
   WhatsappLogo,
   X,
 } from "@phosphor-icons/react";
@@ -51,7 +52,7 @@ import {
   getCurrentUser,
   getMemberLogEvents,
   getMemberSummary,
-  getMonthlyUsage,
+  getBillingPlans,
   getTodayMedicineDoses,
   getUserLogs,
   getUserLogEvents,
@@ -62,13 +63,13 @@ import {
   type FoodReminderPreference,
   type HealthLog,
   type HealthLogEvent,
-  type MonthlyUsageSnapshot,
   type Summary,
   type TodayDose,
   type User as ApiUser,
   type YesterdayFoodPreview,
 } from "@/lib/api";
 import { FAMCARE_WHATSAPP_LINK } from "@/lib/whatsapp";
+import { useSubscription } from "@/lib/useSubscription";
 
 type NamedLogEvent = { name: string; event: HealthLogEvent };
 
@@ -158,6 +159,10 @@ function formatEventTime(event: HealthLogEvent) {
 
 export default function HomeV2Page() {
   const router = useRouter();
+  // Shared with the sidebar wordmark and profile menu, so a fresh upgrade
+  // shows up here the moment checkout is confirmed.
+  const { usage: monthlyUsage } = useSubscription();
+  const [plusFromPrice, setPlusFromPrice] = useState<string | null>(null);
   const [user, setUser] = useState<ApiUser | null>(null);
   const [logs, setLogs] = useState<HealthLog[]>([]);
   const [logEvents, setLogEvents] = useState<HealthLogEvent[]>([]);
@@ -166,7 +171,6 @@ export default function HomeV2Page() {
   const [selfScore, setSelfScore] = useState<number | null>(null);
   const [selfDoses, setSelfDoses] = useState<TodayDose[]>([]);
   const [selfFoodPref, setSelfFoodPref] = useState<FoodReminderPreference | null>(null);
-  const [monthlyUsage, setMonthlyUsage] = useState<MonthlyUsageSnapshot | null>(null);
   const [showAddFamily, setShowAddFamily] = useState(false);
   const [chartRange, setChartRange] = useState<"week" | "month">("week");
   const [showRangeMenu, setShowRangeMenu] = useState(false);
@@ -180,6 +184,21 @@ export default function HomeV2Page() {
   const [backfillError, setBackfillError] = useState<string | null>(null);
   const rangeMenuRef = useRef<HTMLDivElement>(null);
   const streakCalendarRef = useRef<HTMLDivElement>(null);
+
+  // The upsell price comes from the same catalog checkout charges from, so the
+  // banner can never advertise a price the payments page no longer honours.
+  useEffect(() => {
+    if (!monthlyUsage || monthlyUsage.unlimited) return;
+    let cancelled = false;
+    getBillingPlans()
+      .then((data) => {
+        if (cancelled || data.plans.length === 0) return;
+        const cheapest = Math.min(...data.plans.map((entry) => entry.amount_paise));
+        setPlusFromPrice(new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 }).format(cheapest / 100));
+      })
+      .catch(() => undefined);
+    return () => { cancelled = true; };
+  }, [monthlyUsage]);
 
   useEffect(() => {
     if (!showRangeMenu) return;
@@ -260,9 +279,6 @@ export default function HomeV2Page() {
     getFoodReminderPreference(token)
       .then(setSelfFoodPref)
       .catch(() => setSelfFoodPref(null));
-    getMonthlyUsage()
-      .then(setMonthlyUsage)
-      .catch(() => setMonthlyUsage(null));
 
     getFamilyMembers(token)
       .then(async (members: FamilyMember[]) => {
@@ -794,7 +810,20 @@ export default function HomeV2Page() {
           </div>
         </section>
 
-        {monthlyUsage && !monthlyUsage.unlimited && (
+        {monthlyUsage?.status === "past_due" && (
+          <a className="homev2-pastdue-banner" href="/dashboard/payments">
+            <span className="homev2-pastdue-icon" aria-hidden="true">
+              <WarningCircle size={20} weight="fill" />
+            </span>
+            <div>
+              <strong>Your last payment didn&apos;t go through</strong>
+              <span>FamCare+ features are paused until the renewal succeeds. Tap to fix your payment.</span>
+            </div>
+            <ArrowRight size={15} weight="bold" />
+          </a>
+        )}
+
+        {monthlyUsage && !monthlyUsage.unlimited && monthlyUsage.status !== "past_due" && (
           <a className="homev2-plus-banner" href="/dashboard/payments" aria-label="Explore FamCare Plus plans">
             <span className="homev2-plus-icon" aria-hidden="true">
               <Crown size={20} weight="fill" />
@@ -804,7 +833,9 @@ export default function HomeV2Page() {
               <h2>Unlock more care for every check-in</h2>
               <p>Get more WhatsApp health logs, AI guidance and reminders for you and your family.</p>
             </div>
-            <span className="homev2-plus-price">Plans from ₹199/month</span>
+            <span className="homev2-plus-price">
+              {plusFromPrice ? `Plans from ₹${plusFromPrice}/month` : "See monthly plans"}
+            </span>
             <span className="homev2-plus-action">
               Explore Plus
               <ArrowRight size={14} weight="bold" />

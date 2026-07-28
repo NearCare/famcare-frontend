@@ -33,6 +33,18 @@ function loadSnapshot(): Promise<MonthlyUsageSnapshot | null> {
   return inFlight;
 }
 
+/**
+ * Drops the cached snapshot and refetches, pushing the result to every mounted
+ * subscriber. Call this after a plan change (checkout confirmed, add-on bought)
+ * so the FamCare+ marker appears without needing a hard reload — client-side
+ * navigation alone would keep serving the pre-payment cache.
+ */
+export function refreshSubscriptionState(): Promise<MonthlyUsageSnapshot | null> {
+  cachedSnapshot = null;
+  inFlight = null;
+  return loadSnapshot();
+}
+
 export type SubscriptionState = {
   /** True once the account is on an active paid plan. */
   isSubscribed: boolean;
