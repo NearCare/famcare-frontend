@@ -27,11 +27,13 @@ import {
   createSubscriptionCheckout,
   getBillingInvoices,
   getBillingPlans,
+  getCheckoutStatus,
   getSubscriptionDetails,
   verifySubscriptionCheckout,
   type BillingPlanKey,
   type BillingInvoice,
   type BillingPlansResponse,
+  type CheckoutStatus,
   type SubscriptionCheckout,
   type SubscriptionDetails,
 } from "@/lib/api";
@@ -99,6 +101,8 @@ function PaymentsPageContent() {
   const [plansData, setPlansData] = useState<BillingPlansResponse | null>(null);
   const [plansError, setPlansError] = useState<string | null>(null);
   const [subscription, setSubscription] = useState<SubscriptionDetails | null>(null);
+  const [subscriptionError, setSubscriptionError] = useState<string | null>(null);
+  const [subscriptionLoaded, setSubscriptionLoaded] = useState(false);
   const [scriptReady, setScriptReady] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submittingExtraParent, setSubmittingExtraParent] = useState(false);
@@ -117,10 +121,19 @@ function PaymentsPageContent() {
     return () => { cancelled = true; };
   }, []);
 
-  const refreshSubscription = useCallback(
-    () => getSubscriptionDetails().then(setSubscription).catch(() => undefined),
-    [],
-  );
+  const refreshSubscription = useCallback(async () => {
+    try {
+      const details = await getSubscriptionDetails();
+      setSubscription(details);
+      setSubscriptionError(null);
+      return details;
+    } catch (error) {
+      setSubscriptionError(error instanceof Error ? error.message : "Plan status could not be loaded.");
+      return undefined;
+    } finally {
+      setSubscriptionLoaded(true);
+    }
+  }, []);
 
   useEffect(() => {
     void refreshSubscription();
@@ -137,39 +150,52 @@ function PaymentsPageContent() {
     return () => { cancelled = true; };
   }, [hasBillingHistory]);
 
-  const plan = plansData?.plans.find((entry) => entry.plan_key === planKey) ?? null;
+  const currentPlanKey = subscription?.plan_key ?? "free";
+  const individualSubscriber = subscriptionLoaded && currentPlanKey === "individual";
+  const familySubscriber = subscriptionLoaded && currentPlanKey === "family";
+  const displayPlanKey: BillingPlanKey = individualSubscriber ? "family" : planKey;
+  const plan = familySubscriber
+    ? null
+    : plansData?.plans.find((entry) => entry.plan_key === displayPlanKey) ?? null;
   const formattedPrice = plan ? rupees(plan.amount_paise) : null;
 
+  useEffect(() => {
+    if (individualSubscriber) setPlanKey("family");
+  }, [individualSubscriber]);
+
   // ── Post-checkout success screen ────────────────────────────────────────
-  // The redirect only carries a payment reference and the amount actually
-  // charged — never a "verified"/"active" claim. Whether the plan is really
-  // active is decided here, live, from the backend on every load.
-  const successParam = searchParams.get("success");
-  const successKind = searchParams.get("kind") === "extra_parent" ? "extra_parent" : "plan";
-  const successPlanKey = (searchParams.get("plan") as BillingPlanKey | null) ?? "family";
-  const successAmountPaise = Number(searchParams.get("amount") ?? "0");
-  const successPaymentId = searchParams.get("payment_id") ?? "";
-  const hasSuccessParams = successParam === "1";
+  // The URL carries only the opaque Razorpay subscription id. All displayed
+  // plan, amount and payment data comes from the authenticated backend record.
+  const checkoutSubscriptionId = searchParams.get("checkout") ?? "";
+  const hasSuccessParams = checkoutSubscriptionId.length > 0;
+  const [checkoutStatus, setCheckoutStatus] = useState<CheckoutStatus | null>(null);
+  const [checkoutStatusError, setCheckoutStatusError] = useState<string | null>(null);
 
   const [reconcileAttempt, setReconcileAttempt] = useState(0);
   const reconcileTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const confirmed = hasSuccessParams && subscription
-    ? successKind === "extra_parent"
-      ? (subscription.extra_parents ?? 0) > 0
-      : subscription.active && subscription.plan_key === successPlanKey
-    : false;
+  const confirmed = checkoutStatus?.active === true || checkoutStatus?.scheduled === true;
 
   useEffect(() => {
     if (!hasSuccessParams || confirmed) return;
     if (reconcileAttempt >= RECONCILE_ATTEMPTS) return;
     reconcileTimer.current = setTimeout(() => {
-      refreshSubscription().finally(() => setReconcileAttempt((n) => n + 1));
+      Promise.all([
+        refreshSubscription(),
+        getCheckoutStatus(checkoutSubscriptionId)
+          .then((status) => {
+            setCheckoutStatus(status);
+            setCheckoutStatusError(null);
+          })
+          .catch((error) => {
+            setCheckoutStatusError(error instanceof Error ? error.message : "Checkout status could not be loaded.");
+          }),
+      ]).finally(() => setReconcileAttempt((n) => n + 1));
     }, RECONCILE_INTERVAL_MS);
     return () => {
       if (reconcileTimer.current) clearTimeout(reconcileTimer.current);
     };
-  }, [hasSuccessParams, confirmed, reconcileAttempt, refreshSubscription]);
+  }, [hasSuccessParams, confirmed, reconcileAttempt, refreshSubscription, checkoutSubscriptionId]);
 
   const timedOut = hasSuccessParams && !confirmed && reconcileAttempt >= RECONCILE_ATTEMPTS;
 
@@ -186,24 +212,28 @@ function PaymentsPageContent() {
     if (!hasSuccessParams) return null;
     const nextRenewal = new Date();
     nextRenewal.setMonth(nextRenewal.getMonth() + 1);
-    const fallbackAmount = successAmountPaise > 0 ? successAmountPaise : 0;
-    const planFromCatalog = plansData?.plans.find((entry) => entry.plan_key === successPlanKey);
+    const verifiedPlanKey = checkoutStatus?.plan_key ?? "family";
+    const planFromCatalog = plansData?.plans.find((entry) => entry.plan_key === verifiedPlanKey);
     return {
-      name: successKind === "extra_parent"
+      name: checkoutStatus?.kind === "extra_parent"
         ? (plansData?.extra_parent.name ?? "Extra parent")
-        : (planFromCatalog?.name ?? (successPlanKey === "family" ? "Family plan" : "Individual plan")),
-      amount: rupees(subscription && confirmed ? subscription.amount_paise || fallbackAmount : fallbackAmount),
-      nextRenewal: subscription?.current_period_end
-        ? renewalDateFormatter.format(new Date(subscription.current_period_end))
+        : (planFromCatalog?.name ?? (verifiedPlanKey === "family" ? "Family plan" : "Individual plan")),
+      amount: checkoutStatus ? rupees(checkoutStatus.amount_paise) : "—",
+      nextRenewal: checkoutStatus?.current_period_end
+        ? renewalDateFormatter.format(new Date(checkoutStatus.current_period_end))
         : renewalDateFormatter.format(nextRenewal),
     };
-  }, [hasSuccessParams, successKind, successPlanKey, successAmountPaise, plansData, subscription, confirmed]);
+  }, [hasSuccessParams, plansData, checkoutStatus]);
 
   // The timeout is not a dead end: let the user re-run the same poll cycle
   // instead of stranding them with "check back later" and no control.
   function retryReconcile() {
     if (reconcileTimer.current) clearTimeout(reconcileTimer.current);
     setReconcileAttempt(0);
+    setCheckoutStatusError(null);
+    void getCheckoutStatus(checkoutSubscriptionId).then(setCheckoutStatus).catch((error) => {
+      setCheckoutStatusError(error instanceof Error ? error.message : "Checkout status could not be loaded.");
+    });
     void refreshSubscription();
   }
 
@@ -237,8 +267,8 @@ function PaymentsPageContent() {
 
     setSubmitting(true);
     try {
-      const checkout = await createSubscriptionCheckout(planKey);
-      launchRazorpay(checkout, `FamCare ${plan?.name ?? "plan"} · monthly subscription`, "plan");
+      const checkout = await createSubscriptionCheckout(displayPlanKey);
+      launchRazorpay(checkout, `FamCare ${plan?.name ?? "plan"} · monthly subscription`);
     } catch (error) {
       setNotice({
         tone: "error",
@@ -258,7 +288,7 @@ function PaymentsPageContent() {
     setSubmittingExtraParent(true);
     try {
       const checkout = await createExtraParentCheckout();
-      launchRazorpay(checkout, "FamCare extra parent · monthly add-on", "extra_parent");
+      launchRazorpay(checkout, "FamCare extra parent · monthly add-on");
     } catch (error) {
       setNotice({
         tone: "error",
@@ -268,7 +298,10 @@ function PaymentsPageContent() {
     }
   }
 
-  function launchRazorpay(checkout: SubscriptionCheckout, description: string, kind: "plan" | "extra_parent") {
+  function launchRazorpay(
+    checkout: SubscriptionCheckout,
+    description: string,
+  ) {
     if (!window.Razorpay) return;
     const razorpay = new window.Razorpay({
       key: checkout.key_id,
@@ -291,13 +324,7 @@ function PaymentsPageContent() {
             razorpay_subscription_id: response.razorpay_subscription_id,
             razorpay_signature: response.razorpay_signature,
           });
-          const params = new URLSearchParams({
-            success: "1",
-            kind,
-            plan: checkout.plan_key,
-            amount: String(checkout.amount_paise),
-            payment_id: response.razorpay_payment_id,
-          });
+          const params = new URLSearchParams({ checkout: response.razorpay_subscription_id });
           window.location.href = `/dashboard/payments?${params.toString()}`;
           return;
         } catch (error) {
@@ -351,7 +378,7 @@ function PaymentsPageContent() {
                 <div className="payment-success-icon">
                   {confirmed ? <CheckCircle size={48} weight="fill" /> : <SpinnerGap size={40} className="payment-spin" />}
                 </div>
-                <h2>{confirmed ? "Payment successful!" : "Confirming your payment…"}</h2>
+                <h2>{confirmed ? (checkoutStatus?.scheduled ? "Upgrade scheduled!" : "Payment successful!") : "Confirming your payment…"}</h2>
                 {confirmed && (
                   <span className="payment-plus-badge">
                     <Crown size={14} weight="fill" />
@@ -360,7 +387,11 @@ function PaymentsPageContent() {
                 )}
                 <p className="payment-success-lede">
                   {confirmed
-                    ? `Your ${successKind === "extra_parent" ? "extra parent add-on" : `FamCare ${successPlanInfo?.name}`} is active.`
+                    ? checkoutStatus?.scheduled
+                      ? `Your FamCare ${successPlanInfo?.name} upgrade is scheduled for the end of your current billing period.`
+                      : `Your ${checkoutStatus?.kind === "extra_parent" ? "extra parent add-on" : `FamCare ${successPlanInfo?.name}`} is active.`
+                    : checkoutStatusError
+                      ? checkoutStatusError
                     : timedOut
                       ? "This is taking longer than usual. Your payment is safe — check back here or on Profile → Payment in a few minutes."
                       : "Your payment was received. We're waiting for the bank/Razorpay confirmation to activate your plan."}
@@ -375,10 +406,10 @@ function PaymentsPageContent() {
                 <div className="payment-success-stats">
                   <div>
                     <span>Payment ID</span>
-                    <strong>{successPaymentId || "—"}</strong>
+                    <strong>{checkoutStatus?.payment_id || "Confirming…"}</strong>
                   </div>
                   <div>
-                    <span>Amount paid</span>
+                    <span>Monthly plan price</span>
                     <strong>₹{successPlanInfo?.amount}</strong>
                   </div>
                 </div>
@@ -402,10 +433,13 @@ function PaymentsPageContent() {
 
               <div className="payment-summary-card">
                 <h3><Receipt size={18} weight="duotone" /> Payment summary</h3>
-                <div className="payment-summary-row"><span>Plan</span><strong>{successKind === "extra_parent" ? "Extra parent add-on" : `FamCare ${successPlanInfo?.name}`}</strong></div>
+                <div className="payment-summary-row"><span>Plan</span><strong>{checkoutStatus?.kind === "extra_parent" ? "Extra parent add-on" : `FamCare ${successPlanInfo?.name}`}</strong></div>
                 <div className="payment-summary-row"><span>Billing cycle</span><strong>Monthly</strong></div>
                 <div className="payment-summary-row"><span>Amount</span><strong>₹{successPlanInfo?.amount}</strong></div>
-                <div className="payment-summary-row total"><span>Total paid</span><strong>₹{successPlanInfo?.amount}</strong></div>
+                <div className="payment-summary-row total">
+                  <span>Recurring price</span>
+                  <strong>₹{successPlanInfo?.amount}</strong>
+                </div>
                 <div className={`payment-summary-status${confirmed ? "" : " pending"}`}>
                   {confirmed ? <CheckCircle size={16} weight="fill" /> : <SpinnerGap size={16} className="payment-spin" />}
                   Payment status <b>{confirmed ? "Verified" : "Processing"}</b>
@@ -414,7 +448,7 @@ function PaymentsPageContent() {
                   <div className="payment-summary-renewal">
                     <CalendarCheck size={18} weight="duotone" />
                     <div>
-                      <strong>Next renewal · {successPlanInfo?.nextRenewal}</strong>
+                      <strong>{checkoutStatus?.scheduled ? "Family plan starts" : "Next renewal"} · {successPlanInfo?.nextRenewal}</strong>
                       <span>We'll remind you before your next charge.</span>
                     </div>
                   </div>
@@ -449,21 +483,33 @@ function PaymentsPageContent() {
           <header className="payment-page-head">
             <div>
               <span>Plans & billing</span>
-              <h1>Care that keeps the whole family connected</h1>
-              <p>Choose a monthly plan. Payments and AutoPay are handled securely by Razorpay.</p>
+              <h1>
+                {familySubscriber
+                  ? "Make room for one more parent"
+                  : individualSubscriber
+                    ? "Bring your family into FamCare"
+                    : "Care that keeps the whole family connected"}
+              </h1>
+              <p>
+                {familySubscriber
+                  ? "Your Family plan is active. Add another parent whenever your family needs it."
+                  : individualSubscriber
+                    ? "Upgrade to Family to care for two parents from the same dashboard."
+                    : "Choose a monthly plan. Payments and AutoPay are handled securely by Razorpay."}
+              </p>
             </div>
-          </header>
 
-          {subscription && subscription.plan_key !== "free" && (
-            <CurrentPlanCard
-              subscription={subscription}
-              planName={
-                plansData?.plans.find((entry) => entry.plan_key === subscription.plan_key)?.name
-                ?? subscription.plan_key
-              }
-              onCancel={() => setCancelOpen(true)}
-            />
-          )}
+            {subscription && subscription.plan_key !== "free" && (
+              <CurrentPlanCard
+                subscription={subscription}
+                planName={
+                  plansData?.plans.find((entry) => entry.plan_key === subscription.plan_key)?.name
+                  ?? subscription.plan_key
+                }
+                onCancel={() => setCancelOpen(true)}
+              />
+            )}
+          </header>
 
           {planNotice && (
             <div className={`payment-notice ${planNotice.tone}`} role="status">
@@ -472,26 +518,36 @@ function PaymentsPageContent() {
             </div>
           )}
 
-          <div className="payment-plan-switch" aria-label="Choose a FamCare plan">
-            <span
-              className={`payment-plan-switch-slider ${planKey === "family" ? "family" : "individual"}`}
-              aria-hidden="true"
-            />
-            <button
-              type="button"
-              className={planKey === "individual" ? "active" : ""}
-              onClick={() => setPlanKey("individual")}
-            >
-              Individual <small>{planPillPrice(plansData, "individual")}</small>
-            </button>
-            <button
-              type="button"
-              className={planKey === "family" ? "active" : ""}
-              onClick={() => setPlanKey("family")}
-            >
-              Family <small>{planPillPrice(plansData, "family")}</small>
-            </button>
-          </div>
+          {subscriptionLoaded && subscriptionError && (
+            <div className="payment-notice error payment-load-error" role="alert">
+              <WarningCircle size={18} weight="fill" />
+              <span>{subscriptionError}</span>
+              <button type="button" onClick={() => void refreshSubscription()}>Retry</button>
+            </div>
+          )}
+
+          {subscriptionLoaded && !individualSubscriber && !familySubscriber && (
+            <div className="payment-plan-switch" aria-label="Choose a FamCare plan">
+              <span
+                className={`payment-plan-switch-slider ${planKey === "family" ? "family" : "individual"}`}
+                aria-hidden="true"
+              />
+              <button
+                type="button"
+                className={planKey === "individual" ? "active" : ""}
+                onClick={() => setPlanKey("individual")}
+              >
+                Individual <small>{planPillPrice(plansData, "individual")}</small>
+              </button>
+              <button
+                type="button"
+                className={planKey === "family" ? "active" : ""}
+                onClick={() => setPlanKey("family")}
+              >
+                Family <small>{planPillPrice(plansData, "family")}</small>
+              </button>
+            </div>
+          )}
 
           {plansError && (
             <div className="payment-notice error" role="status">
@@ -500,18 +556,18 @@ function PaymentsPageContent() {
             </div>
           )}
 
-          {!plansError && !plan && (
+          {!plansError && !subscriptionError && (!plansData || !subscriptionLoaded) && (
             <div className="payment-plans-loading" role="status" aria-label="Loading plans">
               <SpinnerGap size={22} className="payment-spin" /> Loading plans…
             </div>
           )}
 
-          {plan && (
+          {subscriptionLoaded && plan && (
             <section className="payment-checkout-grid">
-              <div className={`payment-plan-card ${planKey}`}>
+              <div className={`payment-plan-card ${displayPlanKey}`}>
                 <div className="payment-plan-art">
                   <div className="payment-plan-eyebrow">
-                    {planKey === "family" ? <Crown size={14} weight="fill" /> : <Heart size={14} weight="fill" />}
+                    {displayPlanKey === "family" ? <Crown size={14} weight="fill" /> : <Heart size={14} weight="fill" />}
                     {plan.eyebrow}
                   </div>
                   <img src="/parent_care_illustration.png" alt="A family caring for their parents together" />
@@ -544,7 +600,7 @@ function PaymentsPageContent() {
                     <span>₹</span><strong>{formattedPrice}</strong><small>/ month</small>
                   </div>
                   <p>Billed monthly · Cancel anytime</p>
-                  {planKey === "family" && plansData && (
+                  {displayPlanKey === "family" && plansData && (
                     <ExtraParentBox
                       extraParentPlan={plansData.extra_parent}
                       subscription={subscription}
@@ -561,7 +617,6 @@ function PaymentsPageContent() {
                     <span>Secure checkout</span>
                     <h2>Continue with Razorpay</h2>
                   </div>
-                  <span className="payment-razorpay-badge"><LockKey size={15} weight="duotone" /> Razorpay</span>
                 </div>
 
                 <div className="payment-method-detail">
@@ -585,7 +640,10 @@ function PaymentsPageContent() {
                 {notice && (
                   <div className={`payment-notice ${notice.tone}`} role="status">
                     {notice.tone === "success" ? <CheckCircle size={18} weight="fill" /> : <ShieldCheck size={18} />}
-                    {notice.text}
+                    <span>{notice.text}</span>
+                    {notice.tone === "error" && (
+                      <button type="button" onClick={() => void openCheckout()}>Try again</button>
+                    )}
                   </div>
                 )}
 
@@ -603,6 +661,16 @@ function PaymentsPageContent() {
                 </p>
               </div>
             </section>
+          )}
+
+          {subscriptionLoaded && familySubscriber && plansData && (
+            <FamilyAddOnView
+              extraParentPlan={plansData.extra_parent}
+              extraParents={subscription?.extra_parents ?? 0}
+              submitting={submittingExtraParent}
+              notice={notice}
+              onAdd={() => void openExtraParentCheckout()}
+            />
           )}
 
           {hasBillingHistory && (
@@ -662,10 +730,12 @@ function CurrentPlanCard({
     : null;
 
   return (
-    <section className={`payment-current-plan${pastDue ? " past-due" : ""}${ending ? " ending" : ""}`}>
+    <section className={`payment-current-plan compact${pastDue ? " past-due" : ""}${ending ? " ending" : ""}`}>
       <div className="payment-current-plan-main">
-        <span className="payment-current-plan-icon">
-          {pastDue ? <WarningCircle size={20} weight="fill" /> : <Crown size={20} weight="fill" />}
+        <span className={`payment-current-plan-icon${pastDue ? "" : " has-mark"}`}>
+          {pastDue
+            ? <WarningCircle size={20} weight="fill" />
+            : <span className="payment-current-plan-mark">Fam<b>Care</b><sup>+</sup></span>}
         </span>
         <div>
           <span className="payment-current-plan-eyebrow">
@@ -674,14 +744,14 @@ function CurrentPlanCard({
           <h2>FamCare {planName}</h2>
           <p>
             {pastDue
-              ? "Your last renewal didn't go through, so FamCare+ features are paused. Re-subscribe below to restore them."
+              ? "Your renewal is pending. Razorpay will retry it automatically and notify you if your payment method needs attention."
               : ending
                 ? periodEnd
                   ? `Active until ${periodEnd}. It won't renew after that.`
                   : "Active until the end of this billing period. It won't renew after that."
                 : periodEnd
                   ? `Renews on ${periodEnd} · ₹${rupees(subscription.amount_paise)}/month`
-                  : `₹${rupees(subscription.amount_paise)}/month · Cancel anytime`}
+                  : `₹${rupees(subscription.amount_paise)}/month`}
           </p>
         </div>
       </div>
@@ -803,6 +873,65 @@ function BillingHistory({ invoices, failed }: { invoices: BillingInvoice[] | nul
 function planPillPrice(plansData: BillingPlansResponse | null, key: BillingPlanKey): string {
   const found = plansData?.plans.find((entry) => entry.plan_key === key);
   return found ? `₹${rupees(found.amount_paise)}/mo` : "…";
+}
+
+function FamilyAddOnView({
+  extraParentPlan,
+  extraParents,
+  submitting,
+  notice,
+  onAdd,
+}: {
+  extraParentPlan: NonNullable<BillingPlansResponse["extra_parent"]>;
+  extraParents: number;
+  submitting: boolean;
+  notice: { tone: "success" | "error"; text: string } | null;
+  onAdd: () => void;
+}) {
+  return (
+    <section className="payment-family-addon-view">
+      <div className="payment-family-addon-art" aria-hidden="true">
+        <img src="/parent_care_illustration.png" alt="" />
+        <span><UsersThree size={18} weight="fill" /> Family plan</span>
+      </div>
+      <div className="payment-family-addon-copy">
+        <span className="payment-plan-brand">Fam<span>Care</span></span>
+        <h2>Add another parent</h2>
+        <p>
+          Give one more family member their own WhatsApp logs, reminders and place in your family dashboard.
+        </p>
+        <div className="payment-family-addon-meta">
+          <span><CheckCircle size={16} weight="fill" /> Separate health profile</span>
+          <span><CheckCircle size={16} weight="fill" /> Food and medication reminders</span>
+          <span><CheckCircle size={16} weight="fill" /> Included in family insights</span>
+        </div>
+        {extraParents > 0 && (
+          <div className="payment-family-addon-count">
+            {extraParents} extra parent{extraParents === 1 ? "" : "s"} already added
+          </div>
+        )}
+      </div>
+      <div className="payment-family-addon-action">
+        <span>Extra family member</span>
+        <strong>₹{rupees(extraParentPlan.amount_paise)}<small>/month</small></strong>
+        <p>Separate recurring add-on. Cancel with your Family plan.</p>
+        {notice && (
+          <div className={`payment-notice ${notice.tone}`} role="status">
+            {notice.tone === "success" ? <CheckCircle size={18} weight="fill" /> : <ShieldCheck size={18} />}
+            <span>{notice.text}</span>
+            {notice.tone === "error" && (
+              <button type="button" onClick={onAdd}>Try again</button>
+            )}
+          </div>
+        )}
+        <button type="button" className="payment-submit" disabled={submitting} onClick={onAdd}>
+          <LockKey size={18} weight="bold" />
+          {submitting ? "Opening Razorpay…" : `Add parent · ₹${rupees(extraParentPlan.amount_paise)}/month`}
+        </button>
+        <small>Secure monthly AutoPay through Razorpay</small>
+      </div>
+    </section>
+  );
 }
 
 function ExtraParentBox({

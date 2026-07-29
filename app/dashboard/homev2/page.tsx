@@ -161,7 +161,7 @@ export default function HomeV2Page() {
   const router = useRouter();
   // Shared with the sidebar wordmark and profile menu, so a fresh upgrade
   // shows up here the moment checkout is confirmed.
-  const { usage: monthlyUsage } = useSubscription();
+  const { usage: monthlyUsage, error: subscriptionError, retry: retrySubscription } = useSubscription();
   const [plusFromPrice, setPlusFromPrice] = useState<string | null>(null);
   const [user, setUser] = useState<ApiUser | null>(null);
   const [logs, setLogs] = useState<HealthLog[]>([]);
@@ -817,13 +817,26 @@ export default function HomeV2Page() {
             </span>
             <div>
               <strong>Your last payment didn&apos;t go through</strong>
-              <span>FamCare+ features are paused until the renewal succeeds. Tap to fix your payment.</span>
+              <span>Razorpay will retry the renewal automatically. Tap to view your billing status.</span>
             </div>
             <ArrowRight size={15} weight="bold" />
           </a>
         )}
 
-        {monthlyUsage && !monthlyUsage.unlimited && monthlyUsage.status !== "past_due" && (
+        {subscriptionError && (
+          <div className="homev2-pastdue-banner neutral" role="alert">
+            <span className="homev2-pastdue-icon" aria-hidden="true">
+              <WarningCircle size={20} weight="fill" />
+            </span>
+            <div>
+              <strong>Plan status is temporarily unavailable</strong>
+              <span>We won&apos;t show an upgrade or payment warning until it loads correctly.</span>
+            </div>
+            <button type="button" onClick={() => void retrySubscription()}>Retry</button>
+          </div>
+        )}
+
+        {monthlyUsage?.plan_key === "free" && monthlyUsage.status !== "past_due" && (
           <a className="homev2-plus-banner" href="/dashboard/payments" aria-label="Explore FamCare Plus plans">
             <span className="homev2-plus-icon" aria-hidden="true">
               <Crown size={20} weight="fill" />

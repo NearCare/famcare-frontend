@@ -250,6 +250,19 @@ export type SubscriptionCheckoutVerification = {
   message: string;
 };
 
+export type CheckoutStatus = {
+  subscription_id: string;
+  payment_id?: string | null;
+  plan_key: BillingPlanKey | "extra_parent";
+  kind: "base" | "extra_parent";
+  status: string;
+  active: boolean;
+  verified: boolean;
+  scheduled: boolean;
+  amount_paise: number;
+  current_period_end?: string | null;
+};
+
 export type SubscriptionDetails = {
   active: boolean;
   plan_key: BillingPlanKey | "free";
@@ -272,6 +285,7 @@ export type BillingPlanInfo = {
   description: string;
   included: string;
   amount_paise: number;
+  original_amount_paise: number;
   currency: string;
   billing_cycle: string;
   /** Parents this plan can add, before any extra-parent add-ons. */
@@ -559,6 +573,7 @@ const MOCK_PLANS: BillingPlansResponse = {
       description: "Smart WhatsApp health tracking for one person.",
       included: "Your account",
       amount_paise: 14_900,
+      original_amount_paise: 19_900,
       currency: "INR",
       billing_cycle: "monthly",
       parent_seats: 1,
@@ -576,6 +591,7 @@ const MOCK_PLANS: BillingPlansResponse = {
       description: "Everything you need to stay close to your parents’ health.",
       included: "You + 2 parents",
       amount_paise: 29_900,
+      original_amount_paise: 49_900,
       currency: "INR",
       billing_cycle: "monthly",
       parent_seats: 2,
@@ -648,6 +664,29 @@ export async function verifySubscriptionCheckout(input: {
   });
 }
 
+export async function getCheckoutStatus(subscriptionId: string): Promise<CheckoutStatus> {
+  if (MOCK_API) {
+    const planKey = subscriptionId.includes("extra") ? "extra_parent" : "family";
+    return {
+      subscription_id: subscriptionId,
+      payment_id: "pay_mock_verified",
+      plan_key: planKey,
+      kind: planKey === "extra_parent" ? "extra_parent" : "base",
+      status: "active",
+      active: true,
+      verified: true,
+      scheduled: false,
+      amount_paise: planKey === "extra_parent" ? 14_900 : 29_900,
+    };
+  }
+  const token = typeof window !== "undefined" ? localStorage.getItem("auth_token") : null;
+  if (!token) throw new Error("Please log in again to continue.");
+  return authedFetch<CheckoutStatus>(
+    `/api/billing/checkout/status?subscription_id=${encodeURIComponent(subscriptionId)}`,
+    token,
+  );
+}
+
 export async function getSubscriptionDetails(): Promise<SubscriptionDetails> {
   if (MOCK_API) {
     return {
@@ -714,6 +753,7 @@ export async function createExtraParentCheckout(): Promise<SubscriptionCheckout>
     method: "POST",
   });
 }
+
 
 export async function getChatConversations(token: string): Promise<ChatConversation[]> {
   const body = await chatRequest<{ conversations: ChatConversation[] }>("/api/chat/conversations", token);

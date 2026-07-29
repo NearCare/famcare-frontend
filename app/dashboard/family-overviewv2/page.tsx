@@ -7,6 +7,7 @@ import {
   Barbell,
   Bell,
   Clock,
+  Crown,
   Flame,
   Footprints,
   ForkKnife,
@@ -37,6 +38,7 @@ import {
   type TodayDose,
   type User,
 } from "@/lib/api";
+import { useSubscription } from "@/lib/useSubscription";
 
 type FamilyOverviewRow = {
   id: number;
@@ -114,6 +116,7 @@ function nextMedicineDose(doses: TodayDose[]) {
 }
 
 export default function FamilyOverviewV2Page() {
+  const { planKey } = useSubscription();
   const [user, setUser] = useState<User | null>(null);
   const [members, setMembers] = useState<FamilyMember[]>([]);
   const [rows, setRows] = useState<FamilyOverviewRow[]>([]);
@@ -248,6 +251,44 @@ export default function FamilyOverviewV2Page() {
             </button>
           </div>
         </header>
+
+        {planKey && <Link
+          href="/dashboard/payments"
+          className={`familyv2-upgrade-entry ${planKey}`}
+          aria-label={
+            planKey === "family"
+              ? "Add another parent to FamCare"
+              : planKey === "individual"
+                ? "Upgrade to the FamCare Family plan"
+                : "Explore FamCare Plus plans"
+          }
+        >
+          <span className="familyv2-upgrade-icon"><Crown size={18} weight="fill" /></span>
+          <span className="familyv2-upgrade-copy">
+            <strong>
+              {planKey === "family"
+                ? "Need room for another parent?"
+                : planKey === "individual"
+                  ? "Care for both parents together"
+                  : "Bring more family care into FamCare"}
+            </strong>
+            <small>
+              {planKey === "family"
+                ? "Add a separate family profile with their own logs and reminders."
+                : planKey === "individual"
+                  ? "Upgrade to Family for two parent profiles and shared family insights."
+                  : "Compare Individual and Family plans when you’re ready."}
+            </small>
+          </span>
+          <span className="familyv2-upgrade-action">
+            {planKey === "family"
+              ? "Add parent · ₹149/mo"
+              : planKey === "individual"
+                ? "Upgrade to Family"
+                : "Explore FamCare+"}
+            <ArrowRight size={14} weight="bold" />
+          </span>
+        </Link>}
 
         {error && <p className="familyv2-page-error" role="alert">{error}</p>}
         <section className="familyv2-table-shell" aria-label="Family health overview">

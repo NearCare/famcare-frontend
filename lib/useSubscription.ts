@@ -12,8 +12,15 @@ import { getMonthlyUsage, type MonthlyUsageSnapshot } from "./api";
  * this to a single request per page load.
  */
 let cachedSnapshot: MonthlyUsageSnapshot | null = null;
+let cachedError: string | null = null;
 let inFlight: Promise<MonthlyUsageSnapshot | null> | null = null;
-const subscribers = new Set<(snapshot: MonthlyUsageSnapshot | null) => void>();
+type CachedState = { snapshot: MonthlyUsageSnapshot | null; error: string | null };
+const subscribers = new Set<(state: CachedState) => void>();
+
+function publish() {
+  const state = { snapshot: cachedSnapshot, error: cachedError };
+  subscribers.forEach((notify) => notify(state));
+}
 
 function loadSnapshot(): Promise<MonthlyUsageSnapshot | null> {
   if (cachedSnapshot) return Promise.resolve(cachedSnapshot);
@@ -22,10 +29,15 @@ function loadSnapshot(): Promise<MonthlyUsageSnapshot | null> {
   inFlight = getMonthlyUsage()
     .then((snapshot) => {
       cachedSnapshot = snapshot;
-      subscribers.forEach((notify) => notify(snapshot));
+      cachedError = null;
+      publish();
       return snapshot;
     })
-    .catch(() => null)
+    .catch((error) => {
+      cachedError = error instanceof Error ? error.message : "Plan status could not be loaded.";
+      publish();
+      return null;
+    })
     .finally(() => {
       inFlight = null;
     });
@@ -41,6 +53,7 @@ function loadSnapshot(): Promise<MonthlyUsageSnapshot | null> {
  */
 export function refreshSubscriptionState(): Promise<MonthlyUsageSnapshot | null> {
   cachedSnapshot = null;
+  cachedError = null;
   inFlight = null;
   return loadSnapshot();
 }
@@ -50,24 +63,31 @@ export type SubscriptionState = {
   isSubscribed: boolean;
   planKey: MonthlyUsageSnapshot["plan_key"] | null;
   usage: MonthlyUsageSnapshot | null;
+  loading: boolean;
+  error: string | null;
+  retry: () => Promise<MonthlyUsageSnapshot | null>;
 };
 
 export function useSubscription(): SubscriptionState {
-  const [snapshot, setSnapshot] = useState<MonthlyUsageSnapshot | null>(cachedSnapshot);
+  const [state, setState] = useState<CachedState>({
+    snapshot: cachedSnapshot,
+    error: cachedError,
+  });
 
   useEffect(() => {
-    subscribers.add(setSnapshot);
-    void loadSnapshot().then((loaded) => {
-      if (loaded) setSnapshot(loaded);
-    });
+    subscribers.add(setState);
+    void loadSnapshot();
     return () => {
-      subscribers.delete(setSnapshot);
+      subscribers.delete(setState);
     };
   }, []);
 
   return {
-    isSubscribed: snapshot?.unlimited === true,
-    planKey: snapshot?.plan_key ?? null,
-    usage: snapshot,
+    isSubscribed: state.snapshot?.unlimited === true,
+    planKey: state.snapshot?.plan_key ?? null,
+    usage: state.snapshot,
+    loading: state.snapshot === null && state.error === null,
+    error: state.error,
+    retry: refreshSubscriptionState,
   };
 }
