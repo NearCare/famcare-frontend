@@ -16,7 +16,6 @@ import {
   UsersThree,
 } from "@phosphor-icons/react";
 import Sidebar from "../components/Sidebar";
-import V2RouteGate from "../components/V2RouteGate";
 import AddFamilyModal from "../components/AddFamilyModal";
 import FamilyFoodReminderDrawer from "../components/FamilyFoodReminderDrawer";
 import PageLoader from "../components/PageLoader";
@@ -40,6 +39,7 @@ import {
 } from "@/lib/api";
 import { captureEvent, identifyUser } from "@/lib/analytics";
 import { useSubscription } from "@/lib/useSubscription";
+import { isV2Enabled } from "@/lib/v2Feature";
 
 type FamilyOverviewRow = {
   id: number;
@@ -141,19 +141,29 @@ export default function FamilyOverviewV2Page() {
   }, [activeMembers, user]);
 
   const load = useCallback(async () => {
+    let redirecting = false;
     try {
       setLoading(true);
       setError(null);
       const stored = localStorage.getItem("auth_user");
       const authUser: User | null = stored ? JSON.parse(stored) : null;
       if (!authUser) {
+        redirecting = true;
         window.location.href = "/login";
         return;
       }
       setUser(authUser);
       identifyUser(authUser);
       const token = localStorage.getItem("auth_token") ?? "";
-      const loadedMembers = await getFamilyMembers(token);
+      const [loadedMembers, v2Enabled] = await Promise.all([
+        getFamilyMembers(token),
+        isV2Enabled(token),
+      ]);
+      if (!v2Enabled) {
+        redirecting = true;
+        window.location.replace("/dashboard");
+        return;
+      }
       const active = loadedMembers.filter((member) => member.status === "active");
       setMembers(loadedMembers);
       captureEvent("family_overview_v2_viewed", { member_count: active.length });
@@ -169,7 +179,9 @@ export default function FamilyOverviewV2Page() {
           person.isSelf ? getUserLogs(person.id, 7) : getMemberLogs(person.id, token, 7),
           person.isSelf ? getUserLogEvents(person.id, 7) : getMemberLogEvents(person.id, token, 7),
           getTodayMedicineDoses(person.id, token),
-          getFoodReminderPreference(token, person.id),
+          person.isSelf || v2Enabled
+            ? getFoodReminderPreference(token, person.id)
+            : Promise.resolve(null),
         ]);
         const logs = logsResult.status === "fulfilled" ? logsResult.value : [];
         const events = eventsResult.status === "fulfilled" ? eventsResult.value : [];
@@ -198,7 +210,7 @@ export default function FamilyOverviewV2Page() {
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : "Could not load your family.");
     } finally {
-      setLoading(false);
+      if (!redirecting) setLoading(false);
     }
   }, []);
 
@@ -218,7 +230,6 @@ export default function FamilyOverviewV2Page() {
   }
 
   return (
-    <V2RouteGate>
     <div className="db-page">
       <Sidebar />
       <main className="db-main familyv2-main">
@@ -491,6 +502,5 @@ export default function FamilyOverviewV2Page() {
         />
       )}
     </div>
-    </V2RouteGate>
   );
 }

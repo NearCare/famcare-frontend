@@ -1004,9 +1004,7 @@ a {
     gap: 10px;
     padding: max(14px, env(safe-area-inset-top)) 16px 12px;
     border-bottom: 1px solid rgba(228, 233, 242, .8);
-    background: rgba(255, 255, 255, .82);
-    backdrop-filter: blur(20px) saturate(150%);
-    -webkit-backdrop-filter: blur(20px) saturate(150%);
+    background: #fff;
     font-family: 'Plus Jakarta Sans', var(--font-jakarta), system-ui, sans-serif;
   }
   .mobile-back-bar-btn {
@@ -1045,23 +1043,43 @@ a {
     font-family: 'Plus Jakarta Sans', var(--font-jakarta), system-ui, sans-serif;
   }
   .mobile-health-dock-main {
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
     height: 64px;
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
     align-items: center;
     padding: 5px 7px;
-    border: 1px solid rgba(255, 255, 255, .76);
+    border: 1px solid rgba(255, 255, 255, .82);
     border-radius: 21px;
-    background: rgba(255, 255, 255, .74);
+    background:
+      linear-gradient(135deg, rgba(255, 255, 255, .58), rgba(255, 255, 255, .28));
     box-shadow:
-      0 18px 42px rgba(29, 37, 55, .16),
-      inset 0 1px 0 rgba(255, 255, 255, .92);
-    backdrop-filter: blur(24px) saturate(155%);
-    -webkit-backdrop-filter: blur(24px) saturate(155%);
+      0 18px 44px rgba(17, 24, 39, .18),
+      0 2px 8px rgba(17, 24, 39, .08),
+      inset 0 1px 0 rgba(255, 255, 255, .98),
+      inset 0 -1px 0 rgba(255, 255, 255, .34);
+    backdrop-filter: blur(28px) saturate(180%) contrast(1.04);
+    -webkit-backdrop-filter: blur(28px) saturate(180%) contrast(1.04);
     pointer-events: auto;
+  }
+  .mobile-health-dock-main::before {
+    content: "";
+    position: absolute;
+    z-index: -1;
+    inset: 1px;
+    border-radius: 20px;
+    background:
+      linear-gradient(118deg, rgba(255, 255, 255, .62) 0%, rgba(255, 255, 255, .08) 42%, rgba(255, 255, 255, .3) 100%);
+    box-shadow:
+      inset 0 1px 1px rgba(255, 255, 255, .88),
+      inset 0 -8px 18px rgba(255, 255, 255, .12);
+    pointer-events: none;
   }
   .mobile-health-dock-item {
     position: relative;
+    z-index: 1;
     height: 53px;
     min-width: 0;
     display: flex;
@@ -1072,7 +1090,7 @@ a {
     padding: 0;
     border: 0;
     border-radius: 16px;
-    color: #7F8798;
+    color: #111318;
     background: transparent;
     font-family: inherit;
     text-decoration: none;
@@ -1091,17 +1109,21 @@ a {
     max-width: 100%;
     color: inherit;
     font-size: 8.5px;
-    font-weight: 800;
+    font-weight: 600;
     line-height: 1;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
   .mobile-health-dock-item.active {
-    color: var(--he-coral-deep);
-    background: linear-gradient(145deg, rgba(255, 240, 238, .9), rgba(255, 249, 248, .62));
+    color: #050608;
+    background: linear-gradient(145deg, rgba(255, 255, 255, .62), rgba(255, 255, 255, .28));
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, .92),
+      0 5px 14px rgba(17, 24, 39, .08);
   }
   .mobile-health-dock-item.active > span {
-    background: rgba(255, 107, 107, .1);
+    background: rgba(255, 255, 255, .46);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .86);
   }
   .mobile-health-dock-item:active { transform: scale(.94); }
   .mobile-health-ai {
@@ -2438,6 +2460,11 @@ a {
   .ha-clear-popover {
     right: 0;
     top: 38px;
+  }
+}
+@media(max-width: 820px) {
+  .db-page:has(.mobile-health-dock) .ha-chat {
+    padding-bottom: calc(76px + max(10px, env(safe-area-inset-bottom)));
   }
 }
 @media(max-width: 520px) {
@@ -5150,6 +5177,26 @@ a {
   .cc-layout { grid-template-columns: 1fr; }
   .cc-result-card { position: relative; top: auto; min-height: 0; }
   .cc-result-content { max-width: 570px; margin: 0 auto; }
+}
+
+@media (max-width: 760px) {
+  .db-main.cc-main:has(.cc-form > .cc-submit) {
+    padding-bottom: calc(72px + max(14px, env(safe-area-inset-bottom))) !important;
+  }
+  .cc-form > .cc-submit {
+    position: fixed;
+    z-index: 850;
+    right: 14px;
+    bottom: max(14px, env(safe-area-inset-bottom));
+    left: 14px;
+    width: auto;
+    min-height: 56px;
+    margin: 0;
+    box-shadow: 0 16px 38px rgba(232, 70, 75, .3);
+  }
+  .cc-form > .cc-submit:hover {
+    transform: none;
+  }
 }
 
 @media (max-width: 620px) {
@@ -10235,6 +10282,11 @@ a {
     padding: 16px 14px calc(104px + env(safe-area-inset-bottom));
     background: linear-gradient(180deg, #fff 0%, #fffaf8 45%, #fff 100%);
   }
+  .db-main.payment-page {
+    padding-right: 14px !important;
+    padding-bottom: calc(72px + max(14px, env(safe-area-inset-bottom))) !important;
+    padding-left: 14px !important;
+  }
   .payment-page-head { flex-wrap: wrap; gap: 10px; }
   .payment-page-head > div { min-width: 0; }
   .payment-current-plan.compact { width: 100%; margin-right: 0; }
@@ -10280,6 +10332,20 @@ a {
   .payment-plan-features small { white-space: normal; }
   .payment-action-card { padding: 17px 14px; }
   .payment-action-heading h2 { font-size: 18px; }
+  .payment-action-card > .payment-submit {
+    position: fixed;
+    z-index: 850;
+    right: 14px;
+    bottom: max(14px, env(safe-area-inset-bottom));
+    left: 14px;
+    width: auto;
+    min-height: 56px;
+    margin: 0;
+    box-shadow: 0 16px 38px rgba(47, 111, 196, .34);
+  }
+  .payment-action-card > .payment-submit:hover:not(:disabled) {
+    transform: none;
+  }
   .payment-trust-row {
     grid-template-columns: 1fr;
     gap: 0;
