@@ -206,6 +206,33 @@ a {
   font-size: 13px;
   line-height: 1.15;
 }
+.db-nav-label-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  max-width: 100%;
+}
+.db-beta-badge {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  width: fit-content;
+  padding: 2px 6px;
+  border: 1px solid #DCE1EA;
+  border-radius: 999px;
+  background: #EEF1F6;
+  color: #5B6472;
+  font-size: 7.5px;
+  font-weight: 850;
+  line-height: 1;
+  letter-spacing: .02em;
+  text-transform: uppercase;
+}
+.db-nav-item.active .db-beta-badge {
+  border-color: rgba(255, 107, 107, .25);
+  background: rgba(255, 255, 255, .7);
+}
 .db-nav-item .ni-icon {
   width: 19px; height: 19px; flex: none;
   color: var(--he-ink-3);
@@ -255,20 +282,6 @@ a {
   color: var(--he-coral-deep);
   box-shadow: 0 5px 12px rgba(255,107,107,.12);
 }
-.db-logout-item {
-  width: 100%;
-  border: none;
-  background: transparent;
-  font-family: inherit;
-  margin-top: 8px;
-  color: var(--he-coral-deep);
-  text-align: left;
-  appearance: none;
-}
-.db-logout-item span { text-align: left; }
-.db-logout-item .ni-icon { color: var(--he-coral); }
-.db-logout-item:hover { background: var(--he-coral-bg); }
-
 .db-motiv {
   background: linear-gradient(160deg, #FFF1EF 0%, #FFE9F0 100%);
   border-radius: var(--he-r-mid);
@@ -1091,7 +1104,7 @@ a {
   }
   .mobile-health-dock-item:active { transform: scale(.94); }
   .mobile-health-ai {
-    height: 64px;
+    height: 72px;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -1130,6 +1143,20 @@ a {
     font-size: 7px;
     font-weight: 900;
     letter-spacing: -.02em;
+  }
+  .mobile-health-ai-beta {
+    margin-top: 1px;
+    padding: 1px 6px;
+    border: 1px solid rgba(232, 70, 75, .3);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, .7);
+    color: var(--he-coral-deep);
+    font-size: 6px;
+    font-weight: 900;
+    font-style: normal;
+    letter-spacing: .03em;
+    line-height: 1.4;
+    text-transform: uppercase;
   }
   .mobile-health-ai.active {
     box-shadow:

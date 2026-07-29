@@ -6,7 +6,6 @@ import { House, Pill, ChartLine, UserCircle } from "@phosphor-icons/react";
 
 type MobileBottomNavProps = {
   assistantEnabled: boolean;
-  onLogout: () => void;
 };
 
 const primaryItems = [
@@ -71,6 +70,7 @@ export default function MobileBottomNav({ assistantEnabled }: MobileBottomNavPro
             <img src="/mascot.png" alt="" />
           </span>
           <small>AI Coach</small>
+          <em className="mobile-health-ai-beta">Beta</em>
         </Link>
       )}
     </nav>
