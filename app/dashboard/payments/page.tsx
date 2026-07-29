@@ -37,6 +37,7 @@ import {
   type SubscriptionCheckout,
   type SubscriptionDetails,
 } from "@/lib/api";
+import { captureEvent } from "@/lib/analytics";
 import { refreshSubscriptionState, useSubscription } from "@/lib/useSubscription";
 
 type RazorpayResponse = {
@@ -113,6 +114,9 @@ function PaymentsPageContent() {
   const [cancelling, setCancelling] = useState(false);
   const [invoices, setInvoices] = useState<BillingInvoice[] | null>(null);
   const [invoicesError, setInvoicesError] = useState(false);
+  const pageViewTracked = useRef(false);
+  const confirmationTracked = useRef(false);
+  const timeoutTracked = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -172,6 +176,16 @@ function PaymentsPageContent() {
   const [checkoutStatus, setCheckoutStatus] = useState<CheckoutStatus | null>(null);
   const [checkoutStatusError, setCheckoutStatusError] = useState<string | null>(null);
 
+  useEffect(() => {
+    if (!subscriptionLoaded || pageViewTracked.current) return;
+    pageViewTracked.current = true;
+    captureEvent("billing_page_viewed", {
+      current_plan: currentPlanKey,
+      has_active_subscription: subscription?.active === true,
+      checkout_confirmation: hasSuccessParams,
+    });
+  }, [currentPlanKey, hasSuccessParams, subscription?.active, subscriptionLoaded]);
+
   const [reconcileAttempt, setReconcileAttempt] = useState(0);
   const reconcileTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -206,8 +220,22 @@ function PaymentsPageContent() {
   // away — "Go to home" is a client-side navigation and would keep the old one.
   useEffect(() => {
     if (!confirmed) return;
+    if (!confirmationTracked.current) {
+      confirmationTracked.current = true;
+      captureEvent("subscription_checkout_confirmed", {
+        plan_key: checkoutStatus?.plan_key ?? null,
+        checkout_kind: checkoutStatus?.kind ?? null,
+        scheduled: checkoutStatus?.scheduled === true,
+      });
+    }
     void refreshSubscriptionState();
-  }, [confirmed]);
+  }, [checkoutStatus?.kind, checkoutStatus?.plan_key, checkoutStatus?.scheduled, confirmed]);
+
+  useEffect(() => {
+    if (!timedOut || timeoutTracked.current) return;
+    timeoutTracked.current = true;
+    captureEvent("subscription_checkout_confirmation_timed_out");
+  }, [timedOut]);
 
   const successPlanInfo = useMemo(() => {
     if (!hasSuccessParams) return null;
@@ -229,6 +257,7 @@ function PaymentsPageContent() {
   // The timeout is not a dead end: let the user re-run the same poll cycle
   // instead of stranding them with "check back later" and no control.
   function retryReconcile() {
+    captureEvent("subscription_checkout_confirmation_retried");
     if (reconcileTimer.current) clearTimeout(reconcileTimer.current);
     setReconcileAttempt(0);
     setCheckoutStatusError(null);
@@ -249,10 +278,16 @@ function PaymentsPageContent() {
       // Plan stays live until the period ends, so the FamCare+ marker stays too —
       // but extra-parent seats and renewal copy change, so re-read the snapshot.
       void refreshSubscriptionState();
+      captureEvent("subscription_cancellation_scheduled", {
+        plan_key: subscription?.plan_key ?? null,
+      });
     } catch (error) {
       setPlanNotice({
         tone: "error",
         text: error instanceof Error ? error.message : "Your plan could not be cancelled right now.",
+      });
+      captureEvent("subscription_cancellation_failed", {
+        plan_key: subscription?.plan_key ?? null,
       });
     } finally {
       setCancelling(false);
@@ -261,19 +296,35 @@ function PaymentsPageContent() {
 
   async function openCheckout() {
     setNotice(null);
+    captureEvent("subscription_checkout_started", {
+      plan_key: displayPlanKey,
+      checkout_kind: "base",
+    });
     if (!scriptReady || !window.Razorpay) {
       setNotice({ tone: "error", text: "Secure checkout is still loading. Try again in a moment." });
+      captureEvent("subscription_checkout_blocked", {
+        plan_key: displayPlanKey,
+        reason: "razorpay_not_ready",
+      });
       return;
     }
 
     setSubmitting(true);
     try {
       const checkout = await createSubscriptionCheckout(displayPlanKey);
+      captureEvent("subscription_checkout_created", {
+        plan_key: displayPlanKey,
+        checkout_kind: "base",
+      });
       launchRazorpay(checkout, `FamCare ${plan?.name ?? "plan"} · monthly subscription`);
     } catch (error) {
       setNotice({
         tone: "error",
         text: error instanceof Error ? error.message : "Checkout could not be started.",
+      });
+      captureEvent("subscription_checkout_creation_failed", {
+        plan_key: displayPlanKey,
+        checkout_kind: "base",
       });
       setSubmitting(false);
     }
@@ -281,19 +332,35 @@ function PaymentsPageContent() {
 
   async function openExtraParentCheckout() {
     setNotice(null);
+    captureEvent("subscription_checkout_started", {
+      plan_key: "extra_parent",
+      checkout_kind: "extra_parent",
+    });
     if (!scriptReady || !window.Razorpay) {
       setNotice({ tone: "error", text: "Secure checkout is still loading. Try again in a moment." });
+      captureEvent("subscription_checkout_blocked", {
+        plan_key: "extra_parent",
+        reason: "razorpay_not_ready",
+      });
       return;
     }
 
     setSubmittingExtraParent(true);
     try {
       const checkout = await createExtraParentCheckout();
+      captureEvent("subscription_checkout_created", {
+        plan_key: "extra_parent",
+        checkout_kind: "extra_parent",
+      });
       launchRazorpay(checkout, "FamCare extra parent · monthly add-on");
     } catch (error) {
       setNotice({
         tone: "error",
         text: error instanceof Error ? error.message : "Checkout could not be started.",
+      });
+      captureEvent("subscription_checkout_creation_failed", {
+        plan_key: "extra_parent",
+        checkout_kind: "extra_parent",
       });
       setSubmittingExtraParent(false);
     }
@@ -304,6 +371,7 @@ function PaymentsPageContent() {
     description: string,
   ) {
     if (!window.Razorpay) return;
+    const checkoutKind = checkout.plan_key === "extra_parent" ? "extra_parent" : "base";
     const razorpay = new window.Razorpay({
       key: checkout.key_id,
       subscription_id: checkout.subscription_id,
@@ -325,6 +393,10 @@ function PaymentsPageContent() {
             razorpay_subscription_id: response.razorpay_subscription_id,
             razorpay_signature: response.razorpay_signature,
           });
+          captureEvent("subscription_payment_verified", {
+            plan_key: checkout.plan_key,
+            checkout_kind: checkoutKind,
+          });
           const params = new URLSearchParams({ checkout: response.razorpay_subscription_id });
           window.location.href = `/dashboard/payments?${params.toString()}`;
           return;
@@ -333,6 +405,10 @@ function PaymentsPageContent() {
             tone: "error",
             text: error instanceof Error ? error.message : "Payment verification is pending.",
           });
+          captureEvent("subscription_payment_verification_failed", {
+            plan_key: checkout.plan_key,
+            checkout_kind: checkoutKind,
+          });
         } finally {
           setSubmitting(false);
           setSubmittingExtraParent(false);
@@ -340,6 +416,10 @@ function PaymentsPageContent() {
       },
       modal: {
         ondismiss: () => {
+          captureEvent("subscription_checkout_dismissed", {
+            plan_key: checkout.plan_key,
+            checkout_kind: checkoutKind,
+          });
           setSubmitting(false);
           setSubmittingExtraParent(false);
         },
@@ -352,6 +432,14 @@ function PaymentsPageContent() {
         tone: "error",
         text: response.error?.description ?? "Payment failed. Please try another payment method.",
       });
+      captureEvent("subscription_payment_failed", {
+        plan_key: checkout.plan_key,
+        checkout_kind: checkoutKind,
+      });
+    });
+    captureEvent("subscription_checkout_opened", {
+      plan_key: checkout.plan_key,
+      checkout_kind: checkoutKind,
     });
     razorpay.open();
   }
@@ -507,7 +595,12 @@ function PaymentsPageContent() {
                   plansData?.plans.find((entry) => entry.plan_key === subscription.plan_key)?.name
                   ?? subscription.plan_key
                 }
-                onCancel={() => setCancelOpen(true)}
+                onCancel={() => {
+                  setCancelOpen(true);
+                  captureEvent("subscription_cancellation_opened", {
+                    plan_key: subscription.plan_key,
+                  });
+                }}
               />
             )}
           </header>
@@ -536,14 +629,20 @@ function PaymentsPageContent() {
               <button
                 type="button"
                 className={planKey === "individual" ? "active" : ""}
-                onClick={() => setPlanKey("individual")}
+                onClick={() => {
+                  setPlanKey("individual");
+                  captureEvent("billing_plan_selected", { plan_key: "individual" });
+                }}
               >
                 Individual <small>{planPillPrice(plansData, "individual")}</small>
               </button>
               <button
                 type="button"
                 className={planKey === "family" ? "active" : ""}
-                onClick={() => setPlanKey("family")}
+                onClick={() => {
+                  setPlanKey("family");
+                  captureEvent("billing_plan_selected", { plan_key: "family" });
+                }}
               >
                 Family <small>{planPillPrice(plansData, "family")}</small>
               </button>

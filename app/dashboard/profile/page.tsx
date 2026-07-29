@@ -76,6 +76,7 @@ export default function ProfilePage() {
     if (!storedUser) return;
     try {
       setUser(JSON.parse(storedUser) as User);
+      captureEvent("profile_viewed");
     } catch {
       setUser(null);
     }
@@ -147,7 +148,14 @@ export default function ProfilePage() {
               ))}
             </div>
             {!usage.unlimited && usage.items.some((item) => item.used >= item.warning_at) && (
-              <a className="profile-usage-upgrade" href="/dashboard/payments">
+              <a
+                className="profile-usage-upgrade"
+                href="/dashboard/payments"
+                onClick={() => captureEvent("billing_entry_clicked", {
+                  source: "profile_usage_limit",
+                  current_plan: usage.plan_key,
+                })}
+              >
                 Upgrade FamCare
               </a>
             )}
@@ -210,7 +218,14 @@ export default function ProfilePage() {
                 )}
               </>
             ) : (
-              <a className="profile-usage-upgrade" href="/dashboard/payments">
+              <a
+                className="profile-usage-upgrade"
+                href="/dashboard/payments"
+                onClick={() => captureEvent("billing_entry_clicked", {
+                  source: "profile_subscription",
+                  current_plan: subscription.plan_key,
+                })}
+              >
                 See FamCare+ plans
               </a>
             )}
@@ -221,7 +236,15 @@ export default function ProfilePage() {
           {profileLinks.map((item) => {
             const Icon = item.icon;
             return (
-              <Link key={item.href} href={item.href} className="profile-page-link">
+              <Link
+                key={item.href}
+                href={item.href}
+                className="profile-page-link"
+                onClick={() => captureEvent("profile_tool_clicked", {
+                  destination: item.href,
+                  label: item.label,
+                })}
+              >
                 <span className={`profile-page-link-icon ${item.tone}`}>
                   <Icon size={19} weight="bold" />
                 </span>
@@ -238,7 +261,14 @@ export default function ProfilePage() {
         <div className="profile-page-spacer" aria-hidden="true" />
 
         <div className="profile-page-links">
-          <Link href="/dashboard/review" className="profile-page-link">
+          <Link
+            href="/dashboard/review"
+            className="profile-page-link"
+            onClick={() => captureEvent("profile_tool_clicked", {
+              destination: "/dashboard/review",
+              label: "Feedback for FamCare",
+            })}
+          >
             <span className="profile-page-link-icon violet">
               <ChatCircleText size={19} weight="bold" />
             </span>

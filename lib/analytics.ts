@@ -16,8 +16,10 @@ export function initAnalytics() {
 
   posthog.init(key, {
     api_host: POSTHOG_HOST,
+    autocapture: false,
     capture_pageview: "history_change",
     capture_pageleave: true,
+    disable_session_recording: true,
     person_profiles: "identified_only",
   });
   initialized = true;
@@ -28,7 +30,6 @@ export function identifyUser(user: User) {
   if (!initAnalytics()) return;
   posthog.identify(String(user.id), {
     user_id: user.id,
-    phone_last4: user.phone.slice(-4),
     has_name: Boolean(user.name),
   });
 }

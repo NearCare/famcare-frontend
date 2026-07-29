@@ -38,6 +38,7 @@ import {
   type TodayDose,
   type User,
 } from "@/lib/api";
+import { captureEvent, identifyUser } from "@/lib/analytics";
 import { useSubscription } from "@/lib/useSubscription";
 
 type FamilyOverviewRow = {
@@ -150,10 +151,12 @@ export default function FamilyOverviewV2Page() {
         return;
       }
       setUser(authUser);
+      identifyUser(authUser);
       const token = localStorage.getItem("auth_token") ?? "";
       const loadedMembers = await getFamilyMembers(token);
       const active = loadedMembers.filter((member) => member.status === "active");
       setMembers(loadedMembers);
+      captureEvent("family_overview_v2_viewed", { member_count: active.length });
 
       const loadRow = async (person: {
         id: number;
@@ -238,6 +241,7 @@ export default function FamilyOverviewV2Page() {
               onClick={() => {
                 setReminderTargetId(activeMembers[0]?.id ?? null);
                 setShowReminders(true);
+                captureEvent("family_reminders_opened", { source: "family_overview_header" });
               }}
               disabled={activeMembers.length === 0}
               title={activeMembers.length === 0 ? "Add a family member first" : "Manage family food reminders"}
@@ -245,7 +249,10 @@ export default function FamilyOverviewV2Page() {
               <Bell size={17} weight="bold" />
               Manage reminders
             </button>
-            <button type="button" className="familyv2-action primary" onClick={() => setShowAddFamily(true)}>
+            <button type="button" className="familyv2-action primary" onClick={() => {
+              setShowAddFamily(true);
+              captureEvent("family_member_add_started", { source: "family_overview_header" });
+            }}>
               <Plus size={18} weight="bold" />
               Add family member
             </button>
@@ -255,6 +262,10 @@ export default function FamilyOverviewV2Page() {
         {planKey && <Link
           href="/dashboard/payments"
           className={`familyv2-upgrade-entry ${planKey}`}
+          onClick={() => captureEvent("billing_entry_clicked", {
+            source: "family_overview_v2",
+            current_plan: planKey,
+          })}
           aria-label={
             planKey === "family"
               ? "Add another parent to FamCare"
@@ -374,7 +385,15 @@ export default function FamilyOverviewV2Page() {
                     </div>
                     <b title={eventTitle(latestEvent)}>{eventTitle(latestEvent)}</b>
                     <span>{eventDetails(latestEvent)}</span>
-                    <Link href="/dashboard/logs">View logs <ArrowRight size={13} weight="bold" /></Link>
+                    <Link
+                      href="/dashboard/logs"
+                      onClick={() => captureEvent("health_logs_entry_clicked", {
+                        source: "family_overview_v2",
+                        subject_type: row.isSelf ? "self" : "family",
+                      })}
+                    >
+                      View logs <ArrowRight size={13} weight="bold" />
+                    </Link>
                   </div>
 
                   <div className="familyv2-compact-card medicine" data-label="Next medication reminder">
@@ -394,7 +413,13 @@ export default function FamilyOverviewV2Page() {
                         <span>No upcoming dose today</span>
                       </>
                     )}
-                    <Link href={`/dashboard/medications?person=${row.isSelf ? "self" : `member-${row.id}`}`}>
+                    <Link
+                      href={`/dashboard/medications?person=${row.isSelf ? "self" : `member-${row.id}`}`}
+                      onClick={() => captureEvent("medications_entry_clicked", {
+                        source: "family_overview_v2",
+                        subject_type: row.isSelf ? "self" : "family",
+                      })}
+                    >
                       View all reminders <ArrowRight size={13} weight="bold" />
                     </Link>
                   </div>
@@ -428,6 +453,10 @@ export default function FamilyOverviewV2Page() {
                       onClick={() => {
                         setReminderTargetId(row.id);
                         setShowReminders(true);
+                        captureEvent("family_reminders_opened", {
+                          source: "family_overview_row",
+                          subject_type: row.isSelf ? "self" : "family",
+                        });
                       }}
                     >
                       Set food reminder <ArrowRight size={13} weight="bold" />
@@ -443,11 +472,14 @@ export default function FamilyOverviewV2Page() {
       {showAddFamily && (
         <AddFamilyModal
           onClose={() => setShowAddFamily(false)}
-          onAdded={(member) => setMembers((current) => (
-            current.some((item) => item.id === member.id)
-              ? current.map((item) => item.id === member.id ? member : item)
-              : [...current, member]
-          ))}
+          onAdded={(member) => {
+            setMembers((current) => (
+              current.some((item) => item.id === member.id)
+                ? current.map((item) => item.id === member.id ? member : item)
+                : [...current, member]
+            ));
+            captureEvent("family_member_added", { source: "family_overview_v2" });
+          }}
           onActivated={() => void load()}
         />
       )}

@@ -45,6 +45,7 @@ import {
   type HealthLog,
   type User as ApiUser,
 } from "@/lib/api";
+import { captureEvent, identifyUser } from "@/lib/analytics";
 
 type RangeKey = "7d" | "30d" | "3m" | "custom";
 
@@ -200,6 +201,11 @@ export default function StatisticsPage() {
       return;
     }
     setUser(authUser);
+    identifyUser(authUser);
+    captureEvent("statistics_viewed", {
+      range: "30d",
+      subject_type: "self",
+    });
     getFamilyMembers(token)
       .then((members) => setFamilyMembers(members.filter((member) => member.status === "active")))
       .catch(() => setFamilyMembers([]));
@@ -381,7 +387,11 @@ export default function StatisticsPage() {
                   <button
                     type="button"
                     className={selectedMemberId === 0 ? "active" : ""}
-                    onClick={() => { setSelectedMemberId(0); setShowMemberMenu(false); }}
+                    onClick={() => {
+                      setSelectedMemberId(0);
+                      setShowMemberMenu(false);
+                      captureEvent("statistics_subject_changed", { subject_type: "self" });
+                    }}
                   >
                     {user?.name ?? "You"}
                   </button>
@@ -390,7 +400,11 @@ export default function StatisticsPage() {
                       key={member.id}
                       type="button"
                       className={selectedMemberId === member.id ? "active" : ""}
-                      onClick={() => { setSelectedMemberId(member.id); setShowMemberMenu(false); }}
+                      onClick={() => {
+                        setSelectedMemberId(member.id);
+                        setShowMemberMenu(false);
+                        captureEvent("statistics_subject_changed", { subject_type: "family" });
+                      }}
                     >
                       {member.name?.trim() || member.label}
                     </button>
@@ -420,6 +434,7 @@ export default function StatisticsPage() {
                       }
                       setShowCustomPicker(false);
                       setRange(rangeOption.key);
+                      captureEvent("statistics_range_changed", { range: rangeOption.key });
                     }}
                   >
                     {rangeOption.key === "custom" && range === "custom" && customStart && customEnd
@@ -465,6 +480,10 @@ export default function StatisticsPage() {
                           setCustomEnd(draftEnd);
                           setRange("custom");
                           setShowCustomPicker(false);
+                          captureEvent("statistics_range_changed", {
+                            range: "custom",
+                            custom_days: daysBetween(draftStart, draftEnd),
+                          });
                         }}
                       >
                         Apply
@@ -511,7 +530,14 @@ export default function StatisticsPage() {
             </div>
             <div className="stats-kpi-content">
               {!hasCalorieTarget ? (
-                <a href="/dashboard/calorie-calculator" className="homev2-target-card-entry orange">
+                <a
+                  href="/dashboard/calorie-calculator"
+                  className="homev2-target-card-entry orange"
+                  onClick={() => captureEvent("calorie_target_entry_clicked", {
+                    source: "statistics_calorie_card",
+                    target_type: "calories",
+                  })}
+                >
                   <span><Sparkle size={11} weight="fill" />Set calorie target</span>
                   <ArrowRight size={13} weight="bold" />
                 </a>
@@ -539,7 +565,14 @@ export default function StatisticsPage() {
             </div>
             <div className="stats-kpi-content">
               {!hasProteinTarget ? (
-                <a href="/dashboard/calorie-calculator" className="homev2-target-card-entry">
+                <a
+                  href="/dashboard/calorie-calculator"
+                  className="homev2-target-card-entry"
+                  onClick={() => captureEvent("calorie_target_entry_clicked", {
+                    source: "statistics_protein_card",
+                    target_type: "protein",
+                  })}
+                >
                   <span><Sparkle size={11} weight="fill" />Set protein target</span>
                   <ArrowRight size={13} weight="bold" />
                 </a>
@@ -578,6 +611,7 @@ export default function StatisticsPage() {
 
           <Link
             href="/dashboard/logs"
+            onClick={() => captureEvent("health_logs_entry_clicked", { source: "statistics_logged_foods" })}
             className="stats-kpi-card stats-kpi-link-card"
             aria-label="View logged foods"
           >
@@ -632,7 +666,15 @@ export default function StatisticsPage() {
               {hasCalorieTarget ? (
                 <span style={{ ...chartGoalTagStyle, color: "#FF8A1E" }}><GoalSwatch color="#FF8A1E" />Goal {calorieGoal.toLocaleString("en-IN")} kcal</span>
               ) : (
-                <a href="/dashboard/calorie-calculator" className="homev2-target-card-entry orange" style={{ marginTop: 0 }}>
+                <a
+                  href="/dashboard/calorie-calculator"
+                  className="homev2-target-card-entry orange"
+                  style={{ marginTop: 0 }}
+                  onClick={() => captureEvent("calorie_target_entry_clicked", {
+                    source: "statistics_calorie_chart",
+                    target_type: "calories",
+                  })}
+                >
                   <span><Sparkle size={11} weight="fill" />Set calorie target</span>
                   <ArrowRight size={13} weight="bold" />
                 </a>
@@ -660,7 +702,15 @@ export default function StatisticsPage() {
               {hasProteinTarget ? (
                 <span style={{ ...chartGoalTagStyle, color: "#FF4F4F" }}><GoalSwatch color="#FF4F4F" />Goal {proteinGoal} g</span>
               ) : (
-                <a href="/dashboard/calorie-calculator" className="homev2-target-card-entry" style={{ marginTop: 0 }}>
+                <a
+                  href="/dashboard/calorie-calculator"
+                  className="homev2-target-card-entry"
+                  style={{ marginTop: 0 }}
+                  onClick={() => captureEvent("calorie_target_entry_clicked", {
+                    source: "statistics_protein_chart",
+                    target_type: "protein",
+                  })}
+                >
                   <span><Sparkle size={11} weight="fill" />Set protein target</span>
                   <ArrowRight size={13} weight="bold" />
                 </a>
@@ -743,7 +793,11 @@ export default function StatisticsPage() {
               </div>
             )}
 
-            <Link href="/dashboard/logs" className="stats-detail-link">
+            <Link
+              href="/dashboard/logs"
+              className="stats-detail-link"
+              onClick={() => captureEvent("health_logs_entry_clicked", { source: "statistics_daily_details" })}
+            >
               View all logs <ArrowRight size={14} weight="bold" />
             </Link>
           </article>

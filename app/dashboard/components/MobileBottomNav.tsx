@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { House, Pill, ChartLine, UserCircle } from "@phosphor-icons/react";
+import { captureEvent } from "@/lib/analytics";
 
 type MobileBottomNavProps = {
   assistantEnabled: boolean;
@@ -43,6 +44,11 @@ export default function MobileBottomNav({ assistantEnabled }: MobileBottomNavPro
               href={item.href}
               className={`mobile-health-dock-item${active ? " active" : ""}`}
               aria-current={active ? "page" : undefined}
+              onClick={() => captureEvent("dashboard_navigation_clicked", {
+                destination: item.href,
+                label: item.label,
+                source: "mobile_bottom_nav",
+              })}
             >
               <span><Icon size={20} weight={active ? "fill" : "bold"} /></span>
               <small>{item.label}</small>
@@ -53,6 +59,11 @@ export default function MobileBottomNav({ assistantEnabled }: MobileBottomNavPro
           href="/dashboard/profile"
           className={`mobile-health-dock-item${profileActive ? " active" : ""}`}
           aria-current={profileActive ? "page" : undefined}
+          onClick={() => captureEvent("dashboard_navigation_clicked", {
+            destination: "/dashboard/profile",
+            label: "Profile",
+            source: "mobile_bottom_nav",
+          })}
         >
           <span><UserCircle size={20} weight={profileActive ? "fill" : "bold"} /></span>
           <small>Profile</small>
@@ -64,6 +75,11 @@ export default function MobileBottomNav({ assistantEnabled }: MobileBottomNavPro
           href="/dashboard/health-assistant"
           className={`mobile-health-ai${pathname === "/dashboard/health-assistant" ? " active" : ""}`}
           aria-label="Open AI health coach"
+          onClick={() => captureEvent("dashboard_navigation_clicked", {
+            destination: "/dashboard/health-assistant",
+            label: "AI Coach",
+            source: "mobile_bottom_nav",
+          })}
         >
           <span>
             <img src="/mascot.png" alt="" />

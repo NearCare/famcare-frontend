@@ -6,6 +6,7 @@ import {
   ChartLine, ChatCircleText, FileText, House, Users, Pill, Sparkle,
 } from "@phosphor-icons/react";
 import { getFeatureFlags, type FeatureFlags } from "@/lib/api";
+import { captureEvent } from "@/lib/analytics";
 import { bypassV2FeatureFlagLocally } from "@/lib/v2Feature";
 import BrandMark from "./BrandMark";
 import BrandName from "./BrandName";
@@ -89,6 +90,11 @@ export default function Sidebar() {
                 key={item.label}
                 href={item.href}
                 className={`db-nav-item${active ? " active" : ""}`}
+                onClick={() => captureEvent("dashboard_navigation_clicked", {
+                  destination: item.href,
+                  label: item.label,
+                  source: "desktop_sidebar",
+                })}
               >
                 <NavIcon name={item.label} />
                 {showStack ? (
