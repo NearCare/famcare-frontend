@@ -26,14 +26,14 @@ const MOCK_USER: User = {
   id: 1,
   phone: "+910000000000",
   name: "Test User",
-  goal_steps: null,
+  goal_steps: 8000,
   goal_protein_g: null,
   goal_calories: null,
-  goal_sleep_hours: null,
+  goal_sleep_hours: 8,
   created_at: new Date().toISOString(),
 };
 
-const MOCK_LOGS: HealthLog[] = Array.from({ length: 14 }, (_, i) => {
+const MOCK_LOGS: HealthLog[] = Array.from({ length: 90 }, (_, i) => {
   const d = new Date();
   d.setDate(d.getDate() - i);
   return {
@@ -46,7 +46,7 @@ const MOCK_LOGS: HealthLog[] = Array.from({ length: 14 }, (_, i) => {
     sleep_hours: 5.5 + Math.round(Math.random() * 30) / 10,
     raw_message: i === 0 ? "8200 steps, chicken breast for lunch" : null,
   };
-}).filter((_, i) => i !== 4);
+}).filter((_, i) => i !== 1 && i % 11 !== 4);
 
 const MOCK_LOG_EVENTS: HealthLogEvent[] = [
   {
@@ -128,6 +128,208 @@ export type HealthLogEvent = {
   calories: number | null;
   sleep_hours: number | null;
   created_at: string;
+};
+
+export type BackfillYesterdayLogResponse = {
+  message: string;
+  log: HealthLog;
+  event: HealthLogEvent;
+};
+
+export type YesterdayFoodPreview = {
+  message: string;
+  summary: string;
+  protein_g: number;
+  calories: number;
+};
+
+export type FoodPatternItem = {
+  food_name: string;
+  log_count: number;
+  total_protein_g: number;
+};
+
+export type FoodPatterns = {
+  unique_foods: number;
+  total_food_logs: number;
+  most_logged_food: string | null;
+  top_protein_food: string | null;
+  top_foods: FoodPatternItem[];
+};
+
+export type ChatConversation = {
+  id: number;
+  owner_user_id: number;
+  subject_user_id: number;
+  title: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ChatMetric = {
+  label: string;
+  current: number | null;
+  target: number | null;
+  unit: string;
+  delta: number | null;
+};
+
+export type ChatBlock = {
+  type: string;
+  title: string;
+  metrics?: ChatMetric[];
+  items?: string[];
+  footnote?: string | null;
+  tone?: string;
+};
+
+export type ChatMessage = {
+  id: number;
+  conversation_id: number;
+  role: "user" | "assistant";
+  content: string;
+  blocks?: ChatBlock[];
+  suggestions?: string[];
+  created_at: string;
+  feedback?: ChatFeedback | null;
+};
+
+export type ChatFeedback = {
+  rating: "up" | "down";
+  issue_type?: "wrong_data" | "misunderstood" | "unhelpful" | "too_long" | "unsafe" | "other" | null;
+  comment?: string | null;
+};
+
+export type HealthAssistantReply = {
+  conversation_id: number;
+  message: ChatMessage;
+  intent: string;
+  tools_used: string[];
+};
+
+export type FeatureFlags = {
+  v2: boolean;
+};
+
+export type MonthlyUsageItem = {
+  key: "reminder_delivered" | "ai_chat_answer" | "whatsapp_text_log" | "whatsapp_image_analysis";
+  label: string;
+  used: number;
+  limit: number;
+  warning_at: number;
+  percentage: number;
+  blocked: boolean;
+};
+
+export type MonthlyUsageSnapshot = {
+  billing_user_id: number;
+  period_start: string;
+  period_end: string;
+  plan_key: "free" | "individual" | "family";
+  status: "free" | "trialing" | "active" | "past_due" | "cancelled" | "expired";
+  unlimited: boolean;
+  items: MonthlyUsageItem[];
+  upgrade_url: string;
+};
+
+export type BillingPlanKey = "individual" | "family";
+
+export type SubscriptionCheckout = {
+  key_id: string;
+  subscription_id: string;
+  plan_key: BillingPlanKey | "extra_parent";
+  amount_paise: number;
+  currency: "INR";
+  customer_name: string;
+  customer_phone: string;
+};
+
+export type SubscriptionCheckoutVerification = {
+  verified: boolean;
+  status: "pending";
+  message: string;
+};
+
+export type CheckoutStatus = {
+  subscription_id: string;
+  payment_id?: string | null;
+  plan_key: BillingPlanKey | "extra_parent";
+  kind: "base" | "extra_parent";
+  status: string;
+  active: boolean;
+  verified: boolean;
+  scheduled: boolean;
+  amount_paise: number;
+  current_period_end?: string | null;
+};
+
+export type SubscriptionDetails = {
+  active: boolean;
+  plan_key: BillingPlanKey | "free";
+  status: string;
+  amount_paise: number;
+  provider_subscription_id?: string | null;
+  started_at?: string | null;
+  paid_at?: string | null;
+  current_period_end?: string | null;
+  cancel_at_period_end?: boolean;
+  extra_parents?: number;
+};
+
+export type PlanFeature = { title: string; description: string };
+
+export type BillingPlanInfo = {
+  plan_key: BillingPlanKey;
+  name: string;
+  eyebrow: string;
+  description: string;
+  included: string;
+  amount_paise: number;
+  original_amount_paise: number;
+  currency: string;
+  billing_cycle: string;
+  /** Parents this plan can add, before any extra-parent add-ons. */
+  parent_seats: number;
+  features: PlanFeature[];
+};
+
+export type ExtraParentPlanInfo = {
+  plan_key: "extra_parent";
+  name: string;
+  description: string;
+  amount_paise: number;
+  currency: string;
+  billing_cycle: string;
+};
+
+export type FamilySeatStatus = {
+  plan_key: string;
+  used: number;
+  limit: number;
+  can_add: boolean;
+  extra_parents: number;
+};
+
+export type BillingInvoice = {
+  id: string;
+  description: string;
+  amount_paise: number;
+  currency: string;
+  status: string;
+  issued_at?: string | null;
+  paid_at?: string | null;
+  receipt_url?: string | null;
+};
+
+export type CancelSubscriptionResult = {
+  cancel_at_period_end: boolean;
+  current_period_end?: string | null;
+  message: string;
+};
+
+export type BillingPlansResponse = {
+  plans: BillingPlanInfo[];
+  extra_parent: ExtraParentPlanInfo;
 };
 
 export type Summary = {
@@ -309,6 +511,302 @@ export async function getCurrentUser(token?: string): Promise<User | null> {
   return res.json() as Promise<User>;
 }
 
+async function chatRequest<T>(path: string, token: string, init?: RequestInit): Promise<T> {
+  const res = await fetch(path, {
+    ...init,
+    headers: {
+      Accept: "application/json",
+      Authorization: `Bearer ${token}`,
+      ...(init?.body ? { "Content-Type": "application/json" } : {}),
+      ...init?.headers,
+    },
+    cache: "no-store",
+  });
+  if (res.status === 401) {
+    if (typeof window !== "undefined") window.location.href = "/login";
+    throw new Error("Your session has expired.");
+  }
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(body.error ?? body.message ?? "The assistant could not respond.");
+  return body as T;
+}
+
+export async function getFeatureFlags(token?: string): Promise<FeatureFlags> {
+  if (MOCK_API) return { v2: true };
+  const sessionToken =
+    token ?? (typeof window !== "undefined" ? localStorage.getItem("auth_token") ?? "" : "");
+  if (!sessionToken) return { v2: false };
+  const body = await apiFetch<{ feature_flags: Partial<FeatureFlags> }>("/api/feature-flags");
+  return {
+    v2: body.feature_flags.v2 === true,
+  };
+}
+
+export async function getMonthlyUsage(): Promise<MonthlyUsageSnapshot> {
+  if (MOCK_API) {
+    return {
+      billing_user_id: MOCK_USER.id,
+      period_start: new Date().toLocaleDateString("en-CA").slice(0, 8) + "01",
+      period_end: new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1)
+        .toLocaleDateString("en-CA"),
+      plan_key: "free",
+      status: "free",
+      unlimited: false,
+      upgrade_url: "/dashboard/payments",
+      items: [
+        { key: "reminder_delivered", label: "Reminders", used: 18, limit: 30, warning_at: 24, percentage: 60, blocked: false },
+        { key: "ai_chat_answer", label: "AI Coach answers", used: 8, limit: 20, warning_at: 16, percentage: 40, blocked: false },
+        { key: "whatsapp_text_log", label: "WhatsApp food logs", used: 25, limit: 40, warning_at: 32, percentage: 63, blocked: false },
+        { key: "whatsapp_image_analysis", label: "WhatsApp photo analyses", used: 2, limit: 5, warning_at: 4, percentage: 40, blocked: false },
+      ],
+    };
+  }
+  return apiFetch<MonthlyUsageSnapshot>("/api/usage/monthly");
+}
+
+const MOCK_PLANS: BillingPlansResponse = {
+  plans: [
+    {
+      plan_key: "individual",
+      name: "Individual plan",
+      eyebrow: "For your own health",
+      description: "Smart WhatsApp health tracking for one person.",
+      included: "Your account",
+      amount_paise: 14_900,
+      original_amount_paise: 19_900,
+      currency: "INR",
+      billing_cycle: "monthly",
+      parent_seats: 1,
+      features: [
+        { title: "WhatsApp food logs", description: "Log meals by text or photo" },
+        { title: "Medication reminders", description: "Stay on time with every dose" },
+        { title: "AI health coach", description: "Understand your nutrition trends" },
+        { title: "Health insights", description: "See calories, protein and consistency" },
+      ],
+    },
+    {
+      plan_key: "family",
+      name: "Family plan",
+      eyebrow: "Most popular",
+      description: "Everything you need to stay close to your parents’ health.",
+      included: "You + 2 parents",
+      amount_paise: 29_900,
+      original_amount_paise: 49_900,
+      currency: "INR",
+      billing_cycle: "monthly",
+      parent_seats: 2,
+      features: [
+        { title: "Track meals on WhatsApp", description: "Parents log naturally, you see the insights" },
+        { title: "Medication reminders", description: "Help everyone stay on schedule" },
+        { title: "Family dashboard", description: "See your family’s progress together" },
+        { title: "AI health coach", description: "Ask about your family’s nutrition trends" },
+      ],
+    },
+  ],
+  extra_parent: {
+    plan_key: "extra_parent",
+    name: "Extra parent",
+    description: "Add another parent to an active Family plan.",
+    amount_paise: 14_900,
+    currency: "INR",
+    billing_cycle: "monthly",
+  },
+};
+
+export async function getBillingPlans(): Promise<BillingPlansResponse> {
+  if (MOCK_API) return MOCK_PLANS;
+  return apiFetch<BillingPlansResponse>("/api/billing/plans");
+}
+
+export async function createSubscriptionCheckout(
+  planKey: BillingPlanKey,
+): Promise<SubscriptionCheckout> {
+  if (MOCK_API) {
+    return {
+      key_id: "rzp_test_famcare",
+      subscription_id: `sub_mock_${planKey}`,
+      plan_key: planKey,
+      amount_paise: planKey === "family" ? 29_900 : 14_900,
+      currency: "INR",
+      customer_name: MOCK_USER.name ?? "FamCare user",
+      customer_phone: MOCK_USER.phone,
+    };
+  }
+
+  const token = typeof window !== "undefined" ? localStorage.getItem("auth_token") : null;
+  if (!token) throw new Error("Please log in again to continue.");
+  return authedFetch<SubscriptionCheckout>("/api/billing/subscriptions", token, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ plan_key: planKey }),
+  });
+}
+
+export async function verifySubscriptionCheckout(input: {
+  razorpay_payment_id: string;
+  razorpay_subscription_id: string;
+  razorpay_signature: string;
+}): Promise<SubscriptionCheckoutVerification> {
+  if (MOCK_API) {
+    return {
+      verified: true,
+      status: "pending",
+      message: "Payment verified. Your plan will activate in a moment.",
+    };
+  }
+
+  const token = typeof window !== "undefined" ? localStorage.getItem("auth_token") : null;
+  if (!token) throw new Error("Please log in again to continue.");
+  return authedFetch<SubscriptionCheckoutVerification>("/api/billing/checkout/verify", token, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+}
+
+export async function getCheckoutStatus(subscriptionId: string): Promise<CheckoutStatus> {
+  if (MOCK_API) {
+    const planKey = subscriptionId.includes("extra") ? "extra_parent" : "family";
+    return {
+      subscription_id: subscriptionId,
+      payment_id: "pay_mock_verified",
+      plan_key: planKey,
+      kind: planKey === "extra_parent" ? "extra_parent" : "base",
+      status: "active",
+      active: true,
+      verified: true,
+      scheduled: false,
+      amount_paise: planKey === "extra_parent" ? 14_900 : 29_900,
+    };
+  }
+  const token = typeof window !== "undefined" ? localStorage.getItem("auth_token") : null;
+  if (!token) throw new Error("Please log in again to continue.");
+  return authedFetch<CheckoutStatus>(
+    `/api/billing/checkout/status?subscription_id=${encodeURIComponent(subscriptionId)}`,
+    token,
+  );
+}
+
+export async function getSubscriptionDetails(): Promise<SubscriptionDetails> {
+  if (MOCK_API) {
+    return {
+      active: false,
+      plan_key: "free",
+      status: "free",
+      amount_paise: 0,
+    };
+  }
+
+  const token = typeof window !== "undefined" ? localStorage.getItem("auth_token") : null;
+  if (!token) throw new Error("Please log in again to continue.");
+  return authedFetch<SubscriptionDetails>("/api/billing/subscription", token);
+}
+
+export async function getFamilySeats(): Promise<FamilySeatStatus> {
+  if (MOCK_API) {
+    return { plan_key: "free", used: 0, limit: 1, can_add: true, extra_parents: 0 };
+  }
+
+  const token = typeof window !== "undefined" ? localStorage.getItem("auth_token") : null;
+  if (!token) throw new Error("Please log in again to continue.");
+  return authedFetch<FamilySeatStatus>("/api/billing/seats", token);
+}
+
+export async function getBillingInvoices(): Promise<BillingInvoice[]> {
+  if (MOCK_API) return [];
+
+  const token = typeof window !== "undefined" ? localStorage.getItem("auth_token") : null;
+  if (!token) throw new Error("Please log in again to continue.");
+  const body = await authedFetch<{ invoices: BillingInvoice[] }>("/api/billing/invoices", token);
+  return body.invoices;
+}
+
+export async function cancelSubscription(): Promise<CancelSubscriptionResult> {
+  if (MOCK_API) {
+    return {
+      cancel_at_period_end: true,
+      message: "Your plan will stay active until the end of this billing period, then stop renewing.",
+    };
+  }
+
+  const token = typeof window !== "undefined" ? localStorage.getItem("auth_token") : null;
+  if (!token) throw new Error("Please log in again to continue.");
+  return authedFetch<CancelSubscriptionResult>("/api/billing/cancel", token, { method: "POST" });
+}
+
+export async function createExtraParentCheckout(): Promise<SubscriptionCheckout> {
+  if (MOCK_API) {
+    return {
+      key_id: "rzp_test_famcare",
+      subscription_id: `sub_mock_extra_parent_${Date.now()}`,
+      plan_key: "extra_parent",
+      amount_paise: MOCK_PLANS.extra_parent.amount_paise,
+      currency: "INR",
+      customer_name: MOCK_USER.name ?? "FamCare user",
+      customer_phone: MOCK_USER.phone,
+    };
+  }
+
+  const token = typeof window !== "undefined" ? localStorage.getItem("auth_token") : null;
+  if (!token) throw new Error("Please log in again to continue.");
+  return authedFetch<SubscriptionCheckout>("/api/billing/extra-parent", token, {
+    method: "POST",
+  });
+}
+
+
+export async function getChatConversations(token: string): Promise<ChatConversation[]> {
+  const body = await chatRequest<{ conversations: ChatConversation[] }>("/api/chat/conversations", token);
+  return body.conversations;
+}
+
+export async function createChatConversation(token: string, subjectUserId: number): Promise<ChatConversation> {
+  return chatRequest<ChatConversation>("/api/chat/conversations", token, {
+    method: "POST",
+    body: JSON.stringify({ subject_user_id: subjectUserId }),
+  });
+}
+
+export async function getChatMessages(token: string, conversationId: number): Promise<ChatMessage[]> {
+  const body = await chatRequest<{ messages: ChatMessage[] }>(
+    `/api/chat/conversations/${conversationId}/messages`, token,
+  );
+  return body.messages;
+}
+
+export async function clearChatMessages(token: string, conversationId: number): Promise<void> {
+  await chatRequest<Record<string, never>>(`/api/chat/conversations/${conversationId}/messages`, token, {
+    method: "DELETE",
+  });
+}
+
+export async function sendHealthAssistantMessage(
+  token: string,
+  conversationId: number,
+  subjectUserId: number,
+  message: string,
+): Promise<HealthAssistantReply> {
+  return chatRequest<HealthAssistantReply>("/api/chat/messages", token, {
+    method: "POST",
+    body: JSON.stringify({
+      conversation_id: conversationId,
+      subject_user_id: subjectUserId,
+      message,
+    }),
+  });
+}
+
+export async function submitChatFeedback(
+  token: string,
+  messageId: number,
+  feedback: ChatFeedback,
+): Promise<ChatFeedback> {
+  return chatRequest<ChatFeedback>(`/api/chat/messages/${messageId}/feedback`, token, {
+    method: "POST",
+    body: JSON.stringify(feedback),
+  });
+}
+
 /**
  * Sends a 4-digit OTP to the given WhatsApp number.
  * Phone must include country code, e.g. "+919876543210"
@@ -453,7 +951,7 @@ export async function getUserLogs(
   userId: number,
   days = 30
 ): Promise<HealthLog[]> {
-  if (MOCK_API) return MOCK_LOGS;
+  if (MOCK_API) return MOCK_LOGS.slice(0, days);
   const data = await apiFetch<{ logs: HealthLog[] }>(
     `/api/users/${userId}/logs?days=${days}`
   );
@@ -466,6 +964,95 @@ export async function getUserLogEvents(userId: number, days = 7): Promise<Health
     `/api/users/${userId}/log-events?days=${days}`
   );
   return data.log_events;
+}
+
+export async function previewYesterdayFood(
+  message: string,
+  token: string,
+): Promise<YesterdayFoodPreview> {
+  if (MOCK_API) {
+    return {
+      message,
+      summary: `Estimated nutrition for ${message}`,
+      protein_g: 18,
+      calories: 420,
+    };
+  }
+  return authedFetch<YesterdayFoodPreview>("/api/health-logs/backfill-yesterday/preview", token, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ message }),
+  });
+}
+
+export async function backfillYesterdayFood(
+  preview: YesterdayFoodPreview,
+  token: string,
+): Promise<BackfillYesterdayLogResponse> {
+  if (MOCK_API) {
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const loggedAt = yesterday.toLocaleDateString("en-CA");
+    const event: HealthLogEvent = {
+      id: Date.now(),
+      user_id: MOCK_USER.id,
+      logged_at: loggedAt,
+      source: "text",
+      raw_message: preview.message,
+      summary: preview.summary,
+      steps: null,
+      protein_g: preview.protein_g,
+      calories: preview.calories,
+      sleep_hours: null,
+      created_at: new Date().toISOString(),
+    };
+    return {
+      message: "Yesterday's food was logged",
+      event,
+      log: {
+        id: Date.now(),
+        user_id: MOCK_USER.id,
+        logged_at: loggedAt,
+        steps: null,
+        protein_g: event.protein_g,
+        calories: event.calories,
+        sleep_hours: null,
+        raw_message: preview.message,
+      },
+    };
+  }
+  return authedFetch<BackfillYesterdayLogResponse>("/api/health-logs/backfill-yesterday", token, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(preview),
+  });
+}
+
+export async function getUserFoodPatterns(
+  userId: number,
+  days = 30,
+  start?: string,
+  end?: string,
+): Promise<FoodPatterns> {
+  if (MOCK_API) {
+    return {
+      unique_foods: 8,
+      total_food_logs: 62,
+      most_logged_food: "Oats",
+      top_protein_food: "Grilled chicken",
+      top_foods: [
+        { food_name: "Oats", log_count: 12, total_protein_g: 96 },
+        { food_name: "Boiled eggs", log_count: 10, total_protein_g: 120 },
+        { food_name: "Dal", log_count: 9, total_protein_g: 108 },
+        { food_name: "Grilled chicken", log_count: 7, total_protein_g: 280 },
+        { food_name: "Banana", log_count: 6, total_protein_g: 8 },
+      ],
+    };
+  }
+  const query = new URLSearchParams({ days: String(days) });
+  if (start) query.set("start", start);
+  if (end) query.set("end", end);
+  return apiFetch<FoodPatterns>(`/api/users/${userId}/food-patterns?${query.toString()}`);
 }
 
 /**
@@ -577,7 +1164,7 @@ export async function getMemberSummary(memberId: number, token: string): Promise
 }
 
 export async function getMemberLogs(memberId: number, token: string, days = 7): Promise<HealthLog[]> {
-  if (MOCK_API) return MOCK_LOGS;
+  if (MOCK_API) return MOCK_LOGS.slice(0, days);
   const data = await authedFetch<{ logs: HealthLog[] }>(
     `/family/members/${memberId}/logs?days=${days}`, token
   );
@@ -590,6 +1177,23 @@ export async function getMemberLogEvents(memberId: number, token: string, days =
     `/family/members/${memberId}/log-events?days=${days}`, token
   );
   return data.log_events;
+}
+
+export async function getMemberFoodPatterns(
+  memberId: number,
+  token: string,
+  days = 30,
+  start?: string,
+  end?: string,
+): Promise<FoodPatterns> {
+  if (MOCK_API) return getUserFoodPatterns(memberId, days, start, end);
+  const query = new URLSearchParams({ days: String(days) });
+  if (start) query.set("start", start);
+  if (end) query.set("end", end);
+  return authedFetch<FoodPatterns>(
+    `/family/members/${memberId}/food-patterns?${query.toString()}`,
+    token,
+  );
 }
 
 export type ReviewFeedbackType = "feature" | "improvement" | "issue" | "praise" | "other";
@@ -609,10 +1213,10 @@ export async function submitReviewFeedback(input: {
   });
 }
 
-export async function getFoodReminderPreference(token: string): Promise<FoodReminderPreference> {
+export async function getFoodReminderPreference(token: string, patientUserId?: number): Promise<FoodReminderPreference> {
   if (MOCK_API) {
     return {
-      user_id: MOCK_USER.id,
+      user_id: patientUserId ?? MOCK_USER.id,
       enabled: true,
       activated: true,
       breakfast_time: "11:00",
@@ -627,17 +1231,21 @@ export async function getFoodReminderPreference(token: string): Promise<FoodRemi
       ],
     };
   }
-  return authedFetch<FoodReminderPreference>("/api/food-reminders/preference", token);
+  const path = patientUserId
+    ? `/api/food-reminders/preference?patientUserId=${patientUserId}`
+    : "/api/food-reminders/preference";
+  return authedFetch<FoodReminderPreference>(path, token);
 }
 
 export async function updateFoodReminderPreference(
   enabled: boolean,
   token: string,
   meals?: FoodReminderMeal[],
+  patientUserId?: number,
 ): Promise<FoodReminderPreference> {
   if (MOCK_API) {
     return {
-      user_id: MOCK_USER.id,
+      user_id: patientUserId ?? MOCK_USER.id,
       enabled,
       activated: enabled,
       breakfast_time: "11:00",
@@ -652,7 +1260,10 @@ export async function updateFoodReminderPreference(
       ],
     };
   }
-  return authedFetch<FoodReminderPreference>("/api/food-reminders/preference", token, {
+  const path = patientUserId
+    ? `/api/food-reminders/preference?patientUserId=${patientUserId}`
+    : "/api/food-reminders/preference";
+  return authedFetch<FoodReminderPreference>(path, token, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ enabled, meals }),

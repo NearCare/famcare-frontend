@@ -17,6 +17,7 @@ Next.js 16 (App Router) dashboard for FamCare, a WhatsApp-first family health tr
 - Dashboard (`app/dashboard/page.tsx`) loads logs, log events, summaries, family members, food reminders, recent logs, and first-run intro.
 - Calorie calculator (`app/dashboard/calorie-calculator/page.tsx`) calls backend calorie target endpoint and saves calorie/protein goals.
 - Medicines (`app/dashboard/medications/page.tsx`) manages medicines, schedules, today's doses, and reminder settings.
+- Health Assistant (`app/dashboard/health-assistant/page.tsx`) provides read-only self/family health insights, estimates, comparisons, and meal ideas.
 - Review/log correction flows use log events and `PATCH/DELETE /api/log-values`.
 - Feature intro assets live in `public/web1.jpeg`…`web3.jpeg` and `public/mob1.jpeg`…`mob3.jpeg`.
 

@@ -3,7 +3,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useState, useEffect, useRef } from "react";
 import { getCurrentUser, sendOtp, verifyOtp } from "@/lib/api";
-import { authPath, requestedAuthDestination } from "@/lib/authRedirect";
+import { authPath, requestedAuthDestination, resolvedAuthDestination } from "@/lib/authRedirect";
 import { captureEvent, identifyUser, resetAnalytics } from "@/lib/analytics";
 
 type Step = "phone" | "otp";
@@ -126,7 +126,7 @@ export default function LoginPage() {
         identifyUser(authUser);
         captureEvent("session_resumed");
         setRedirecting(true);
-        const destination = requestedAuthDestination();
+        const destination = await resolvedAuthDestination(token);
         router.replace(authUser.name ? destination : authPath("/onboarding/name", destination));
       } catch {
         if (!cancelled) {
@@ -235,7 +235,7 @@ export default function LoginPage() {
       captureEvent("login_succeeded", { has_name: Boolean(auth.user.name) });
       setRedirecting(true);
       keepLoading = true;
-      const destination = requestedAuthDestination();
+      const destination = await resolvedAuthDestination(auth.token);
       router.replace(auth.user.name ? destination : authPath("/onboarding/name", destination));
     } catch (err) {
       captureEvent("login_failed");

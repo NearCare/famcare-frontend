@@ -1,16 +1,19 @@
 "use client";
 
 import { type FormEvent, useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   CalendarBlank,
   CaretDown,
   ChatCircleText,
+  Check,
   CheckCircle,
   Clock,
   MagnifyingGlass,
   PencilSimple,
   Trash,
   WarningCircle,
+  X,
   XCircle,
 } from "@phosphor-icons/react";
 import { Dumbbell, Footprints } from "lucide-react";
@@ -174,8 +177,6 @@ function formatDelta(delta: LogDelta) {
   const chips = [];
   if (delta.calories) chips.push({ label: `+${delta.calories.toLocaleString()} kcal`, tone: "orange" });
   if (delta.proteinG) chips.push({ label: `+${delta.proteinG}g protein`, tone: "green" });
-  if (delta.steps) chips.push({ label: `+${delta.steps.toLocaleString()} steps`, tone: "blue" });
-  if (delta.sleepHours) chips.push({ label: `+${delta.sleepHours}h sleep`, tone: "violet" });
   return chips;
 }
 
@@ -502,6 +503,39 @@ export default function LogsPage() {
   const [error, setError] = useState<string | null>(null);
   const [busyAction, setBusyAction] = useState<"edit" | "incorrect" | "delete" | null>(null);
   const [actionNotice, setActionNotice] = useState<string | null>(null);
+  const [isMobile, setIsMobile] = useState(false);
+  const [showDetailSheet, setShowDetailSheet] = useState(false);
+  const [showTimeWindowSheet, setShowTimeWindowSheet] = useState(false);
+
+  useEffect(() => {
+    const mql = window.matchMedia("(max-width: 900px)");
+    const update = () => setIsMobile(mql.matches);
+    update();
+    mql.addEventListener("change", update);
+    return () => mql.removeEventListener("change", update);
+  }, []);
+
+  useEffect(() => {
+    if (!showDetailSheet) return;
+    document.body.classList.add("mobile-sheet-open");
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.classList.remove("mobile-sheet-open");
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [showDetailSheet]);
+
+  useEffect(() => {
+    if (!showTimeWindowSheet) return;
+    document.body.classList.add("mobile-sheet-open");
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.classList.remove("mobile-sheet-open");
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [showTimeWindowSheet]);
 
   useEffect(() => {
     let cancelled = false;
@@ -684,6 +718,7 @@ export default function LogsPage() {
       });
       setRows((current) => current.filter((row) => row.id !== log.id));
       setSelectedId("");
+      setShowDetailSheet(false);
       captureEvent("health_log_deleted", { source: log.source });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to delete log");
@@ -714,32 +749,45 @@ export default function LogsPage() {
           <div>
             <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
               <h1 className="db-greeting">Health Logs</h1>
-              <label className="db-pill" style={{ cursor: "pointer", position: "relative", paddingRight: 12, minHeight: 46 }}>
-                <CalendarBlank size={17} weight="bold" />
-                <select
-                  value={timeWindow}
-                  onChange={(event) => setTimeWindow(event.target.value as TimeWindowKey)}
-                  aria-label="Select logs time window"
-                  style={{
-                    appearance: "none",
-                    WebkitAppearance: "none",
-                    border: "none",
-                    outline: "none",
-                    background: "transparent",
-                    color: "inherit",
-                    fontFamily: "inherit",
-                    fontSize: "inherit",
-                    fontWeight: 800,
-                    cursor: "pointer",
-                    paddingRight: 8,
-                  }}
+              {isMobile ? (
+                <button
+                  type="button"
+                  className="db-pill"
+                  onClick={() => setShowTimeWindowSheet(true)}
+                  style={{ cursor: "pointer", paddingRight: 12, minHeight: 46, border: "1.5px solid var(--he-card-border)", background: "#fff", display: "inline-flex", alignItems: "center", gap: 8, fontFamily: "inherit", fontSize: "inherit", fontWeight: 800, color: "inherit" }}
                 >
-                  {TIME_WINDOWS.map((window) => (
-                    <option key={window.key} value={window.key}>{window.label}</option>
-                  ))}
-                </select>
-                <CaretDown size={18} weight="bold" color="#68708A" style={{ flex: "none", pointerEvents: "none" }} />
-              </label>
+                  <CalendarBlank size={17} weight="bold" />
+                  {getTimeWindow(timeWindow).label}
+                  <CaretDown size={18} weight="bold" color="#68708A" style={{ flex: "none" }} />
+                </button>
+              ) : (
+                <label className="db-pill" style={{ cursor: "pointer", position: "relative", paddingRight: 12, minHeight: 46 }}>
+                  <CalendarBlank size={17} weight="bold" />
+                  <select
+                    value={timeWindow}
+                    onChange={(event) => setTimeWindow(event.target.value as TimeWindowKey)}
+                    aria-label="Select logs time window"
+                    style={{
+                      appearance: "none",
+                      WebkitAppearance: "none",
+                      border: "none",
+                      outline: "none",
+                      background: "transparent",
+                      color: "inherit",
+                      fontFamily: "inherit",
+                      fontSize: "inherit",
+                      fontWeight: 800,
+                      cursor: "pointer",
+                      paddingRight: 8,
+                    }}
+                  >
+                    {TIME_WINDOWS.map((window) => (
+                      <option key={window.key} value={window.key}>{window.label}</option>
+                    ))}
+                  </select>
+                  <CaretDown size={18} weight="bold" color="#68708A" style={{ flex: "none", pointerEvents: "none" }} />
+                </label>
+              )}
             </div>
             <p className="db-subtitle">Review what was logged and how it updated daily totals.</p>
             <div style={{ display: "inline-flex", alignItems: "center", gap: 5, background: "#fff", border: "1.5px solid var(--he-card-border)", borderRadius: 999, padding: 4, marginTop: 12, boxShadow: "0 8px 22px rgba(31,28,35,.04)", maxWidth: "100%", overflowX: "auto" }}>
@@ -802,7 +850,7 @@ export default function LogsPage() {
                 </label>
               </div>
 
-              <div style={{ display: "flex", flexDirection: "column", maxHeight: 530, overflowY: "auto" }}>
+              <div className="logs-row-list" style={{ display: "flex", flexDirection: "column", maxHeight: 530, overflowY: "auto" }}>
                 {loading && (
                   <div style={{ padding: "28px 20px", color: "#9AA0AD", fontSize: 13, fontWeight: 800, textAlign: "center" }}>
                     Loading WhatsApp logs...
@@ -817,11 +865,14 @@ export default function LogsPage() {
                       className="logs-row"
                       key={log.id}
                       type="button"
-                      onClick={() => setSelectedId(log.id)}
+                      onClick={() => {
+                        setSelectedId(log.id);
+                        if (isMobile) setShowDetailSheet(true);
+                      }}
                       style={{
                         border: "none",
                         borderBottom: "1px solid #F4F1F5",
-                        background: selectedRow ? "linear-gradient(90deg, var(--he-coral-bg), #fff)" : "#fff",
+                        background: selectedRow ? "var(--he-coral-bg)" : "#fff",
                         padding: "15px 20px",
                         cursor: "pointer",
                         textAlign: "left",
@@ -832,11 +883,11 @@ export default function LogsPage() {
                         fontFamily: "inherit",
                       }}
                     >
-                      <div>
+                      <div className="logs-row-time">
                         <p style={{ margin: 0, color: "#1A2744", fontSize: 12.5, fontWeight: 900 }}>{log.time}</p>
                         <p style={{ margin: "3px 0 0", color: "#9AA0AD", fontSize: 11.5, fontWeight: 700 }}>{log.day}</p>
                       </div>
-                      <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+                      <div className="logs-row-member" style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
                         <span style={{ width: 34, height: 34, borderRadius: 12, background: "var(--he-coral-bg)", color: "var(--he-coral-deep)", display: "grid", placeItems: "center", fontSize: 13, fontWeight: 900, flex: "none" }}>{log.avatar}</span>
                         <span style={{ minWidth: 0 }}>
                           <span style={{ display: "block", color: "#1A2744", fontSize: 13, fontWeight: 900, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{log.member}</span>
@@ -845,7 +896,7 @@ export default function LogsPage() {
                           </span>
                         </span>
                       </div>
-                      <div style={{ minWidth: 0 }}>
+                      <div className="logs-row-body" style={{ minWidth: 0 }}>
                         <p style={{ margin: 0, color: "#1A2744", fontSize: 13.5, fontWeight: 800, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{log.message}</p>
                         <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 8 }}>
                           {formatDelta(log.delta).length ? formatDelta(log.delta).map((chip) => {
@@ -875,7 +926,7 @@ export default function LogsPage() {
             </div>
           </div>
 
-          {selected && (
+          {selected && !isMobile && (
             <SelectedDetail
               log={selected}
               busyAction={busyAction}
@@ -887,6 +938,76 @@ export default function LogsPage() {
           )}
         </section>
       </div>
+
+      {selected && isMobile && showDetailSheet && typeof document !== "undefined" && createPortal(
+        <div className="mobile-sheet-layer">
+          <button
+            type="button"
+            className="mobile-sheet-backdrop"
+            aria-label="Close log details"
+            onClick={() => setShowDetailSheet(false)}
+          />
+          <button
+            type="button"
+            className="mobile-sheet-close"
+            aria-label="Close"
+            onClick={() => setShowDetailSheet(false)}
+          >
+            <X size={16} weight="bold" />
+          </button>
+          <div className="logs-detail-sheet">
+            <SelectedDetail
+              log={selected}
+              busyAction={busyAction}
+              notice={actionNotice}
+              onSaveValues={handleSaveValues}
+              onMarkIncorrect={handleMarkIncorrect}
+              onDeleteLog={handleDeleteLog}
+            />
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {isMobile && showTimeWindowSheet && typeof document !== "undefined" && createPortal(
+        <div className="mobile-sheet-layer">
+          <button
+            type="button"
+            className="mobile-sheet-backdrop"
+            aria-label="Close time window picker"
+            onClick={() => setShowTimeWindowSheet(false)}
+          />
+          <button
+            type="button"
+            className="mobile-sheet-close"
+            aria-label="Close"
+            onClick={() => setShowTimeWindowSheet(false)}
+          >
+            <X size={16} weight="bold" />
+          </button>
+          <div className="logs-timewindow-sheet">
+            <p className="logs-timewindow-sheet-title">Select time window</p>
+            {TIME_WINDOWS.map((window) => {
+              const active = window.key === timeWindow;
+              return (
+                <button
+                  key={window.key}
+                  type="button"
+                  className="logs-timewindow-option"
+                  onClick={() => {
+                    setTimeWindow(window.key);
+                    setShowTimeWindowSheet(false);
+                  }}
+                >
+                  {window.label}
+                  {active && <Check size={16} weight="bold" />}
+                </button>
+              );
+            })}
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   );
 }

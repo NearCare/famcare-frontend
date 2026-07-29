@@ -1,28 +1,49 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
-  Calculator, ChatCircleText, House, Users, FileText, List, Pill, SignOut, X,
+  ChartLine, ChatCircleText, FileText, House, Users, Pill, Sparkle,
 } from "@phosphor-icons/react";
-import { captureEvent, resetAnalytics } from "@/lib/analytics";
-import { clearStoredSession } from "@/lib/session";
+import { getFeatureFlags, type FeatureFlags } from "@/lib/api";
+import { bypassV2FeatureFlagLocally } from "@/lib/v2Feature";
+import BrandMark from "./BrandMark";
+import BrandName from "./BrandName";
+import MobileBackBar from "./MobileBackBar";
+import MobileBottomNav from "./MobileBottomNav";
+import ProfileMenu from "./ProfileMenu";
 
-const navItems = [
+type NavigationItem = {
+  label: string;
+  href: string;
+  isNew?: boolean;
+  isBeta?: boolean;
+};
+
+const v2NavItems: NavigationItem[] = [
+  { label: "Home",             href: "/dashboard/homev2" },
+  { label: "Statistics",       href: "/dashboard/statistics" },
+  { label: "Family Overview",  href: "/dashboard/family-overviewv2" },
+  { label: "Medications",      href: "/dashboard/medications" },
+  { label: "Health Assistant", href: "/dashboard/health-assistant", isNew: true, isBeta: true },
+  { label: "Review",           href: "/dashboard/review" },
+];
+
+const legacyNavItems: NavigationItem[] = [
   { label: "Home",             href: "/dashboard" },
   { label: "Family Overview",  href: "/dashboard/family-overview" },
   { label: "Medications",      href: "/dashboard/medications" },
   { label: "Logs",             href: "/dashboard/logs" },
-  { label: "Calorie Calculator", href: "/dashboard/calorie-calculator", isNew: true },
   { label: "Review",           href: "/dashboard/review" },
 ];
 
 const NAV_ICONS: Record<string, React.ElementType> = {
   "Home":             House,
+  "Statistics":       ChartLine,
   "Family Overview":  Users,
   "Medications":      Pill,
-  "Logs":             FileText,
-  "Calorie Calculator": Calculator,
+  "Logs":              FileText,
+  "Health Assistant":  Sparkle,
   "Review":           ChatCircleText,
 };
 
@@ -32,72 +53,59 @@ function NavIcon({ name }: { name: string }) {
 }
 
 export default function Sidebar() {
-  const [mobileOpen, setMobileOpen] = useState(false);
-  const [confirmLogoutOpen, setConfirmLogoutOpen] = useState(false);
+  const localBypass = bypassV2FeatureFlagLocally();
+  const [featureFlags, setFeatureFlags] = useState<FeatureFlags>({ v2: localBypass });
   const pathname = usePathname();
 
-  function handleLogout() {
-    captureEvent("logout");
-    resetAnalytics();
-    clearStoredSession({ resetFeatureIntro: true });
-    window.location.href = "/login";
-  }
+  useEffect(() => {
+    getFeatureFlags()
+      .then(setFeatureFlags)
+      .catch(() => setFeatureFlags({ v2: false }));
+  }, [localBypass]);
+
+  const v2Enabled = localBypass || featureFlags.v2;
+  const navItems = v2Enabled ? v2NavItems : legacyNavItems;
+
+  // Home renders its own copy inside the top bar; every other page gets the pinned one.
+  const showFloatingProfile = pathname !== "/dashboard/homev2";
 
   return (
     <>
-      <div className="db-mobile-topbar">
-        <span style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 17, fontWeight: 800, fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
-          <img src="/famcare-logo.png" alt="" style={{ width: 28, height: 28, objectFit: "contain", borderRadius: 8 }} />
-          <span>Fam<span style={{ color: "#FF6B6B" }}>Care</span></span>
-        </span>
-        <button onClick={() => setMobileOpen(!mobileOpen)}
-          style={{ background: "none", border: "none", cursor: "pointer", padding: 4, display: "flex", alignItems: "center" }}>
-          <List size={22} weight="bold" />
-        </button>
-      </div>
+      {showFloatingProfile && <ProfileMenu floating />}
+      <MobileBackBar v2Enabled={v2Enabled} />
 
-      {mobileOpen && (
-        <div onClick={() => setMobileOpen(false)}
-          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.3)", zIndex: 150 }} />
-      )}
-
-      <aside className={`db-sidebar${mobileOpen ? " open" : ""}`}>
+      <aside className="db-sidebar">
         <div className="db-brand">
-          <img className="db-brand-mark" src="/famcare-logo.png" alt="" />
-          <span className="db-brand-name">Fam<span className="care">Care</span></span>
+          <BrandMark className="db-brand-mark" />
+          <BrandName className="db-brand-name" />
         </div>
 
         <nav className="db-nav">
           {navItems.map((item) => {
             const active = pathname === item.href;
+            const showStack = item.isNew || item.isBeta;
             return (
               <Link
                 key={item.label}
                 href={item.href}
-                onClick={() => setMobileOpen(false)}
                 className={`db-nav-item${active ? " active" : ""}`}
               >
                 <NavIcon name={item.label} />
-                <span className={item.isNew ? "db-nav-label-stack" : "db-nav-label"}>
+                {showStack ? (
+                  <span className="db-nav-label-stack">
+                    <span className="db-nav-label-row">
+                      <span className="db-nav-label">{item.label}</span>
+                      {item.isBeta && <span className="db-beta-badge">Beta</span>}
+                    </span>
+                    {item.isNew && <span className="db-new-badge">New</span>}
+                  </span>
+                ) : (
                   <span className="db-nav-label">{item.label}</span>
-                  {item.isNew && <span className="db-new-badge">New</span>}
-                </span>
+                )}
               </Link>
             );
           })}
         </nav>
-
-        <button
-          type="button"
-          onClick={() => {
-            setMobileOpen(false);
-            setConfirmLogoutOpen(true);
-          }}
-          className="db-nav-item db-logout-item"
-        >
-          <SignOut className="ni-icon" size={19} weight="bold" />
-          <span style={{ flex: 1 }}>Logout</span>
-        </button>
 
         <div className="db-motiv">
           <span className="leaf">🌱</span>
@@ -106,47 +114,7 @@ export default function Sidebar() {
         </div>
       </aside>
 
-      {confirmLogoutOpen && (
-        <div
-          className="db-modal-overlay"
-          onClick={() => setConfirmLogoutOpen(false)}
-        >
-          <div
-            className="db-modal-sheet db-logout-modal"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <button
-              type="button"
-              aria-label="Close logout confirmation"
-              className="db-logout-modal-close"
-              onClick={() => setConfirmLogoutOpen(false)}
-            >
-              <X size={15} weight="bold" />
-            </button>
-            <div className="db-logout-modal-icon">
-              <SignOut size={24} weight="bold" />
-            </div>
-            <h2>Log out?</h2>
-            <p>You&apos;ll need to verify your WhatsApp number again to access the dashboard.</p>
-            <div className="db-logout-modal-actions">
-              <button
-                type="button"
-                className="db-logout-cancel"
-                onClick={() => setConfirmLogoutOpen(false)}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                className="db-logout-confirm"
-                onClick={handleLogout}
-              >
-                Logout
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {v2Enabled && <MobileBottomNav assistantEnabled />}
     </>
   );
 }

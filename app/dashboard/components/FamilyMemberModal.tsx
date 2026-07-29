@@ -1,6 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip as ReTooltip,
   ResponsiveContainer, Cell,
@@ -197,11 +198,31 @@ export default function FamilyMemberModal({ member, onClose, onRemoved }: Props)
     }
   };
 
-  return (
+  useEffect(() => {
+    document.body.classList.add("mobile-sheet-open");
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.classList.remove("mobile-sheet-open");
+      document.body.style.overflow = previousOverflow;
+    };
+  }, []);
+
+  if (typeof document === "undefined") return null;
+
+  return createPortal(
     <div
       onClick={onClose}
       className="db-modal-overlay"
     >
+      <button
+        type="button"
+        className="mobile-sheet-close"
+        aria-label="Close"
+        onClick={onClose}
+      >
+        <X size={16} weight="bold" />
+      </button>
       <div
         onClick={e => e.stopPropagation()}
         className="db-modal-sheet"
@@ -241,6 +262,7 @@ export default function FamilyMemberModal({ member, onClose, onRemoved }: Props)
             <div style={{ fontSize: 12.5, color: "#9AA0AD", marginTop: 2 }}>{member.phone}</div>
           </div>
           <button
+            className="modal-inline-close"
             onClick={onClose}
             style={{
               background: "#F5F3F8", border: "none", borderRadius: 10,
@@ -543,6 +565,7 @@ export default function FamilyMemberModal({ member, onClose, onRemoved }: Props)
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

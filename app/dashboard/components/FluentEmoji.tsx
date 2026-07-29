@@ -90,6 +90,17 @@ export const FEFlame = ({ size = 28 }: { size?: number }) => (
   </svg>
 );
 
+export const FEAlarm = ({ size = 28 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M6 8L3 5" stroke="#FF6B6B" strokeWidth="2" strokeLinecap="round"/>
+    <path d="M26 8L29 5" stroke="#FF6B6B" strokeWidth="2" strokeLinecap="round"/>
+    <circle cx="16" cy="19" r="11" fill="#FF6B6B"/>
+    <circle cx="16" cy="19" r="8.5" fill="#FFF3F2"/>
+    <path d="M16 14v5.5l3.5 2" stroke="#E8464B" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+    <rect x="13" y="4.5" width="6" height="3" rx="1.5" fill="#FF6B6B"/>
+  </svg>
+);
+
 export const FESmartphone = ({ size = 28 }: { size?: number }) => (
   <svg width={size} height={size} viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
     <rect x="8" y="3" width="16" height="26" rx="3" fill="#5A8DEF"/>

@@ -1,6 +1,6 @@
 "use client";
 
-import { type FormEvent, useEffect, useMemo, useState } from "react";
+import { type FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Calculator,
@@ -15,6 +15,7 @@ import {
   Minus,
 } from "@phosphor-icons/react";
 import Sidebar from "../components/Sidebar";
+import V2RouteGate from "../components/V2RouteGate";
 import { calculateUserCalorieTarget, getCurrentUser, updateUserGoals, type User } from "@/lib/api";
 import { authPath } from "@/lib/authRedirect";
 import { captureEvent, identifyUser, resetAnalytics } from "@/lib/analytics";
@@ -165,15 +166,6 @@ export default function CalorieCalculatorPage() {
   const [calculationStage, setCalculationStage] = useState(0);
   const [goalStatus, setGoalStatus] = useState<"idle" | "saving" | "saved">("idle");
   const [goalError, setGoalError] = useState<string | null>(null);
-
-  const answered = useMemo(() => [
-    form.age,
-    getHeightCm(form, heightUnit) > 0 ? "height" : "",
-    form.weight,
-    form.sex,
-    form.activity,
-    form.goal,
-  ].filter(Boolean).length, [form, heightUnit]);
 
   useEffect(() => {
     let cancelled = false;
@@ -402,6 +394,7 @@ export default function CalorieCalculatorPage() {
   if (!authReady) return null;
 
   return (
+    <V2RouteGate>
     <div className="db-page">
       <Sidebar />
       <main className="db-main cc-main">
@@ -432,14 +425,6 @@ export default function CalorieCalculatorPage() {
         <div className="cc-layout cc-single-layout">
           {view === "form" && (
             <form className="cc-form" onSubmit={handleSubmit} noValidate>
-            <div className="cc-form-progress" aria-label={`${answered} of 6 questions answered`}>
-              <div>
-                <span>Your details</span>
-                <strong>{answered}/6 answered</strong>
-              </div>
-              <div className="cc-progress-track"><span style={{ width: `${(answered / 6) * 100}%` }} /></div>
-            </div>
-
             <section className="cc-question-section">
               <div className="cc-section-heading">
                 <span className="cc-step">1</span>
@@ -653,5 +638,6 @@ export default function CalorieCalculatorPage() {
         </div>
       </main>
     </div>
+    </V2RouteGate>
   );
 }
