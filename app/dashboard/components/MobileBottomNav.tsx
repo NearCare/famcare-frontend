@@ -68,6 +68,8 @@ export default function MobileBottomNav({ assistantEnabled }: MobileBottomNavPro
           <span>
             <img src="/mascot.png" alt="" />
           </span>
+          <small>AI Coach</small>
+          <em>Beta</em>
         </Link>
       )}
     </nav>
