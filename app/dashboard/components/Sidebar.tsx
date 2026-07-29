@@ -11,6 +11,7 @@ import { getFeatureFlags, type FeatureFlags } from "@/lib/api";
 import { clearStoredSession } from "@/lib/session";
 import { bypassV2FeatureFlagLocally } from "@/lib/v2Feature";
 import BrandName from "./BrandName";
+import MobileBackBar from "./MobileBackBar";
 import MobileBottomNav from "./MobileBottomNav";
 import ProfileMenu from "./ProfileMenu";
 
@@ -91,6 +92,7 @@ export default function Sidebar() {
   return (
     <>
       {showFloatingProfile && <ProfileMenu floating />}
+      <MobileBackBar v2Enabled={v2Enabled} />
 
       <aside className="db-sidebar">
         <div className="db-brand">

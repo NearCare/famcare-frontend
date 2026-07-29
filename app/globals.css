@@ -788,6 +788,12 @@ a {
 .mobile-health-dock {
   display: none;
 }
+
+/* Mobile back bar — pages outside the bottom dock (Family Overview, Logs,
+   Review, Calorie Calculator, …) have no other way back to Home on mobile. */
+.mobile-back-bar {
+  display: none;
+}
 @keyframes mobileProfileRise { from { transform: translateY(100%); } }
 @keyframes mobileProfileFade { from { opacity: 0; } }
 
@@ -970,6 +976,47 @@ a {
     padding-bottom: calc(98px + env(safe-area-inset-bottom));
   }
   .db-main { margin-left: 0 !important; padding: 18px 16px 24px !important; }
+  .db-page:has(.mobile-back-bar) .db-main {
+    padding-top: calc(64px + max(10px, env(safe-area-inset-top))) !important;
+  }
+  .mobile-back-bar {
+    position: fixed;
+    z-index: 700;
+    top: 0;
+    left: 0;
+    right: 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: max(14px, env(safe-area-inset-top)) 16px 12px;
+    border-bottom: 1px solid rgba(228, 233, 242, .8);
+    background: rgba(255, 255, 255, .82);
+    backdrop-filter: blur(20px) saturate(150%);
+    -webkit-backdrop-filter: blur(20px) saturate(150%);
+    font-family: 'Plus Jakarta Sans', var(--font-jakarta), system-ui, sans-serif;
+  }
+  .mobile-back-bar-btn {
+    display: grid;
+    place-items: center;
+    width: 34px;
+    height: 34px;
+    flex: none;
+    border: 1px solid #e4e9f2;
+    border-radius: 11px;
+    background: #fff;
+    color: var(--pay-navy, #17213b);
+    cursor: pointer;
+  }
+  .mobile-back-bar-btn:active { transform: scale(.94); }
+  .mobile-back-bar-title {
+    overflow: hidden;
+    color: var(--pay-navy, #17213b);
+    font-size: 15px;
+    font-weight: 800;
+    letter-spacing: -.01em;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
   .mobile-health-dock {
     position: fixed;
     z-index: 800;

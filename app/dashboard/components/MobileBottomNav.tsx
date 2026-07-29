@@ -15,7 +15,7 @@ const primaryItems = [
   { label: "Stats", href: "/dashboard/statistics", icon: ChartLine },
 ];
 
-const BOTTOM_NAV_ROUTES = [
+export const BOTTOM_NAV_ROUTES = [
   "/dashboard",
   "/dashboard/homev2",
   "/dashboard/medications",
