@@ -37,7 +37,7 @@ import {
   type SubscriptionCheckout,
   type SubscriptionDetails,
 } from "@/lib/api";
-import { refreshSubscriptionState } from "@/lib/useSubscription";
+import { refreshSubscriptionState, useSubscription } from "@/lib/useSubscription";
 
 type RazorpayResponse = {
   razorpay_payment_id: string;
@@ -97,6 +97,7 @@ export default function PaymentsPage() {
 
 function PaymentsPageContent() {
   const searchParams = useSearchParams();
+  const { isSubscribed } = useSubscription();
   const [planKey, setPlanKey] = useState<BillingPlanKey>("family");
   const [plansData, setPlansData] = useState<BillingPlansResponse | null>(null);
   const [plansError, setPlansError] = useState<string | null>(null);
@@ -308,7 +309,7 @@ function PaymentsPageContent() {
       subscription_id: checkout.subscription_id,
       name: "FamCare",
       description,
-      image: `${window.location.origin}/famcare-logo.png`,
+      image: `${window.location.origin}/${isSubscribed ? "famcareplus.png" : "famcare-logo.png"}`,
       prefill: {
         name: checkout.customer_name,
         contact: checkout.customer_phone,

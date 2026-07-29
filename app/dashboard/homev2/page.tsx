@@ -39,6 +39,7 @@ import {
 } from "recharts";
 import type { NameType, ValueType } from "recharts/types/component/DefaultTooltipContent";
 import Sidebar from "../components/Sidebar";
+import BrandMark from "../components/BrandMark";
 import V2RouteGate from "../components/V2RouteGate";
 import AddFamilyModal from "../components/AddFamilyModal";
 import FoodReminderControl from "../components/FoodReminderControl";
@@ -652,7 +653,7 @@ export default function HomeV2Page() {
       <main className="db-main homev2-main">
         <header className="homev2-topbar">
           <div className="homev2-greeting-row">
-            <img className="homev2-greeting-logo" src="/famcare-logo.png" alt="" />
+            <BrandMark className="homev2-greeting-logo" />
             <h1 className="db-greeting homev2-greeting">
               <span className="homev2-greeting-hello">{greeting()} 👋</span>
               <span className="homev2-greeting-name">{user?.name ?? "there"}</span>

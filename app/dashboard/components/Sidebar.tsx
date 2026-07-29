@@ -7,7 +7,7 @@ import {
 } from "@phosphor-icons/react";
 import { getFeatureFlags, type FeatureFlags } from "@/lib/api";
 import { bypassV2FeatureFlagLocally } from "@/lib/v2Feature";
-import { useSubscription } from "@/lib/useSubscription";
+import BrandMark from "./BrandMark";
 import BrandName from "./BrandName";
 import MobileBackBar from "./MobileBackBar";
 import MobileBottomNav from "./MobileBottomNav";
@@ -56,7 +56,6 @@ export default function Sidebar() {
   const localBypass = bypassV2FeatureFlagLocally();
   const [featureFlags, setFeatureFlags] = useState<FeatureFlags>({ v2: localBypass });
   const pathname = usePathname();
-  const { isSubscribed } = useSubscription();
 
   useEffect(() => {
     getFeatureFlags()
@@ -77,11 +76,7 @@ export default function Sidebar() {
 
       <aside className="db-sidebar">
         <div className="db-brand">
-          <img
-            className={`db-brand-mark${isSubscribed ? " plus" : ""}`}
-            src={isSubscribed ? "/famcareplus.png" : "/famcare-logo.png"}
-            alt=""
-          />
+          <BrandMark className="db-brand-mark" />
           <BrandName className="db-brand-name" />
         </div>
 

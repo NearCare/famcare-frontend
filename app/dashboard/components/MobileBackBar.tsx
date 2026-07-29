@@ -9,6 +9,7 @@ const PAGE_TITLES: Record<string, string> = {
   "/dashboard/family-overviewv2": "Family Overview",
   "/dashboard/calorie-calculator": "Calorie Calculator",
   "/dashboard/logs": "Logs",
+  "/dashboard/payments": "Payments",
   "/dashboard/review": "Review",
 };
 
@@ -32,9 +33,9 @@ export default function MobileBackBar({ v2Enabled }: { v2Enabled: boolean }) {
   const fallbackHref = v2Enabled ? "/dashboard/homev2" : "/dashboard";
 
   function handleBack() {
-    // A same-app history entry lets router.back() preserve scroll/filters;
-    // a fresh tab or deep link has nowhere to go back to, so fall back home.
-    if (typeof window !== "undefined" && window.history.length > 2) {
+    // Preserve the exact page, scroll position and filters the user came from.
+    // A fresh tab or direct deep link has no previous entry, so fall back Home.
+    if (typeof window !== "undefined" && window.history.length > 1) {
       router.back();
     } else {
       router.push(fallbackHref);

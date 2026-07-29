@@ -20,7 +20,6 @@ export const BOTTOM_NAV_ROUTES = [
   "/dashboard/medications",
   "/dashboard/statistics",
   "/dashboard/profile",
-  "/dashboard/payments",
   "/dashboard/health-assistant",
 ];
 
@@ -69,8 +68,6 @@ export default function MobileBottomNav({ assistantEnabled }: MobileBottomNavPro
           <span>
             <img src="/mascot.png" alt="" />
           </span>
-          <small>AI Coach</small>
-          <em className="mobile-health-ai-beta">Beta</em>
         </Link>
       )}
     </nav>

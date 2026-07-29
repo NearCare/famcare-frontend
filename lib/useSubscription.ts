@@ -13,9 +13,11 @@ import { getMonthlyUsage, type MonthlyUsageSnapshot } from "./api";
  */
 let cachedSnapshot: MonthlyUsageSnapshot | null = null;
 let cachedError: string | null = null;
+let cachedAt = 0;
 let inFlight: Promise<MonthlyUsageSnapshot | null> | null = null;
 type CachedState = { snapshot: MonthlyUsageSnapshot | null; error: string | null };
 const subscribers = new Set<(state: CachedState) => void>();
+const CACHE_TTL_MS = 30_000;
 
 function publish() {
   const state = { snapshot: cachedSnapshot, error: cachedError };
@@ -23,13 +25,16 @@ function publish() {
 }
 
 function loadSnapshot(): Promise<MonthlyUsageSnapshot | null> {
-  if (cachedSnapshot) return Promise.resolve(cachedSnapshot);
+  if (cachedSnapshot && Date.now() - cachedAt < CACHE_TTL_MS) {
+    return Promise.resolve(cachedSnapshot);
+  }
   if (inFlight) return inFlight;
 
   inFlight = getMonthlyUsage()
     .then((snapshot) => {
       cachedSnapshot = snapshot;
       cachedError = null;
+      cachedAt = Date.now();
       publish();
       return snapshot;
     })
@@ -54,6 +59,7 @@ function loadSnapshot(): Promise<MonthlyUsageSnapshot | null> {
 export function refreshSubscriptionState(): Promise<MonthlyUsageSnapshot | null> {
   cachedSnapshot = null;
   cachedError = null;
+  cachedAt = 0;
   inFlight = null;
   return loadSnapshot();
 }
