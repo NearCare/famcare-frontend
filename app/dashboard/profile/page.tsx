@@ -8,40 +8,22 @@ import {
   ChatCircleText,
   FileText,
   Gauge,
-  CreditCard,
   SignOut,
   Users,
   X,
 } from "@phosphor-icons/react";
 import Sidebar from "../components/Sidebar";
+import ProfileTabs from "../components/ProfileTabs";
 import V2RouteGate from "../components/V2RouteGate";
 import { captureEvent, resetAnalytics } from "@/lib/analytics";
 import { clearStoredSession } from "@/lib/session";
 import {
   getMonthlyUsage,
-  getSubscriptionDetails,
   type MonthlyUsageSnapshot,
-  type SubscriptionDetails,
   type User,
 } from "@/lib/api";
 
-const amountFormatter = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 });
-const dateFormatter = new Intl.DateTimeFormat("en-IN", { day: "numeric", month: "short", year: "numeric" });
-
-function formatDate(value?: string | null) {
-  if (!value) return null;
-  const parsed = new Date(value);
-  return Number.isNaN(parsed.getTime()) ? null : dateFormatter.format(parsed);
-}
-
 const profileLinks = [
-  {
-    label: "Plans & billing",
-    description: "Choose or manage your FamCare plan",
-    href: "/dashboard/payments",
-    icon: CreditCard,
-    tone: "red",
-  },
   {
     label: "Family overview",
     description: "See everyone’s health in one place",
@@ -68,7 +50,6 @@ const profileLinks = [
 export default function ProfilePage() {
   const [user, setUser] = useState<User | null>(null);
   const [usage, setUsage] = useState<MonthlyUsageSnapshot | null>(null);
-  const [subscription, setSubscription] = useState<SubscriptionDetails | null>(null);
   const [confirmLogoutOpen, setConfirmLogoutOpen] = useState(false);
 
   useEffect(() => {
@@ -86,9 +67,6 @@ export default function ProfilePage() {
     void getMonthlyUsage()
       .then(setUsage)
       .catch((error) => console.warn("[Profile] Failed to load monthly usage", error));
-    void getSubscriptionDetails()
-      .then(setSubscription)
-      .catch((error) => console.warn("[Profile] Failed to load subscription", error));
   }, []);
 
   function handleLogout() {
@@ -125,13 +103,18 @@ export default function ProfilePage() {
           </div>
         </header>
 
-        {usage && (
+        <ProfileTabs active="profile" />
+
+        {/* Free accounts only: these meters exist to show how much of the free
+            allowance is left. Paid plans are uncapped, so the card would just
+            be four bars that can never fill. */}
+        {usage && !usage.unlimited && (
           <section className="profile-usage-card" aria-label="Monthly free usage">
             <div className="profile-usage-head">
               <span><Gauge size={18} weight="duotone" /></span>
               <div>
-                <h2>{usage.unlimited ? `${usage.plan_key === "family" ? "Family" : "Individual"} plan` : "Free usage this month"}</h2>
-                <p>{usage.unlimited ? "Unlimited FamCare usage is active" : "Shared across your family account"}</p>
+                <h2>Free usage this month</h2>
+                <p>Shared across your family account</p>
               </div>
             </div>
             <div className="profile-usage-list">
@@ -139,7 +122,7 @@ export default function ProfilePage() {
                 <div className="profile-usage-item" key={item.key}>
                   <div>
                     <span>{item.label}</span>
-                    <strong>{usage.unlimited ? item.used : `${item.used} / ${item.limit}`}</strong>
+                    <strong>{item.used} / {item.limit}</strong>
                   </div>
                   <i aria-hidden="true">
                     <b style={{ width: `${Math.min(item.percentage, 100)}%` }} />
@@ -147,7 +130,7 @@ export default function ProfilePage() {
                 </div>
               ))}
             </div>
-            {!usage.unlimited && usage.items.some((item) => item.used >= item.warning_at) && (
+            {usage.items.some((item) => item.used >= item.warning_at) && (
               <a
                 className="profile-usage-upgrade"
                 href="/dashboard/payments"
@@ -157,76 +140,6 @@ export default function ProfilePage() {
                 })}
               >
                 Upgrade FamCare
-              </a>
-            )}
-          </section>
-        )}
-
-        {subscription && (
-          <section className="profile-payment-card" aria-label="Payment details">
-            <div className="profile-payment-head">
-              <span><CreditCard size={18} weight="duotone" /></span>
-              <div>
-                <h2>{subscription.active ? "FamCare+ subscription" : "Payment"}</h2>
-                <p>
-                  {subscription.active
-                    ? "Your plan and billing details"
-                    : "No active subscription on this account"}
-                </p>
-              </div>
-              {subscription.active && <span className="profile-payment-badge">Active</span>}
-            </div>
-
-            {subscription.active ? (
-              <>
-                <dl className="profile-payment-rows">
-                  <div>
-                    <dt>Plan</dt>
-                    <dd>FamCare {subscription.plan_key === "family" ? "Family" : "Individual"}</dd>
-                  </div>
-                  <div>
-                    <dt>Amount</dt>
-                    <dd>₹{amountFormatter.format(subscription.amount_paise / 100)} / month</dd>
-                  </div>
-                  <div>
-                    <dt>Billing cycle</dt>
-                    <dd>Monthly</dd>
-                  </div>
-                  {formatDate(subscription.paid_at) && (
-                    <div>
-                      <dt>Paid on</dt>
-                      <dd>{formatDate(subscription.paid_at)}</dd>
-                    </div>
-                  )}
-                  {formatDate(subscription.current_period_end) && (
-                    <div>
-                      <dt>{subscription.cancel_at_period_end ? "Ends on" : "Next renewal"}</dt>
-                      <dd>{formatDate(subscription.current_period_end)}</dd>
-                    </div>
-                  )}
-                  {subscription.provider_subscription_id && (
-                    <div>
-                      <dt>Subscription ID</dt>
-                      <dd className="mono">{subscription.provider_subscription_id}</dd>
-                    </div>
-                  )}
-                </dl>
-                {subscription.cancel_at_period_end && (
-                  <p className="profile-payment-note">
-                    This subscription is set to cancel at the end of the current period.
-                  </p>
-                )}
-              </>
-            ) : (
-              <a
-                className="profile-usage-upgrade"
-                href="/dashboard/payments"
-                onClick={() => captureEvent("billing_entry_clicked", {
-                  source: "profile_subscription",
-                  current_plan: subscription.plan_key,
-                })}
-              >
-                See FamCare+ plans
               </a>
             )}
           </section>
