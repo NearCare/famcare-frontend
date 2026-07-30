@@ -5,9 +5,9 @@ import Script from "next/script";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  ArrowsClockwise,
   CalendarCheck,
   CheckCircle,
+  Clock,
   Crown,
   Heart,
   LockKey,
@@ -85,8 +85,8 @@ const rupees = (amountPaise: number) => currencyFormatter.format(amountPaise / 1
 
 // How long to keep polling for the webhook to land before giving up and
 // telling the user we're still confirming instead of claiming success.
-const RECONCILE_ATTEMPTS = 8;
-const RECONCILE_INTERVAL_MS = 3000;
+const RECONCILE_ATTEMPTS = 6;
+const RECONCILE_INTERVAL_MS = 5000;
 
 export default function PaymentsPage() {
   return (
@@ -253,19 +253,6 @@ function PaymentsPageContent() {
         : renewalDateFormatter.format(nextRenewal),
     };
   }, [hasSuccessParams, plansData, checkoutStatus]);
-
-  // The timeout is not a dead end: let the user re-run the same poll cycle
-  // instead of stranding them with "check back later" and no control.
-  function retryReconcile() {
-    captureEvent("subscription_checkout_confirmation_retried");
-    if (reconcileTimer.current) clearTimeout(reconcileTimer.current);
-    setReconcileAttempt(0);
-    setCheckoutStatusError(null);
-    void getCheckoutStatus(checkoutSubscriptionId).then(setCheckoutStatus).catch((error) => {
-      setCheckoutStatusError(error instanceof Error ? error.message : "Checkout status could not be loaded.");
-    });
-    void refreshSubscription();
-  }
 
   async function confirmCancel() {
     setPlanNotice(null);
@@ -465,9 +452,19 @@ function PaymentsPageContent() {
             <section className="payment-success-grid">
               <div className={`payment-success-card${confirmed ? "" : " pending"}`}>
                 <div className="payment-success-icon">
-                  {confirmed ? <CheckCircle size={48} weight="fill" /> : <SpinnerGap size={40} className="payment-spin" />}
+                  {confirmed
+                    ? <CheckCircle size={48} weight="fill" />
+                    : timedOut
+                      ? <Clock size={44} weight="duotone" />
+                      : <SpinnerGap size={40} className="payment-spin" />}
                 </div>
-                <h2>{confirmed ? (checkoutStatus?.scheduled ? "Upgrade scheduled!" : "Payment successful!") : "Confirming your payment…"}</h2>
+                <h2>
+                  {confirmed
+                    ? (checkoutStatus?.scheduled ? "Upgrade scheduled!" : "Payment successful!")
+                    : timedOut
+                      ? "Payment under process"
+                      : "Confirming your payment…"}
+                </h2>
                 {confirmed && (
                   <span className="payment-plus-badge">
                     <Crown size={14} weight="fill" />
@@ -486,12 +483,6 @@ function PaymentsPageContent() {
                       : "Your payment was received. We're waiting for the bank/Razorpay confirmation to activate your plan."}
                 </p>
 
-                {timedOut && (
-                  <button type="button" className="payment-retry-btn" onClick={retryReconcile}>
-                    <ArrowsClockwise size={16} weight="bold" /> Check again
-                  </button>
-                )}
-
                 <div className="payment-success-stats">
                   <div>
                     <span>Payment ID</span>
@@ -504,13 +495,19 @@ function PaymentsPageContent() {
                 </div>
 
                 <div className={`payment-success-banner${confirmed ? "" : " pending"}`}>
-                  {confirmed ? <ShieldCheck size={18} weight="fill" /> : <SpinnerGap size={18} className="payment-spin" />}
+                  {confirmed
+                    ? <ShieldCheck size={18} weight="fill" />
+                    : timedOut
+                      ? <Clock size={18} weight="duotone" />
+                      : <SpinnerGap size={18} className="payment-spin" />}
                   <div>
-                    <strong>{confirmed ? "Secure payment confirmed" : "Waiting for confirmation"}</strong>
+                    <strong>{confirmed ? "Secure payment confirmed" : timedOut ? "Under process" : "Waiting for confirmation"}</strong>
                     <span>
                       {confirmed
                         ? "Your payment was processed securely by Razorpay."
-                        : "This page checks automatically — no need to refresh."}
+                        : timedOut
+                          ? "Reload this page later to see the updated status."
+                          : "This page checks automatically — no need to refresh."}
                     </span>
                   </div>
                 </div>
@@ -530,8 +527,12 @@ function PaymentsPageContent() {
                   <strong>₹{successPlanInfo?.amount}</strong>
                 </div>
                 <div className={`payment-summary-status${confirmed ? "" : " pending"}`}>
-                  {confirmed ? <CheckCircle size={16} weight="fill" /> : <SpinnerGap size={16} className="payment-spin" />}
-                  Payment status <b>{confirmed ? "Verified" : "Processing"}</b>
+                  {confirmed
+                    ? <CheckCircle size={16} weight="fill" />
+                    : timedOut
+                      ? <Clock size={16} weight="duotone" />
+                      : <SpinnerGap size={16} className="payment-spin" />}
+                  Payment status <b>{confirmed ? "Verified" : timedOut ? "Under process" : "Processing"}</b>
                 </div>
                 {confirmed && (
                   <div className="payment-summary-renewal">
