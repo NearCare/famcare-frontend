@@ -10071,6 +10071,22 @@ span.payment-dots {
   text-align: center;
   text-wrap: balance;
 }
+.payment-support-link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  margin-top: 12px;
+  color: var(--pay-muted);
+  font-size: 12.5px;
+  font-weight: 700;
+  text-decoration: none;
+}
+.payment-support-link:hover { color: var(--pay-coral-deep); }
+.payment-support-link svg { flex: none; }
+/* Underline the label only, so the rule doesn't stretch under the icon. */
+.payment-support-link span { text-decoration: underline; text-underline-offset: 3px; }
+
 .payment-success-close-actions {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -10357,16 +10373,24 @@ span.payment-dots {
   .payment-action-card > .payment-submit:hover:not(:disabled) {
     transform: none;
   }
+  /* Three equal columns, each stacking its icon over the label so the row
+     stays readable at phone widths instead of squeezing into one line. */
   .payment-trust-row {
-    grid-template-columns: 1fr;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
     gap: 0;
-    padding: 5px 14px;
+    padding: 10px 6px;
   }
   .payment-trust-row > div {
-    justify-content: flex-start;
-    padding: 10px 2px;
+    flex-direction: column;
+    gap: 7px;
+    padding: 4px 8px;
+    text-align: center;
   }
-  .payment-trust-row > div + div { border-top: 1px solid #eceeef; border-left: 0; }
+  .payment-trust-row > div:first-child { padding-left: 8px; }
+  .payment-trust-row > div:last-child { padding-right: 8px; }
+  .payment-trust-row > div + div { border-top: 0; border-left: 1px solid #eceeef; }
+  .payment-trust-row span { align-items: center; gap: 2px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

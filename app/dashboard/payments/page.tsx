@@ -9,6 +9,7 @@ import {
   CheckCircle,
   Clock,
   Crown,
+  EnvelopeSimple,
   Heart,
   LockKey,
   Receipt,
@@ -87,6 +88,8 @@ const rupees = (amountPaise: number) => currencyFormatter.format(amountPaise / 1
 // telling the user we're still confirming instead of claiming success.
 const RECONCILE_ATTEMPTS = 6;
 const RECONCILE_INTERVAL_MS = 5000;
+
+const SUPPORT_EMAIL = "famcarehealthbusiness@gmail.com";
 
 export default function PaymentsPage() {
   return (
@@ -221,6 +224,24 @@ function PaymentsPageContent() {
   const errored = timedOut && checkoutStatusError != null;
   const stalled = timedOut && !errored;
   const polling = hasSuccessParams && !confirmed && !timedOut;
+
+  // Pre-fill the reference details support would otherwise have to ask for.
+  const supportMailto = useMemo(() => {
+    const state = confirmed ? "Confirmed" : errored ? "Verification failed" : stalled ? "Under process" : "Confirming";
+    const body = [
+      "Hi FamCare team,",
+      "",
+      "I need help with my payment.",
+      "",
+      `Subscription ID: ${checkoutSubscriptionId || "—"}`,
+      `Payment ID: ${checkoutStatus?.payment_id ?? "—"}`,
+      `Status: ${state}`,
+      "",
+      "What happened:",
+      "",
+    ].join("\n");
+    return `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent("FamCare payment help")}&body=${encodeURIComponent(body)}`;
+  }, [confirmed, errored, stalled, checkoutSubscriptionId, checkoutStatus?.payment_id]);
 
   // The FamCare+ marker (sidebar wordmark, profile menu, Plus upsell banner) is
   // driven by a module-level snapshot that was cached before this payment. Once
@@ -491,7 +512,7 @@ function PaymentsPageContent() {
                       ? `Your FamCare ${successPlanInfo?.name} upgrade is scheduled for the end of your current billing period.`
                       : `Your ${checkoutStatus?.kind === "extra_parent" ? "extra parent add-on" : `FamCare ${successPlanInfo?.name}`} is active.`
                     : errored
-                      ? `${checkoutStatusError} If money left your account it will be refunded automatically — contact us on WhatsApp if it isn't.`
+                      ? `${checkoutStatusError} If money left your account it will be refunded automatically.`
                       : stalled
                         ? "This is taking longer than usual. Your payment is safe — check back here or on Profile → Payment in a few minutes."
                         : "Your payment was received. We're waiting for the bank/Razorpay confirmation to activate your plan."}
@@ -544,6 +565,11 @@ function PaymentsPageContent() {
                     <Link href="/dashboard/homev2" className="payment-submit">Go to home</Link>
                   </div>
                 )}
+
+                <a className="payment-support-link" href={supportMailto}>
+                  <EnvelopeSimple size={15} weight="duotone" />
+                  <span>Contact support</span>
+                </a>
               </div>
             </section>
           </main>
