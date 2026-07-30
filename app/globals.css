@@ -9930,13 +9930,16 @@ a {
   padding: 6px 13px;
   border-radius: 999px;
   background: #e7f8ef;
-  color: #148a4d;
+  color: var(--he-ink-1);
   font-size: 13px;
   font-weight: 800;
   letter-spacing: -.01em;
 }
-.payment-plus-badge-text b { color: var(--pay-coral-deep); font-weight: inherit; }
-.payment-plus-badge-text sup { font-size: .7em; font-weight: 900; vertical-align: super; }
+/* Matches the sidebar wordmark: ink "Fam", coral "Care". */
+.payment-plus-badge-logo { width: 32px; height: 32px; object-fit: contain; }
+.payment-plus-badge-text b { color: var(--he-coral); font-weight: inherit; }
+.payment-plus-badge-text sup { color: var(--he-coral); font-size: .7em; font-weight: 900; vertical-align: super; }
+.payment-plus-badge-text i { color: #148a4d; font-style: normal; font-weight: inherit; }
 
 .payment-success-lede { margin: 0 0 20px; color: #556076; font-size: 14px; line-height: 1.5; }
 
@@ -9952,25 +9955,42 @@ a {
 }
 .payment-success-stats span { display: block; margin-bottom: 4px; color: #849087; font-size: 10.5px; text-transform: uppercase; letter-spacing: .04em; }
 .payment-success-stats strong { color: var(--pay-navy); font-size: 13px; overflow-wrap: anywhere; }
-.payment-success-banner {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  margin-bottom: 16px;
-  padding: 13px 14px;
-  border-radius: 14px;
-  color: var(--pay-green);
-  background: var(--pay-green-soft);
-}
-.payment-success-banner div { display: flex; flex-direction: column; gap: 2px; }
-.payment-success-banner strong { color: #1d7a4e; font-size: 12.5px; }
-.payment-success-banner span { color: #4c8a6c; font-size: 11.5px; }
 .payment-success-heart { display: flex; align-items: center; gap: 6px; margin: 0; color: var(--pay-coral-deep); font-size: 12.5px; font-weight: 700; }
 
 .payment-spin { animation: paymentSpin 1s linear infinite; }
 @keyframes paymentSpin { to { transform: rotate(360deg); } }
+
+/* `span.payment-dots` (not `.payment-dots`) so this outranks descendant rules
+   such as `.payment-success-stats span`, which would otherwise force the
+   container to `display: block` and collapse the dots to zero size. */
+span.payment-dots {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 1em;
+  margin: 0;
+  color: inherit;
+  text-transform: none;
+}
+.payment-dots i {
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: .25;
+  animation: paymentDots 1.2s ease-in-out infinite;
+}
+.payment-dots i:nth-child(2) { animation-delay: .16s; }
+.payment-dots i:nth-child(3) { animation-delay: .32s; }
+@keyframes paymentDots {
+  0%, 70%, 100% { opacity: .25; transform: translateY(0); }
+  35% { opacity: 1; transform: translateY(-3px); }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .payment-spin { animation: none; }
+  .payment-dots i { animation: none; opacity: .5; }
 }
 
 .payment-success-card.pending {
@@ -9982,17 +10002,16 @@ a {
   background: #ffe4b8;
   box-shadow: 0 10px 26px rgba(226, 165, 62, .3);
 }
-.payment-success-banner.pending {
-  color: #9a6a12;
-  background: #fff6e9;
+/* Terminal failure: polling finished and the payment was never verified. */
+.payment-success-card.error {
+  background: linear-gradient(160deg, #fdeceb, #fff 62%);
+  border-color: #f7c9c6;
 }
-.payment-success-banner.pending strong { color: #7a5308; }
-.payment-success-banner.pending span { color: #a1793a; }
-.payment-summary-status.pending {
-  color: #9a6a12;
-  background: #fff6e9;
+.payment-success-card.error .payment-success-icon {
+  color: #fff;
+  background: var(--pay-coral-deep);
+  box-shadow: 0 10px 26px rgba(232, 70, 75, .28);
 }
-.payment-summary-status.pending b { color: #7a5308; }
 
 .payment-plans-loading {
   display: flex;
@@ -10008,6 +10027,8 @@ a {
 }
 
 .payment-summary-card {
+  display: flex;
+  flex-direction: column;
   padding: 22px 22px 24px;
   border: 1px solid #ede9e9;
   border-radius: 22px;
@@ -10019,19 +10040,6 @@ a {
 .payment-summary-row strong { color: var(--pay-navy); font-weight: 700; }
 .payment-summary-row.total { margin-top: 14px; padding-top: 14px; border-top: 1px solid #eee; font-size: 15px; }
 .payment-summary-row.total strong { font-size: 17px; }
-.payment-summary-status {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 14px;
-  padding: 11px 14px;
-  border-radius: 12px;
-  color: var(--pay-green);
-  background: var(--pay-green-soft);
-  font-size: 12.5px;
-  font-weight: 700;
-}
-.payment-summary-status b { margin-left: auto; color: #1d7a4e; }
 .payment-summary-renewal {
   display: flex;
   align-items: flex-start;
@@ -10045,12 +10053,30 @@ a {
 .payment-summary-renewal strong { font-size: 12.5px; }
 .payment-summary-renewal span { color: #9299a7; font-size: 11px; }
 
+/* `margin-top: auto` inside the flex-column card pins this to the bottom, so
+   it sits where the Close/Go to home row does once polling resolves. */
+.payment-hold-note {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin: auto 0 0;
+  padding-top: 18px;
+  border-top: 1px dashed #f0ecec;
+  color: var(--pay-muted);
+  font-size: 12.5px;
+  font-weight: 700;
+  letter-spacing: -.01em;
+  line-height: 1.4;
+  text-align: center;
+  text-wrap: balance;
+}
 .payment-success-close-actions {
   display: grid;
   grid-template-columns: 1fr 1fr;
   align-items: center;
   gap: 12px;
-  margin-top: 18px;
+  margin-top: auto;
   padding-top: 18px;
   border-top: 1px dashed #f0ecec;
 }
