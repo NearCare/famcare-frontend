@@ -6,7 +6,6 @@ import { BOTTOM_NAV_ROUTES } from "./MobileBottomNav";
 
 const PAGE_TITLES: Record<string, string> = {
   "/dashboard/family-overview": "Family Overview",
-  "/dashboard/family-overviewv2": "Family Overview",
   "/dashboard/calorie-calculator": "Calorie Calculator",
   "/dashboard/logs": "Logs",
   "/dashboard/payments": "Payments",
@@ -30,7 +29,7 @@ export default function MobileBackBar() {
 
   if (BOTTOM_NAV_ROUTES.includes(pathname)) return null;
 
-  const fallbackHref = "/dashboard/homev2";
+  const fallbackHref = "/dashboard";
 
   function handleBack() {
     // Preserve the exact page, scroll position and filters the user came from.

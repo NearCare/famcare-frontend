@@ -26,7 +26,7 @@ const profileLinks = [
   {
     label: "Family overview",
     description: "See everyone’s health in one place",
-    href: "/dashboard/family-overviewv2",
+    href: "/dashboard/family-overview",
     icon: Users,
     tone: "green",
   },

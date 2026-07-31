@@ -6169,6 +6169,37 @@ a {
   color: #16233F;
 }
 .homev2-status-head svg.ok { color: #25B978; }
+/* Cards that navigate carry a caret in the header so the affordance is visible
+   before the pointer arrives — hover alone is invisible on touch. */
+.homev2-status-caret {
+  margin-left: auto;
+  color: #9AA4BA;
+  flex-shrink: 0;
+  transition: transform .18s ease, color .18s ease;
+}
+.homev2-status-card.is-clickable {
+  cursor: pointer;
+  transition: border-color .18s ease, box-shadow .18s ease, transform .18s ease;
+}
+.homev2-status-card.is-clickable:hover {
+  border-color: #D8DEEC;
+  box-shadow: 0 18px 40px rgba(23, 36, 67, .09);
+  transform: translateY(-1px);
+}
+.homev2-status-card.is-clickable:hover .homev2-status-caret {
+  color: #16233F;
+  transform: translateX(2px);
+}
+.homev2-status-card.is-clickable:focus-visible {
+  outline: 2px solid var(--he-coral);
+  outline-offset: 2px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .homev2-status-card.is-clickable,
+  .homev2-status-caret { transition: none; }
+  .homev2-status-card.is-clickable:hover { transform: none; }
+  .homev2-status-card.is-clickable:hover .homev2-status-caret { transform: none; }
+}
 .homev2-tip-card .homev2-status-head { color: #1E9E63; }
 .homev2-status-head h3 {
   margin: 0;

@@ -10,14 +10,13 @@ type MobileBottomNavProps = {
 };
 
 const primaryItems = [
-  { label: "Home", href: "/dashboard/homev2", icon: House },
+  { label: "Home", href: "/dashboard", icon: House },
   { label: "Medication", href: "/dashboard/medications", icon: Pill },
   { label: "Stats", href: "/dashboard/statistics", icon: ChartLine },
 ];
 
 export const BOTTOM_NAV_ROUTES = [
   "/dashboard",
-  "/dashboard/homev2",
   "/dashboard/medications",
   "/dashboard/statistics",
   "/dashboard/profile",

@@ -1,152 +1,133 @@
 "use client";
+
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { CheckCircle, Warning, Sparkle, CaretRight, UserPlus, Trophy, Info } from "@phosphor-icons/react";
-import { Flame, Dumbbell, Footprints } from "lucide-react";
+import Link from "next/link";
+import {
+  ArrowRight,
+  Barbell,
+  Bell,
+  Clock,
+  Crown,
+  Flame,
+  Footprints,
+  ForkKnife,
+  Pill,
+  Plus,
+  UsersThree,
+} from "@phosphor-icons/react";
+import Sidebar from "../components/Sidebar";
+import AddFamilyModal from "../components/AddFamilyModal";
+import FamilyFoodReminderDrawer from "../components/FamilyFoodReminderDrawer";
+import PageLoader from "../components/PageLoader";
 import {
   getFamilyMembers,
+  getFoodReminderPreference,
+  getMemberLogEvents,
   getMemberLogs,
   getMemberSummary,
+  getTodayMedicineDoses,
+  getUserLogEvents,
   getUserLogs,
   getUserSummary,
-  type User,
-  type HealthLog,
-  type Summary,
   type FamilyMember,
+  type FoodReminderPreference,
+  type HealthLog,
+  type HealthLogEvent,
+  type Summary,
+  type TodayDose,
+  type User,
 } from "@/lib/api";
-import { scoreTier, computeScore, ScoreRing, ScoreText } from "../components/Score";
-
-const RANK_PALETTE = [
-  { bg: "#FFF8E7", accent: "#F5A623", text: "#A06400", caption: "Top of the family!" },
-  { bg: "#F3F3F3", accent: "#9AA0AD", text: "#5A6170", caption: "Strong effort" },
-  { bg: "#FFF1EC", accent: "#E8855C", text: "#A04830", caption: "Keep going!" },
-  { bg: "#F0F4FF", accent: "#6B8FE8", text: "#3050A0", caption: "Building momentum" },
-];
-
-function EstimateInfo() {
-  const [open, setOpen] = useState(false);
-  const [hovered, setHovered] = useState(false);
-  const visible = open || hovered;
-
-  return (
-    <span
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      onClick={(event) => {
-        event.stopPropagation();
-        setOpen((current) => !current);
-      }}
-      onBlur={() => setOpen(false)}
-      style={{ display: "inline-flex", position: "relative", cursor: "help", color: "#9AA0AD" }}
-      tabIndex={0}
-      role="button"
-      aria-label="Nutrition estimate info"
-    >
-      <Info size={11} weight="bold" />
-      {visible && (
-        <span style={{
-          position: "absolute",
-          top: "calc(100% + 8px)",
-          left: "50%",
-          transform: "translateX(-50%)",
-          width: 210,
-          background: "#1A2744",
-          color: "#fff",
-          borderRadius: 12,
-          padding: "10px 12px",
-          zIndex: 80,
-          boxShadow: "0 8px 28px rgba(26,20,20,.22)",
-          fontFamily: "'Plus Jakarta Sans', sans-serif",
-          fontSize: 11,
-          fontWeight: 700,
-          lineHeight: 1.45,
-          whiteSpace: "normal",
-          pointerEvents: "none",
-        }}>
-          <span style={{ position: "absolute", top: -6, left: "50%", transform: "translateX(-50%)", width: 12, height: 6, overflow: "hidden" }}>
-            <span style={{ display: "block", width: 10, height: 10, background: "#1A2744", transform: "rotate(45deg)", margin: "3px auto 0" }} />
-          </span>
-          Estimated from meal messages. Values are approximate.
-        </span>
-      )}
-    </span>
-  );
-}
-import Sidebar from "../components/Sidebar";
-import FamilyMemberModal from "../components/FamilyMemberModal";
-import AddFamilyModal from "../components/AddFamilyModal";
-import PageLoader from "../components/PageLoader";
 import { captureEvent, identifyUser } from "@/lib/analytics";
+import { useSubscription } from "@/lib/useSubscription";
 
-type MemberRow = { member: FamilyMember; summary: Summary | null; logs: HealthLog[] };
+type FamilyOverviewRow = {
+  id: number;
+  name: string;
+  label: string;
+  isSelf: boolean;
+  summary: Summary | null;
+  todayLog: HealthLog | null;
+  recentEvents: HealthLogEvent[];
+  doses: TodayDose[];
+  foodReminder: FoodReminderPreference | null;
+};
 
-export default function FamilyOverviewPage() {
+function todayKey() {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Kolkata",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
+}
+
+function initials(name: string) {
+  return name.trim().charAt(0).toUpperCase() || "F";
+}
+
+function firstName(name: string) {
+  return name.trim().split(/\s+/)[0] || name;
+}
+
+function compactNumber(value: number | null | undefined) {
+  return value == null ? "—" : Math.round(value).toLocaleString("en-IN");
+}
+
+function eventTitle(event: HealthLogEvent | undefined) {
+  if (!event) return "Add your first log";
+  return event.raw_message?.trim() || event.summary?.trim() || "Health log";
+}
+
+function eventDetails(event: HealthLogEvent | undefined) {
+  if (!event) return "Stay on track";
+  const parts = [
+    event.calories == null ? null : `${Math.round(event.calories)} kcal`,
+    event.protein_g == null ? null : `${Math.round(event.protein_g)}g protein`,
+  ].filter(Boolean);
+  return parts.join(" · ") || "Health update";
+}
+
+function formatTime(value: string | Date) {
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return "—";
+  return date.toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit" });
+}
+
+function nextFoodReminder(preference: FoodReminderPreference | null) {
+  if (!preference?.enabled) return null;
+  const enabledMeals = preference.meals.filter((meal) => meal.enabled);
+  if (enabledMeals.length === 0) return null;
+  const now = new Date();
+  const currentMinutes = now.getHours() * 60 + now.getMinutes();
+  return [...enabledMeals].sort((left, right) => {
+    const minutes = (time: string) => {
+      const [hour, minute] = time.slice(0, 5).split(":").map(Number);
+      const total = hour * 60 + minute;
+      return total >= currentMinutes ? total - currentMinutes : total + 24 * 60 - currentMinutes;
+    };
+    return minutes(left.time) - minutes(right.time);
+  })[0];
+}
+
+function nextMedicineDose(doses: TodayDose[]) {
+  return [...doses]
+    .filter((dose) => dose.status === "upcoming" || dose.status === "due")
+    .sort((left, right) => new Date(left.scheduled_for).getTime() - new Date(right.scheduled_for).getTime())[0] ?? null;
+}
+
+export default function FamilyOverviewV2Page() {
+  const { planKey } = useSubscription();
   const [user, setUser] = useState<User | null>(null);
-  const [personalSummary, setPersonalSummary] = useState<Summary | null>(null);
-  const [personalLogs, setPersonalLogs] = useState<HealthLog[]>([]);
-  const [memberRows, setMemberRows] = useState<MemberRow[]>([]);
+  const [members, setMembers] = useState<FamilyMember[]>([]);
+  const [rows, setRows] = useState<FamilyOverviewRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedMember, setSelectedMember] = useState<FamilyMember | null>(null);
   const [showAddFamily, setShowAddFamily] = useState(false);
-
-  const loadFamilyOverview = useCallback(async (silent = false) => {
-    try {
-      if (!silent) setLoading(true);
-      const stored = localStorage.getItem("auth_user");
-      const authUser: User | null = stored ? JSON.parse(stored) : null;
-      if (!authUser) { window.location.href = "/login"; return; }
-      setUser(authUser);
-      const token = localStorage.getItem("auth_token") ?? "";
-
-      const [members, mySummary, myLogs] = await Promise.all([
-        getFamilyMembers(token).catch(() => [] as FamilyMember[]),
-        getUserSummary(authUser.id).catch(() => null),
-        getUserLogs(authUser.id, 7).catch(() => [] as HealthLog[]),
-      ]);
-      setPersonalSummary(mySummary);
-      setPersonalLogs(myLogs);
-
-      const activeMembers = members.filter((m) => m.status === "active");
-      identifyUser(authUser);
-      captureEvent("family_overview_viewed", {
-        family_member_count: activeMembers.length,
-        has_family_members: activeMembers.length > 0,
-      });
-      const rows = await Promise.all(
-        activeMembers.map(async (member) => ({
-          member,
-          summary: await getMemberSummary(member.id, token).catch(() => null),
-          logs: await getMemberLogs(member.id, token, 7).catch(() => []),
-        }))
-      );
-      setMemberRows(rows);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load data");
-    } finally {
-      if (!silent) setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    loadFamilyOverview();
-  }, [loadFamilyOverview]);
-
-  const rankedFamily = useMemo(() => {
-    const rows = [
-      { id: user?.id ?? 0, name: user?.name ?? "You", score: computeScore(personalSummary), isYou: true },
-      ...memberRows.map(({ member, summary }) => ({
-        id: member.id,
-        name: member.name ?? member.label,
-        score: computeScore(summary),
-        isYou: false,
-      })),
-    ];
-    return rows.sort((a, b) => (b.score ?? -1) - (a.score ?? -1));
-  }, [user, personalSummary, memberRows]);
-  const todayIST = new Date().toLocaleDateString("en-CA");
-  const overviewRows = useMemo(() => {
-    if (!user) return [];
-    const selfMember: FamilyMember = {
+  const [showReminders, setShowReminders] = useState(false);
+  const [reminderTargetId, setReminderTargetId] = useState<number | null>(null);
+  const activeMembers = useMemo(() => members.filter((member) => member.status === "active"), [members]);
+  const reminderPeople = useMemo<FamilyMember[]>(() => {
+    const self: FamilyMember[] = user ? [{
       id: user.id,
       phone: user.phone,
       name: user.name,
@@ -154,37 +135,85 @@ export default function FamilyOverviewPage() {
       type: "self",
       status: "active",
       created_at: user.created_at,
-    };
-    return [
-      { member: selfMember, summary: personalSummary, logs: personalLogs, isSelf: true },
-      ...memberRows.map((row) => ({ ...row, isSelf: false })),
-    ];
-  }, [user, personalSummary, personalLogs, memberRows]);
-  const openSelfProfile = () => {
-    window.location.href = "/dashboard";
-  };
+    }] : [];
+    return [...self, ...activeMembers];
+  }, [activeMembers, user]);
+
+  const load = useCallback(async () => {
+    let redirecting = false;
+    try {
+      setLoading(true);
+      setError(null);
+      const stored = localStorage.getItem("auth_user");
+      const authUser: User | null = stored ? JSON.parse(stored) : null;
+      if (!authUser) {
+        redirecting = true;
+        window.location.href = "/login";
+        return;
+      }
+      setUser(authUser);
+      identifyUser(authUser);
+      const token = localStorage.getItem("auth_token") ?? "";
+      const loadedMembers = await getFamilyMembers(token);
+      const active = loadedMembers.filter((member) => member.status === "active");
+      setMembers(loadedMembers);
+      captureEvent("family_overview_v2_viewed", { member_count: active.length });
+
+      const loadRow = async (person: {
+        id: number;
+        name: string;
+        label: string;
+        isSelf: boolean;
+      }): Promise<FamilyOverviewRow> => {
+        const [summaryResult, logsResult, eventsResult, dosesResult, foodResult] = await Promise.allSettled([
+          person.isSelf ? getUserSummary(person.id) : getMemberSummary(person.id, token),
+          person.isSelf ? getUserLogs(person.id, 7) : getMemberLogs(person.id, token, 7),
+          person.isSelf ? getUserLogEvents(person.id, 7) : getMemberLogEvents(person.id, token, 7),
+          getTodayMedicineDoses(person.id, token),
+          getFoodReminderPreference(token, person.id),
+        ]);
+        const logs = logsResult.status === "fulfilled" ? logsResult.value : [];
+        const events = eventsResult.status === "fulfilled" ? eventsResult.value : [];
+        return {
+          ...person,
+          summary: summaryResult.status === "fulfilled" ? summaryResult.value : null,
+          todayLog: logs.find((log) => log.logged_at.slice(0, 10) === todayKey()) ?? null,
+          recentEvents: events
+            .filter((event) => event.calories != null || event.protein_g != null)
+            .sort((left, right) => new Date(right.created_at).getTime() - new Date(left.created_at).getTime()),
+          doses: dosesResult.status === "fulfilled" ? dosesResult.value : [],
+          foodReminder: foodResult.status === "fulfilled" ? foodResult.value : null,
+        };
+      };
+
+      const people = [
+        { id: authUser.id, name: authUser.name || "You", label: "Primary account", isSelf: true },
+        ...active.map((member) => ({
+          id: member.id,
+          name: member.name || member.label || member.phone,
+          label: member.label || "Family member",
+          isSelf: false,
+        })),
+      ];
+      setRows(await Promise.all(people.map(loadRow)));
+    } catch (loadError) {
+      setError(loadError instanceof Error ? loadError.message : "Could not load your family.");
+    } finally {
+      if (!redirecting) setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
 
   if (loading) {
     return (
       <div className="db-page">
         <Sidebar />
-        <div className="db-main" style={{ alignItems: "center", justifyContent: "center", display: "flex" }}>
-          <PageLoader
-            title="Loading family overview..."
-            subtitle="We're syncing your family members and latest health totals."
-          />
-        </div>
-      </div>
-    );
-  }
-
-  if (error || !user) {
-    return (
-      <div className="db-page">
-        <Sidebar />
-        <div className="db-main" style={{ alignItems: "center", justifyContent: "center", display: "flex" }}>
-          <p style={{ color: "#9AA0AD", fontSize: 14 }}>{error ?? "Something went wrong."}</p>
-        </div>
+        <main className="db-main familyv2-main familyv2-loading">
+          <PageLoader title="Loading family overview…" subtitle="We’re getting your family details ready." />
+        </main>
       </div>
     );
   }
@@ -192,308 +221,273 @@ export default function FamilyOverviewPage() {
   return (
     <div className="db-page">
       <Sidebar />
-      <div className="db-main">
-        <div className="db-topbar">
-          <div>
-            <h1 className="db-greeting">Family Overview</h1>
-            <p className="db-subtitle">Everyone you&apos;re tracking, in one place.</p>
-          </div>
-          {memberRows.length > 0 && (
-            <div className="db-pill" style={{ cursor: "default" }}>
-              <Sparkle size={15} weight="fill" color="#FF6B6B" />
-              {memberRows.length} {memberRows.length === 1 ? "member" : "members"} tracked
-            </div>
-          )}
-        </div>
-
-        {overviewRows.length === 0 ? (
-          <div style={{ display: "flex", alignItems: "stretch", gap: 16, flexWrap: "wrap" }}>
-            <div className="db-card db-card-pad" style={{
-              flex: "1 1 420px",
-              minWidth: 300,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              textAlign: "center",
-              color: "#9AA0AD",
-              fontSize: 13.5,
-            }}>
-              No active family members yet. Add one here to see them in your family overview.
-            </div>
-            <button
-              onClick={() => setShowAddFamily(true)}
-              className="fo-add-card"
-              style={{
-                flex: "0 0 300px", minWidth: 300, minHeight: 230,
-                border: "2px dashed var(--he-coral)", borderRadius: 24,
-                background: "linear-gradient(165deg, var(--he-coral-bg) 0%, #fff 75%)",
-                boxShadow: "0 8px 22px rgba(232,92,92,.14)",
-                display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-                gap: 10, padding: "22px 18px", cursor: "pointer", position: "relative", overflow: "hidden",
-                fontFamily: "'Plus Jakarta Sans', sans-serif",
-              }}
-            >
-              <Sparkle size={13} weight="fill" color="var(--he-coral)" style={{ position: "absolute", top: 16, left: 22, opacity: 0.5 }} />
-              <Sparkle size={9} weight="fill" color="var(--he-coral)" style={{ position: "absolute", bottom: 22, right: 26, opacity: 0.4 }} />
-              <div className="fo-add-pulse-ring">
-                <div style={{
-                  width: 48, height: 48, borderRadius: "50%", background: "var(--he-coral)",
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  boxShadow: "0 8px 20px rgba(232,92,92,.4)", position: "relative", zIndex: 1,
-                }}>
-                  <UserPlus size={22} weight="bold" color="#fff" />
-                </div>
-              </div>
-              <div style={{ textAlign: "center" }}>
-                <p style={{ margin: 0, fontSize: 14, fontWeight: 800, color: "#1A2744" }}>Add a family member</p>
-                <p style={{ margin: "3px 0 0", fontSize: 11, color: "#9AA0AD", fontWeight: 500 }}>Track their health too</p>
-              </div>
-              <span style={{
-                display: "inline-flex", alignItems: "center", gap: 5, marginTop: 2,
-                background: "var(--he-coral)", color: "#fff", fontSize: 11, fontWeight: 700,
-                padding: "5px 14px", borderRadius: 99,
-              }}>
-                Invite now <CaretRight size={11} weight="bold" />
+      <main className="db-main familyv2-main">
+        <header className="familyv2-header">
+          <div className="familyv2-title-wrap">
+            <div className="familyv2-title-line">
+              <h1>Family Overview</h1>
+              <span className="familyv2-member-count">
+                <UsersThree size={15} weight="bold" />
+                {activeMembers.length} {activeMembers.length === 1 ? "member" : "members"}
               </span>
+            </div>
+            <p>Track everyone&apos;s health in one place.</p>
+          </div>
+
+          <div className="familyv2-header-actions">
+            <button
+              type="button"
+              className="familyv2-action secondary"
+              onClick={() => {
+                setReminderTargetId(activeMembers[0]?.id ?? null);
+                setShowReminders(true);
+                captureEvent("family_reminders_opened", { source: "family_overview_header" });
+              }}
+              disabled={activeMembers.length === 0}
+              title={activeMembers.length === 0 ? "Add a family member first" : "Manage family food reminders"}
+            >
+              <Bell size={17} weight="bold" />
+              Manage reminders
+            </button>
+            <button type="button" className="familyv2-action primary" onClick={() => {
+              setShowAddFamily(true);
+              captureEvent("family_member_add_started", { source: "family_overview_header" });
+            }}>
+              <Plus size={18} weight="bold" />
+              Add family member
             </button>
           </div>
-        ) : (
-          <div style={{ display: "flex", alignItems: "stretch", gap: 16, flexWrap: "wrap" }}>
-              {overviewRows.map(({ member, summary: memberSummary, logs, isSelf }) => {
-                const score = computeScore(memberSummary);
-                const tier = scoreTier(score);
-                const avatarLetter = (member.name ?? member.label).charAt(0).toUpperCase();
-                const todayLog = logs.find((l) => l.logged_at === todayIST);
-                const todayCalories = todayLog?.calories ?? null;
-                const todayProtein = todayLog?.protein_g ?? null;
-                const todaySteps = todayLog?.steps ?? null;
-                return (
-                <div
-                  key={isSelf ? `self-${member.id}` : `member-${member.id}`}
-                  className="fo-member-card"
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => isSelf ? openSelfProfile() : setSelectedMember(member)}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter" || event.key === " ") {
-                      event.preventDefault();
-                      if (isSelf) openSelfProfile();
-                      else setSelectedMember(member);
-                    }
-                  }}
-                  style={{
-                    flex: "0 0 300px", minWidth: 300,
-                    background:
-                      `linear-gradient(165deg, ${tier.bg} 0%, #fff 55%) padding-box, linear-gradient(135deg, ${tier.border}, ${tier.ring}) border-box`,
-                    borderRadius: 24, border: "1.5px solid transparent",
-                    boxShadow: "0 4px 16px rgba(26,20,20,.05)", padding: "22px 22px 20px",
-                    cursor: "pointer",
-                  }}
-                >
-                  <div style={{
-                    position: "absolute", width: 130, height: 130, borderRadius: "50%",
-                    top: -54, right: -42, background: tier.ring, opacity: 0.1,
-                    filter: "blur(18px)", pointerEvents: "none",
-                  }} />
-                  <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, position: "relative" }}>
-                    <div style={{ display: "flex", gap: 11 }}>
-                      <div style={{
-                        width: 42, height: 42, borderRadius: "50%",
-                        background: `linear-gradient(150deg, ${tier.ring}, ${tier.textColor})`,
-                        color: "#fff", display: "flex", alignItems: "center", justifyContent: "center",
-                        fontWeight: 800, fontSize: 16, flexShrink: 0,
-                        boxShadow: `0 4px 10px ${tier.ring}55`,
-                      }}>
-                        {avatarLetter}
-                      </div>
-                      <div>
-                        <p style={{ margin: 0, fontWeight: 800, fontSize: 15, color: "#1A2744" }}>{isSelf ? user.name ?? "You" : member.name ?? member.label}</p>
-                        <p style={{ margin: 0, fontSize: 11.5, color: "#9AA0AD" }}>{isSelf ? "You" : member.label}</p>
-                        <span style={{ display: "inline-flex", alignItems: "center", gap: 5, marginTop: 6, background: tier.bg, color: tier.textColor, fontSize: 10.5, fontWeight: 700, padding: "3px 10px", borderRadius: 99 }}>
-                          {score !== null && (
-                            score >= 40
-                              ? <CheckCircle size={13} weight="fill" color={tier.ring} />
-                              : <Warning size={13} weight="fill" color={tier.ring} />
-                          )}
-                          {tier.label}
-                        </span>
-                      </div>
-                    </div>
-                    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", flexShrink: 0 }}>
-                      <ScoreRing score={score} tier={tier} size={68} />
-                      <span style={{ marginTop: 4, fontSize: 10.5, fontWeight: 700, color: tier.textColor }}>Score</span>
+        </header>
+
+        {planKey && <Link
+          href="/dashboard/payments"
+          className={`familyv2-upgrade-entry ${planKey}`}
+          onClick={() => captureEvent("billing_entry_clicked", {
+            source: "family_overview_v2",
+            current_plan: planKey,
+          })}
+          aria-label={
+            planKey === "family"
+              ? "Add another parent to FamCare"
+              : planKey === "individual"
+                ? "Upgrade to the FamCare Family plan"
+                : "Explore FamCare Plus plans"
+          }
+        >
+          <span className="familyv2-upgrade-icon"><Crown size={18} weight="fill" /></span>
+          <span className="familyv2-upgrade-copy">
+            <strong>
+              {planKey === "family"
+                ? "Need room for another parent?"
+                : planKey === "individual"
+                  ? "Care for both parents together"
+                  : "Bring more family care into FamCare"}
+            </strong>
+            <small>
+              {planKey === "family"
+                ? "Add a separate family profile with their own logs and reminders."
+                : planKey === "individual"
+                  ? "Upgrade to Family for two parent profiles and shared family insights."
+                  : "Compare Individual and Family plans when you’re ready."}
+            </small>
+          </span>
+          <span className="familyv2-upgrade-action">
+            {planKey === "family"
+              ? "Add parent · ₹149/mo"
+              : planKey === "individual"
+                ? "Upgrade to Family"
+                : "Explore FamCare+"}
+            <ArrowRight size={14} weight="bold" />
+          </span>
+        </Link>}
+
+        {error && <p className="familyv2-page-error" role="alert">{error}</p>}
+        <section className="familyv2-table-shell" aria-label="Family health overview">
+          <div className="familyv2-table-head" aria-hidden="true">
+            <span>Member</span>
+            <span>Today&apos;s progress</span>
+            <span>Recent logs</span>
+            <span>Next medication reminder</span>
+            <span>Medications</span>
+            <span>Food reminder</span>
+          </div>
+
+          <div className="familyv2-table-body">
+            {rows.map((row) => {
+              const latestEvent = row.recentEvents[0];
+              const nextDose = nextMedicineDose(row.doses);
+              const takenDoses = row.doses.filter((dose) => dose.status === "taken").length;
+              const pendingDoses = row.doses.filter((dose) => dose.status !== "taken" && dose.status !== "skipped").length;
+              const foodReminder = nextFoodReminder(row.foodReminder);
+              const caloriesGoal = row.isSelf ? user?.goal_calories ?? 2000 : 2000;
+              const proteinGoal = row.isSelf ? user?.goal_protein_g ?? 60 : 60;
+              const stepsGoal = row.isSelf ? user?.goal_steps ?? 5000 : 5000;
+              const progress = [
+                {
+                  key: "calories",
+                  icon: <Flame size={12} weight="fill" />,
+                  value: row.todayLog?.calories,
+                  goal: caloriesGoal,
+                  unit: "kcal",
+                  color: "#FF8B2D",
+                },
+                {
+                  key: "protein",
+                  icon: <Barbell size={12} weight="bold" />,
+                  value: row.todayLog?.protein_g,
+                  goal: proteinGoal,
+                  unit: "g",
+                  color: "#4A95F8",
+                },
+                {
+                  key: "steps",
+                  icon: <Footprints size={12} weight="fill" />,
+                  value: row.todayLog?.steps,
+                  goal: stepsGoal,
+                  unit: "",
+                  color: "#20B66A",
+                },
+              ];
+
+              return (
+                <article className="familyv2-table-row" key={`${row.isSelf ? "self" : "member"}-${row.id}`}>
+                  <div className="familyv2-member-cell" data-label="Member">
+                    <span className="familyv2-avatar">
+                      {initials(row.name)}
+                      <i />
+                    </span>
+                    <div>
+                      <b><span>{firstName(row.name)}</span>{row.isSelf && <em>You</em>}</b>
+                      <span>{row.label}</span>
                     </div>
                   </div>
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 6, marginTop: 20, textAlign: "center" }}>
-                    <div>
-                      <div style={{ display: "flex", justifyContent: "center" }}><Flame size={20} color="#FF9F45" /></div>
-                      <p style={{ margin: "6px 0 0", fontSize: 14, fontWeight: 800, color: "#1A2744" }}>{todayCalories != null ? todayCalories.toLocaleString() : "—"}</p>
-                      <p style={{ margin: 0, fontSize: 10, fontWeight: 600, color: "#7C84A8", display: "inline-flex", alignItems: "center", gap: 3 }}>Cal today <EstimateInfo /></p>
+
+                  <div className="familyv2-progress-cell" data-label="Today’s progress">
+                    {progress.map((metric) => {
+                      const percentage = metric.value == null ? 0 : Math.min((metric.value / metric.goal) * 100, 100);
+                      return (
+                        <div className="familyv2-progress-metric" key={metric.key}>
+                          <div>
+                            <span style={{ color: metric.color }}>{metric.icon}</span>
+                            <b>{compactNumber(metric.value)} <small>{metric.unit}</small></b>
+                          </div>
+                          <i><span style={{ width: `${percentage}%`, background: metric.color }} /></i>
+                          <small>{compactNumber(metric.goal)} goal</small>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  <div className="familyv2-compact-card logs" data-label="Recent logs">
+                    <div className="familyv2-card-eyebrow">
+                      <span>Recent logs</span>
+                      <em>{row.recentEvents.length > 0 ? `${row.recentEvents.length} recent ${row.recentEvents.length === 1 ? "entry" : "entries"}` : "No recent entries"}</em>
                     </div>
-                    <div>
-                      <div style={{ display: "flex", justifyContent: "center" }}><Dumbbell size={20} color="#4F9BF5" /></div>
-                      <p style={{ margin: "6px 0 0", fontSize: 14, fontWeight: 800, color: "#1A2744" }}>{todayProtein != null ? `${todayProtein.toFixed(0)}g` : "—"}</p>
-                      <p style={{ margin: 0, fontSize: 10, fontWeight: 600, color: "#7C84A8", display: "inline-flex", alignItems: "center", gap: 3 }}>Protein today <EstimateInfo /></p>
+                    <b title={eventTitle(latestEvent)}>{eventTitle(latestEvent)}</b>
+                    <span>{eventDetails(latestEvent)}</span>
+                    <Link
+                      href="/dashboard/logs"
+                      onClick={() => captureEvent("health_logs_entry_clicked", {
+                        source: "family_overview_v2",
+                        subject_type: row.isSelf ? "self" : "family",
+                      })}
+                    >
+                      View logs <ArrowRight size={13} weight="bold" />
+                    </Link>
+                  </div>
+
+                  <div className="familyv2-compact-card medicine" data-label="Next medication reminder">
+                    <div className="familyv2-card-eyebrow">
+                      <Clock size={14} weight="bold" />
+                      <span>Next med reminder</span>
                     </div>
+                    {nextDose ? (
+                      <>
+                        <b>{formatTime(nextDose.scheduled_for)}</b>
+                        <span>{nextDose.medicine.name}{nextDose.medicine.strength ? ` · ${nextDose.medicine.strength}` : ""}</span>
+                        <small>{nextDose.medicine.dose}</small>
+                      </>
+                    ) : (
+                      <>
+                        <b>All clear</b>
+                        <span>No upcoming dose today</span>
+                      </>
+                    )}
+                    <Link
+                      href={`/dashboard/medications?person=${row.isSelf ? "self" : `member-${row.id}`}`}
+                      onClick={() => captureEvent("medications_entry_clicked", {
+                        source: "family_overview_v2",
+                        subject_type: row.isSelf ? "self" : "family",
+                      })}
+                    >
+                      View all reminders <ArrowRight size={13} weight="bold" />
+                    </Link>
+                  </div>
+
+                  <div className="familyv2-medication-count" data-label="Medications">
+                    <Pill size={17} weight="duotone" />
                     <div>
-                      <div style={{ display: "flex", justifyContent: "center" }}><Footprints size={20} color="#20A865" /></div>
-                      <p style={{ margin: "6px 0 0", fontSize: 14, fontWeight: 800, color: "#1A2744" }}>{todaySteps != null ? todaySteps.toLocaleString() : "—"}</p>
-                      <p style={{ margin: 0, fontSize: 10, fontWeight: 600, color: "#7C84A8" }}>Steps today</p>
+                      <b>{row.doses.length > 0 ? `${takenDoses} of ${row.doses.length} taken` : "No doses today"}</b>
+                      <span>{pendingDoses > 0 ? `${pendingDoses} pending` : row.doses.length > 0 ? "All done" : "Nothing scheduled"}</span>
                     </div>
                   </div>
-                  <button
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      if (isSelf) openSelfProfile();
-                      else setSelectedMember(member);
-                    }}
-                    style={{
-                      width: "100%", marginTop: 18, padding: "10px 0", border: `1.5px solid ${tier.border}`, borderRadius: 14,
-                      background: tier.bg, color: tier.textColor, fontSize: 13, fontWeight: 700,
-                      cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
-                      fontFamily: "'Plus Jakarta Sans', sans-serif",
-                    }}
-                  >
-                    {isSelf ? "View Dashboard" : "View Details"} <CaretRight size={13} weight="bold" />
-                  </button>
-                </div>
+
+                  <div className="familyv2-compact-card food" data-label="Food reminder">
+                    <div className="familyv2-card-eyebrow">
+                      <ForkKnife size={14} weight="bold" />
+                      <span>Next food reminder</span>
+                    </div>
+                    {foodReminder ? (
+                      <>
+                        <b>{formatTime(`${todayKey()}T${foodReminder.time.slice(0, 5)}:00`)}</b>
+                        <span>{foodReminder.label}</span>
+                      </>
+                    ) : (
+                      <>
+                        <b>Reminder off</b>
+                        <span>Set a logging time</span>
+                      </>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setReminderTargetId(row.id);
+                        setShowReminders(true);
+                        captureEvent("family_reminders_opened", {
+                          source: "family_overview_row",
+                          subject_type: row.isSelf ? "self" : "family",
+                        });
+                      }}
+                    >
+                      Set food reminder <ArrowRight size={13} weight="bold" />
+                    </button>
+                  </div>
+                </article>
               );
             })}
-            <button
-              onClick={() => setShowAddFamily(true)}
-              className="fo-add-card"
-              style={{
-                flex: "0 0 300px", minWidth: 300, alignSelf: "stretch",
-                border: "2px dashed var(--he-coral)", borderRadius: 24,
-                background: "linear-gradient(165deg, var(--he-coral-bg) 0%, #fff 75%)",
-                boxShadow: "0 8px 22px rgba(232,92,92,.14)",
-                display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-                gap: 10, padding: "22px 18px", cursor: "pointer", position: "relative", overflow: "hidden",
-                fontFamily: "'Plus Jakarta Sans', sans-serif",
-              }}
-            >
-              <Sparkle size={13} weight="fill" color="var(--he-coral)" style={{ position: "absolute", top: 16, left: 22, opacity: 0.5 }} />
-              <Sparkle size={9} weight="fill" color="var(--he-coral)" style={{ position: "absolute", bottom: 22, right: 26, opacity: 0.4 }} />
-              <div className="fo-add-pulse-ring">
-                <div style={{
-                  width: 48, height: 48, borderRadius: "50%", background: "var(--he-coral)",
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  boxShadow: "0 8px 20px rgba(232,92,92,.4)", position: "relative", zIndex: 1,
-                }}>
-                  <UserPlus size={22} weight="bold" color="#fff" />
-                </div>
-              </div>
-              <div style={{ textAlign: "center" }}>
-                <p style={{ margin: 0, fontSize: 14, fontWeight: 800, color: "#1A2744" }}>Add a family member</p>
-                <p style={{ margin: "3px 0 0", fontSize: 11, color: "#9AA0AD", fontWeight: 500 }}>Track their health too</p>
-              </div>
-              <span style={{
-                display: "inline-flex", alignItems: "center", gap: 5, marginTop: 2,
-                background: "var(--he-coral)", color: "#fff", fontSize: 11, fontWeight: 700,
-                padding: "5px 14px", borderRadius: 99,
-              }}>
-                Invite now <CaretRight size={11} weight="bold" />
-              </span>
-            </button>
           </div>
-        )}
-
-        {rankedFamily.length > 1 && (
-          <div className="db-card db-card-pad" style={{ marginTop: 24 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
-              <Trophy size={20} weight="fill" color="var(--he-orange)" />
-              <div>
-                <p style={{ margin: 0, fontSize: 15, fontWeight: 800, color: "#1A2744" }}>Family Ranking</p>
-                <p style={{ margin: "1px 0 0", fontSize: 11.5, color: "#9AA0AD", fontWeight: 500 }}>Based on weekly health score</p>
-              </div>
-            </div>
-
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              {rankedFamily.map((row, i) => {
-                const palette = RANK_PALETTE[i % RANK_PALETTE.length];
-                const medal = ["🥇", "🥈", "🥉"][i];
-                return (
-                  <div
-                    key={row.id}
-                    style={{
-                      display: "flex", flexDirection: "column", gap: 8,
-                      background: palette.bg, borderRadius: 14, padding: "12px 16px",
-                    }}
-                  >
-                    <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                      <span style={{
-                        width: i === 0 ? 36 : i === 1 ? 30 : 24,
-                        height: i === 0 ? 36 : i === 1 ? 30 : 24,
-                        borderRadius: "50%", flexShrink: 0,
-                        display: "flex", alignItems: "center", justifyContent: "center",
-                        fontSize: i === 0 ? 24 : i === 1 ? 20 : medal ? 14 : 11,
-                        background: medal ? "transparent" : "#fff", color: "#9AA0AD", fontWeight: 800,
-                      }}>
-                        {medal ?? i + 1}
-                      </span>
-                      <div style={{
-                        width: 34, height: 34, borderRadius: "50%", flexShrink: 0,
-                        background: palette.accent, color: "#fff",
-                        display: "flex", alignItems: "center", justifyContent: "center",
-                        fontWeight: 800, fontSize: 14,
-                      }}>
-                        {row.name.charAt(0).toUpperCase()}
-                      </div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <p style={{
-                          margin: 0, fontSize: 14, fontWeight: 800, color: "#1A2744",
-                          whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
-                        }}>
-                          {row.name}{row.isYou ? " (You)" : ""}
-                        </p>
-                        <p style={{ margin: 0, fontSize: 11.5, fontWeight: 700, color: palette.text }}>{palette.caption}</p>
-                      </div>
-                      <span style={{ flexShrink: 0 }}>
-                        <ScoreText score={row.score} tier={scoreTier(row.score)} size="sm" />
-                      </span>
-                    </div>
-                    <div className="db-bar-track" style={{ margin: 0, height: 5 }}>
-                      <div className="db-bar-fill" style={{ width: `${row.score ?? 0}%`, background: palette.accent }} />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-      </div>
-
-      {selectedMember && (
-        <FamilyMemberModal
-          member={selectedMember}
-          onClose={() => setSelectedMember(null)}
-          onRemoved={(memberId) => {
-            setMemberRows((rows) => rows.filter(({ member }) => member.id !== memberId));
-            captureEvent("family_member_removed", { member_id: memberId, source: "family_overview" });
-            setSelectedMember(null);
-          }}
-        />
-      )}
+        </section>
+      </main>
 
       {showAddFamily && (
         <AddFamilyModal
           onClose={() => setShowAddFamily(false)}
           onAdded={(member) => {
-            setMemberRows((rows) => {
-              const idx = rows.findIndex((r) => r.member.id === member.id);
-              if (idx === -1) return [...rows, { member, summary: null, logs: [] }];
-              const next = [...rows];
-              next[idx] = { ...next[idx], member };
-              return next;
-            });
-            captureEvent("family_member_added", {
-              member_id: member.id,
-              member_status: member.status,
-              member_type: member.type,
-              source: "family_overview",
-            });
+            setMembers((current) => (
+              current.some((item) => item.id === member.id)
+                ? current.map((item) => item.id === member.id ? member : item)
+                : [...current, member]
+            ));
+            captureEvent("family_member_added", { source: "family_overview_v2" });
           }}
-          onActivated={() => loadFamilyOverview(true)}
+          onActivated={() => void load()}
+        />
+      )}
+      {showReminders && reminderPeople.length > 0 && (
+        <FamilyFoodReminderDrawer
+          members={reminderPeople}
+          initialMemberId={reminderTargetId ?? reminderPeople[0].id}
+          onClose={() => setShowReminders(false)}
         />
       )}
     </div>

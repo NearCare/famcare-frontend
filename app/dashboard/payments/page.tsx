@@ -583,8 +583,8 @@ function PaymentsPageContent() {
                   </p>
                 ) : (
                   <div className="payment-success-close-actions">
-                    <Link href="/dashboard/homev2" className="payment-secondary-btn">Close</Link>
-                    <Link href="/dashboard/homev2" className="payment-submit">Go to home</Link>
+                    <Link href="/dashboard" className="payment-secondary-btn">Close</Link>
+                    <Link href="/dashboard" className="payment-submit">Go to home</Link>
                   </div>
                 )}
 

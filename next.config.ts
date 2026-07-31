@@ -5,16 +5,19 @@ const backendUrl =
 
 const nextConfig: NextConfig = {
   allowedDevOrigins: ["192.168.10.74"],
+  // The v2 pages became the only pages and took the clean URLs. These entries
+  // ran the other way while v1 still existed; they are kept, reversed, so old
+  // bookmarks and tabs still land somewhere real.
   async redirects() {
     return [
       {
-        source: "/dashboard",
-        destination: "/dashboard/homev2",
+        source: "/dashboard/homev2",
+        destination: "/dashboard",
         permanent: false,
       },
       {
-        source: "/dashboard/family-overview",
-        destination: "/dashboard/family-overviewv2",
+        source: "/dashboard/family-overviewv2",
+        destination: "/dashboard/family-overview",
         permanent: false,
       },
     ];

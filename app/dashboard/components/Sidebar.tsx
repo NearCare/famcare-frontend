@@ -18,10 +18,10 @@ type NavigationItem = {
   isBeta?: boolean;
 };
 
-const v2NavItems: NavigationItem[] = [
-  { label: "Home",             href: "/dashboard/homev2" },
+const navItems: NavigationItem[] = [
+  { label: "Home",             href: "/dashboard" },
   { label: "Statistics",       href: "/dashboard/statistics" },
-  { label: "Family Overview",  href: "/dashboard/family-overviewv2" },
+  { label: "Family Overview",  href: "/dashboard/family-overview" },
   { label: "Medications",      href: "/dashboard/medications" },
   { label: "Health Assistant", href: "/dashboard/health-assistant", isNew: true, isBeta: true },
   { label: "Review",           href: "/dashboard/review" },
@@ -44,10 +44,9 @@ function NavIcon({ name }: { name: string }) {
 
 export default function Sidebar() {
   const pathname = usePathname();
-  const navItems = v2NavItems;
 
   // Home renders its own copy inside the top bar; every other page gets the pinned one.
-  const showFloatingProfile = pathname !== "/dashboard/homev2";
+  const showFloatingProfile = pathname !== "/dashboard";
 
   return (
     <>
