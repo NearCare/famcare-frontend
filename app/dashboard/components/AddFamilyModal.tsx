@@ -88,7 +88,7 @@ export default function AddFamilyModal({ onClose, onAdded, onActivated }: Props)
         return;
       }
       try {
-        const members = await getFamilyMembers(token);
+        const members = await getFamilyMembers(token, { fresh: true });
         const updated = members.find(m => m.id === sentMemberId);
         if (updated?.status === "active") {
           if (pollRef.current) clearInterval(pollRef.current);
