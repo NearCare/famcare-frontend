@@ -288,6 +288,15 @@ export type SubscriptionDetails = {
   current_period_end?: string | null;
   cancel_at_period_end?: boolean;
   extra_parents?: number;
+  /**
+   * Whether the account is entitled to this plan right now. Not the same as
+   * `active`: a cancelled plan stays entitled until its paid period ends, and an
+   * `active` mandate whose period lapsed is not. Anything deciding whether to
+   * offer a plan for sale must read this, never `plan_key` alone.
+   */
+  entitled?: boolean;
+  /** False for family members on someone else's plan — they can't cancel or buy add-ons. */
+  owner?: boolean;
 };
 
 export type PlanFeature = { title: string; description: string };
@@ -726,6 +735,10 @@ export async function getSubscriptionDetails(): Promise<SubscriptionDetails> {
       current_period_end: periodEnd.toISOString(),
       cancel_at_period_end: false,
       extra_parents: 0,
+      // Without these the mocked paid plan reads as un-entitled and the payments
+      // page falls back to the plan picker, which is not what MOCK_PLAN means.
+      entitled: true,
+      owner: true,
     };
   }
 

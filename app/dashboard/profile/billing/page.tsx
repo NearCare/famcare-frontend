@@ -51,9 +51,11 @@ export default function ProfileBillingPage() {
   }, []);
 
   // Receipts are only fetched for accounts that have actually been charged —
-  // the endpoint calls out to Razorpay, so there is nothing to ask for on a
-  // free account.
-  const paying = subscription != null && subscription.plan_key !== "free";
+  // the endpoint calls out to Razorpay, so there is nothing to ask for on a free
+  // account, and it is owner-scoped, so a family member riding on someone else's
+  // plan would only ever get an empty list back.
+  const paying =
+    subscription != null && subscription.plan_key !== "free" && subscription.owner !== false;
   useEffect(() => {
     if (!paying) return;
     void getBillingInvoices()
@@ -79,12 +81,15 @@ export default function ProfileBillingPage() {
 
   const displayName = user?.name?.trim() || "Your profile";
   const initial = displayName.charAt(0).toUpperCase();
-  const onIndividualPlan = subscription?.active === true && subscription.plan_key === "individual";
+  const onIndividualPlan = subscription?.entitled === true && subscription.plan_key === "individual";
 
   const renewsOn = subscription?.current_period_end
     ? new Date(subscription.current_period_end)
     : null;
-  const renewalValid = renewsOn != null && !Number.isNaN(renewsOn.getTime());
+  // A renewal date must parse *and* still be ahead of us. An `active` row whose
+  // period has already lapsed (a webhook we never received) would otherwise
+  // promise a charge on a date that has been and gone.
+  const renewalValid = renewsOn != null && !Number.isNaN(renewsOn.getTime()) && renewsOn.getTime() > Date.now();
   // A cancelled plan runs to the end of the period it was paid for and then
   // stops, so there is no next charge to promise. Matches the detail card:
   // our own cancel sets the flag, a Razorpay-side one arrives as a status.

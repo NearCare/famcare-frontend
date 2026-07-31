@@ -148,8 +148,11 @@ function PaymentsPageContent() {
     void refreshSubscription();
   }, [refreshSubscription]);
 
-  // Only accounts that have actually been billed have receipts to show.
-  const hasBillingHistory = subscription != null && subscription.plan_key !== "free";
+  // Only accounts that have actually been billed have receipts to show, and only
+  // the payer has any — the endpoint is owner-scoped, so asking on behalf of a
+  // family member is a Razorpay round-trip that can only come back empty.
+  const hasBillingHistory =
+    subscription != null && subscription.plan_key !== "free" && subscription.owner !== false;
   useEffect(() => {
     if (!hasBillingHistory) return;
     let cancelled = false;
@@ -160,8 +163,16 @@ function PaymentsPageContent() {
   }, [hasBillingHistory]);
 
   const currentPlanKey = subscription?.plan_key ?? "free";
-  const individualSubscriber = subscriptionLoaded && currentPlanKey === "individual";
-  const familySubscriber = subscriptionLoaded && currentPlanKey === "family";
+  // Only a *live* plan suppresses the plan cards. Keying this off plan_key alone
+  // left a lapsed or fully-cancelled subscriber staring at "Add another parent"
+  // with no way to buy anything again — the one screen that sells plans refused
+  // to sell them one. `entitled` is the account's real entitlement, so a
+  // cancelled-but-still-paid user keeps the add-on view until their period ends
+  // and then gets the plan picker back.
+  const entitled = subscription?.entitled === true;
+  const isOwner = subscription?.owner !== false;
+  const individualSubscriber = subscriptionLoaded && entitled && currentPlanKey === "individual";
+  const familySubscriber = subscriptionLoaded && entitled && currentPlanKey === "family";
   const displayPlanKey: BillingPlanKey = individualSubscriber ? "family" : planKey;
   const plan = familySubscriber
     ? null
@@ -269,8 +280,6 @@ function PaymentsPageContent() {
 
   const successPlanInfo = useMemo(() => {
     if (!hasSuccessParams) return null;
-    const nextRenewal = new Date();
-    nextRenewal.setMonth(nextRenewal.getMonth() + 1);
     const verifiedPlanKey = checkoutStatus?.plan_key ?? "family";
     const planFromCatalog = plansData?.plans.find((entry) => entry.plan_key === verifiedPlanKey);
     return {
@@ -278,9 +287,13 @@ function PaymentsPageContent() {
         ? (plansData?.extra_parent.name ?? "Extra parent")
         : (planFromCatalog?.name ?? (verifiedPlanKey === "family" ? "Family plan" : "Individual plan")),
       amount: checkoutStatus ? rupees(checkoutStatus.amount_paise) : "—",
+      // Razorpay's own period end or nothing. Falling back to "today + 1 month"
+      // printed a date we had invented next to real payment facts, and it is
+      // wrong for exactly the case it was meant to cover — a scheduled upgrade,
+      // which starts when the *current* plan ends, not a month from now.
       nextRenewal: checkoutStatus?.current_period_end
         ? renewalDateFormatter.format(new Date(checkoutStatus.current_period_end))
-        : renewalDateFormatter.format(nextRenewal),
+        : null,
     };
   }, [hasSuccessParams, plansData, checkoutStatus]);
 
@@ -513,7 +526,10 @@ function PaymentsPageContent() {
                       ? `Your FamCare ${successPlanInfo?.name} upgrade is scheduled for the end of your current billing period.`
                       : `Your ${checkoutStatus?.kind === "extra_parent" ? "extra parent add-on" : `FamCare ${successPlanInfo?.name}`} is active.`
                     : errored
-                      ? `${checkoutStatusError} If money left your account it will be refunded automatically.`
+                      // No refund logic exists anywhere in the backend, so this
+                      // must not promise one — an unconfirmed mandate normally
+                      // means no money moved, and anything else needs a human.
+                      ? `${checkoutStatusError} No plan has been charged. If you see a debit, contact support with the details below and we'll sort it out.`
                       : stalled
                         ? "This is taking longer than usual. Your payment is safe — check back here or on Profile → Payment in a few minutes."
                         : "Your payment was received. We're waiting for the bank/Razorpay confirmation to activate your plan."}
@@ -548,8 +564,15 @@ function PaymentsPageContent() {
                   <div className="payment-summary-renewal">
                     <CalendarCheck size={18} weight="duotone" />
                     <div>
-                      <strong>{checkoutStatus?.scheduled ? "Family plan starts" : "Next renewal"} · {successPlanInfo?.nextRenewal}</strong>
-                      <span>We'll remind you before your next charge.</span>
+                      <strong>
+                        {checkoutStatus?.scheduled ? "Family plan starts" : "Next renewal"}
+                        {successPlanInfo?.nextRenewal ? ` · ${successPlanInfo.nextRenewal}` : ""}
+                      </strong>
+                      <span>
+                        {successPlanInfo?.nextRenewal
+                          ? "We'll remind you before your next charge."
+                          : "The exact date will appear on Plans & billing once Razorpay confirms it."}
+                      </span>
                     </div>
                   </div>
                 )}
@@ -782,7 +805,18 @@ function PaymentsPageContent() {
             </section>
           )}
 
-          {subscriptionLoaded && familySubscriber && plansData && (
+          {/* Members ride on the payer's plan: cancelling, upgrading and add-ons
+              are all owner-only on the backend, so offering them here would only
+              produce a button that always errors. */}
+          {subscriptionLoaded && entitled && !isOwner && (
+            <div className="payment-notice" role="status">
+              <ShieldCheck size={18} />
+              You&apos;re covered by a FamCare {currentPlanKey === "family" ? "Family" : "Individual"} plan
+              paid for by another member of your family. They can manage the plan and billing.
+            </div>
+          )}
+
+          {subscriptionLoaded && familySubscriber && isOwner && plansData && (
             <FamilyAddOnView
               extraParentPlan={plansData.extra_parent}
               extraParents={subscription?.extra_parents ?? 0}
@@ -792,13 +826,13 @@ function PaymentsPageContent() {
             />
           )}
 
-          {hasBillingHistory && (
+          {hasBillingHistory && isOwner && (
             <BillingHistory invoices={invoices} failed={invoicesError} />
           )}
 
           {/* The only cancellation entry point in the product — a recurring plan
               has to stay cancellable from the screen that sells it. */}
-          {subscription?.active && subscription.cancel_at_period_end !== true && (
+          {subscription?.active && isOwner && subscription.cancel_at_period_end !== true && (
             <div className="payment-cancel-row">
               <button
                 type="button"
