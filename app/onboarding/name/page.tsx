@@ -23,7 +23,7 @@ export default function OnboardingNamePage() {
     }
 
     if (user.name) {
-      void resolvedAuthDestination(token).then((destination) => router.replace(destination));
+      void resolvedAuthDestination().then((destination) => router.replace(destination));
       return;
     }
 
@@ -49,7 +49,7 @@ export default function OnboardingNamePage() {
       localStorage.setItem("auth_user", JSON.stringify(updated));
       identifyUser(updated);
       captureEvent("onboarding_completed");
-      router.replace(await resolvedAuthDestination(token));
+      router.replace(await resolvedAuthDestination());
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to save name");
     } finally {

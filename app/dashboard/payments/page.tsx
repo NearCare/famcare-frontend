@@ -22,7 +22,6 @@ import {
 } from "@phosphor-icons/react";
 import Sidebar from "../components/Sidebar";
 import BillingHistory from "../components/BillingHistory";
-import V2RouteGate from "../components/V2RouteGate";
 import {
   cancelSubscription,
   createExtraParentCheckout,
@@ -476,7 +475,6 @@ function PaymentsPageContent() {
 
   if (hasSuccessParams) {
     return (
-      <V2RouteGate>
         <div className="db-page">
           <Sidebar />
           <main className="db-main payment-page">
@@ -585,8 +583,8 @@ function PaymentsPageContent() {
                   </p>
                 ) : (
                   <div className="payment-success-close-actions">
-                    <Link href="/dashboard/homev2" className="payment-secondary-btn">Close</Link>
-                    <Link href="/dashboard/homev2" className="payment-submit">Go to home</Link>
+                    <Link href="/dashboard" className="payment-secondary-btn">Close</Link>
+                    <Link href="/dashboard" className="payment-submit">Go to home</Link>
                   </div>
                 )}
 
@@ -598,12 +596,10 @@ function PaymentsPageContent() {
             </section>
           </main>
         </div>
-      </V2RouteGate>
     );
   }
 
   return (
-    <V2RouteGate>
       <div className="db-page">
         <Sidebar />
         <main className="db-main payment-page">
@@ -874,7 +870,6 @@ function PaymentsPageContent() {
           </footer>
         </main>
       </div>
-    </V2RouteGate>
   );
 }
 

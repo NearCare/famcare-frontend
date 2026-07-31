@@ -1,13 +1,10 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
 import {
   ChartLine, ChatCircleText, FileText, House, Users, Pill, Sparkle,
 } from "@phosphor-icons/react";
-import { getFeatureFlags, type FeatureFlags } from "@/lib/api";
 import { captureEvent } from "@/lib/analytics";
-import { bypassV2FeatureFlagLocally } from "@/lib/v2Feature";
 import BrandMark from "./BrandMark";
 import BrandName from "./BrandName";
 import MobileBackBar from "./MobileBackBar";
@@ -21,20 +18,12 @@ type NavigationItem = {
   isBeta?: boolean;
 };
 
-const v2NavItems: NavigationItem[] = [
-  { label: "Home",             href: "/dashboard/homev2" },
-  { label: "Statistics",       href: "/dashboard/statistics" },
-  { label: "Family Overview",  href: "/dashboard/family-overviewv2" },
-  { label: "Medications",      href: "/dashboard/medications" },
-  { label: "Health Assistant", href: "/dashboard/health-assistant", isNew: true, isBeta: true },
-  { label: "Review",           href: "/dashboard/review" },
-];
-
-const legacyNavItems: NavigationItem[] = [
+const navItems: NavigationItem[] = [
   { label: "Home",             href: "/dashboard" },
+  { label: "Statistics",       href: "/dashboard/statistics" },
   { label: "Family Overview",  href: "/dashboard/family-overview" },
   { label: "Medications",      href: "/dashboard/medications" },
-  { label: "Logs",             href: "/dashboard/logs" },
+  { label: "Health Assistant", href: "/dashboard/health-assistant", isNew: true, isBeta: true },
   { label: "Review",           href: "/dashboard/review" },
 ];
 
@@ -54,26 +43,15 @@ function NavIcon({ name }: { name: string }) {
 }
 
 export default function Sidebar() {
-  const localBypass = bypassV2FeatureFlagLocally();
-  const [featureFlags, setFeatureFlags] = useState<FeatureFlags>({ v2: localBypass });
   const pathname = usePathname();
 
-  useEffect(() => {
-    getFeatureFlags()
-      .then(setFeatureFlags)
-      .catch(() => setFeatureFlags({ v2: false }));
-  }, [localBypass]);
-
-  const v2Enabled = localBypass || featureFlags.v2;
-  const navItems = v2Enabled ? v2NavItems : legacyNavItems;
-
   // Home renders its own copy inside the top bar; every other page gets the pinned one.
-  const showFloatingProfile = pathname !== "/dashboard/homev2";
+  const showFloatingProfile = pathname !== "/dashboard";
 
   return (
     <>
       {showFloatingProfile && <ProfileMenu floating />}
-      <MobileBackBar v2Enabled={v2Enabled} />
+      <MobileBackBar />
 
       <aside className="db-sidebar">
         <div className="db-brand">
@@ -120,7 +98,7 @@ export default function Sidebar() {
         </div>
       </aside>
 
-      {v2Enabled && <MobileBottomNav assistantEnabled />}
+      <MobileBottomNav assistantEnabled />
     </>
   );
 }

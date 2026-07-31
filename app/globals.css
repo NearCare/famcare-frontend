@@ -56,6 +56,42 @@ a {
   100% { background-position: -200% 0; }
 }
 
+/* Log list placeholder. `.logs-row` styles its base layout inline in the page
+   and only its mobile overrides live here, so the skeleton carries its own
+   layout rather than half-inheriting that. */
+.logs-row-skeleton {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border-bottom: 1px solid #F0F1F5;
+}
+.logs-row-skeleton-copy {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+/* Loading placeholders. Used instead of a full-screen loader so page chrome
+   stays put and only the network-dependent regions wait. */
+.skeleton {
+  display: block;
+  width: 100%;
+  background: linear-gradient(90deg, #EEF1F6 25%, #F7F9FC 50%, #EEF1F6 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+.skeleton-card {
+  border: 1px solid #EAEDF4;
+  border-radius: 18px;
+}
+/* A still placeholder still communicates "not ready"; the movement is the part
+   that causes trouble, so drop only that. */
+@media (prefers-reduced-motion: reduce) {
+  .skeleton { animation: none; }
+}
+
 @keyframes dbHeartBeat {
   0%, 100% { transform: translate(-50%, -50%) scale(1); }
   20%      { transform: translate(-50%, -50%) scale(1.08); }
@@ -1129,7 +1165,7 @@ a {
     padding: 0;
     border: 0;
     border-radius: 16px;
-    color: #111318;
+    color: rgba(17, 19, 24, .8);
     background: transparent;
     font-family: inherit;
     text-decoration: none;
@@ -1154,14 +1190,14 @@ a {
     white-space: nowrap;
   }
   .mobile-health-dock-item.active {
-    color: #050608;
+    color: var(--he-coral);
     background: linear-gradient(145deg, rgba(255, 255, 255, .62), rgba(255, 255, 255, .28));
     box-shadow:
       inset 0 1px 0 rgba(255, 255, 255, .92),
       0 5px 14px rgba(17, 24, 39, .08);
   }
   .mobile-health-dock-item.active > span {
-    background: rgba(255, 255, 255, .46);
+    background: var(--he-coral-bg);
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, .86);
   }
   .mobile-health-dock-item:active { transform: scale(.94); }
@@ -3172,6 +3208,9 @@ a {
   border-radius: 13px;
   background: #FFFFFF;
 }
+/* Placeholder doses keep the real row's flex layout, so the list is the same
+   height before and after the schedule loads. */
+.med-dose-row-skeleton .skeleton:nth-child(2) { flex: 1; }
 .med-dose-time {
   width: 60px;
   min-width: 60px;
@@ -6169,6 +6208,46 @@ a {
   color: #16233F;
 }
 .homev2-status-head svg.ok { color: #25B978; }
+/* Cards that navigate carry a caret in the header so the affordance is visible
+   before the pointer arrives — hover alone is invisible on touch. */
+.homev2-status-caret {
+  margin-left: auto;
+  color: #9AA4BA;
+  flex-shrink: 0;
+  transition: transform .18s ease, color .18s ease;
+}
+.homev2-status-card.is-clickable,
+.homev2-status-card.is-clickable * {
+  cursor: pointer;
+}
+.homev2-status-card.is-clickable {
+  transition: border-color .18s ease, box-shadow .18s ease, transform .18s ease, background-color .18s ease;
+}
+.homev2-status-card.is-clickable:hover {
+  border-color: #C9D2E6;
+  background: #fff;
+  box-shadow: 0 20px 44px rgba(23, 36, 67, .13);
+  transform: translateY(-3px);
+}
+.homev2-status-card.is-clickable:hover .homev2-status-caret {
+  color: var(--he-coral);
+  transform: translateX(3px);
+}
+.homev2-status-card.is-clickable:active {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 24px rgba(23, 36, 67, .1);
+}
+.homev2-status-card.is-clickable:focus-visible {
+  outline: 2px solid var(--he-coral);
+  outline-offset: 2px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .homev2-status-card.is-clickable,
+  .homev2-status-caret { transition: none; }
+  .homev2-status-card.is-clickable:hover,
+  .homev2-status-card.is-clickable:active { transform: none; }
+  .homev2-status-card.is-clickable:hover .homev2-status-caret { transform: none; }
+}
 .homev2-tip-card .homev2-status-head { color: #1E9E63; }
 .homev2-status-head h3 {
   margin: 0;
@@ -8450,7 +8529,20 @@ a {
   padding: 28px 30px;
   background: radial-gradient(circle at 82% 0%, rgba(255, 107, 107, .055), transparent 28%), #fff;
 }
-.familyv2-loading { display: flex; align-items: center; justify-content: center; }
+/* Full-page loading state. Owns its own centring so callers can drop it in
+   without wrapping it in a flex box of their own; the viewport-based height is
+   what actually centres it, since the dashboard main column has no set height
+   and align-items alone would leave it pinned to the top. */
+.page-loader {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 68vh;
+  text-align: center;
+}
+
 .familyv2-header {
   min-height: 106px;
   display: flex;
@@ -8619,6 +8711,10 @@ a {
   border-bottom: 1px solid #ECEEF2;
 }
 .familyv2-table-row:last-child { border-bottom: 0; }
+/* Placeholder rows reuse the real row grid so the table doesn't reflow when
+   the data lands and the skeletons are swapped out. */
+.familyv2-row-skeleton { min-height: 145px; }
+.familyv2-row-skeleton .skeleton { align-self: center; }
 .familyv2-member-cell {
   min-width: 0;
   display: grid;
@@ -10112,14 +10208,16 @@ span.payment-dots {
 
 .profile-page-link-icon.red { color: var(--he-coral-deep); background: var(--he-coral-bg); }
 
-/* FamCare+ subscription marker on the wordmark */
+/* FamCare+ subscription marker on the wordmark.
+   Sits on the wordmark's midline rather than raised as a superscript, and takes
+   the same coral as "Care" so the "+" reads as part of the logo. */
 .brand-plus {
   margin-left: 1px;
-  color: var(--pay-green, #24b76b);
+  color: var(--he-coral);
   font-size: .68em;
   font-weight: 900;
   line-height: 1;
-  vertical-align: super;
+  vertical-align: middle;
 }
 
 /* Profile dropdown (home top bar) */

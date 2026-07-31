@@ -1,3 +1,5 @@
+import { invalidateReadCache } from "./requestCache";
+
 type StoredUserIdentity = {
   id?: number;
 };
@@ -21,4 +23,8 @@ export function clearStoredSession(options: { resetFeatureIntro?: boolean } = {}
 
   localStorage.removeItem("auth_token");
   localStorage.removeItem("auth_user");
+  // Cached reads are keyed by token, so they could not be served to the next
+  // account anyway — but holding one user's data in memory after they log out
+  // is not something to leave to a key prefix.
+  invalidateReadCache();
 }

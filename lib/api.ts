@@ -5,6 +5,10 @@
  */
 
 import { captureEvent } from "./analytics";
+import { invalidateReadCache, readThrough } from "./requestCache";
+
+/** Drops every cached read. Call on logout so the next account starts clean. */
+export { invalidateReadCache as clearApiCache };
 
 const isProductionBuild =
   typeof process !== "undefined" && process.env.NODE_ENV === "production";
@@ -21,6 +25,27 @@ const BASE_URL = "";
 const MOCK_API =
   !isProductionBuild &&
   typeof process !== "undefined" && process.env.NEXT_PUBLIC_MOCK_API === "true";
+
+/**
+ * Artificial delay applied to mocked responses, in milliseconds.
+ *
+ * Mocked data resolves instantly, so loading states and skeletons never appear
+ * locally and can't be looked at. Set NEXT_PUBLIC_MOCK_LATENCY_MS in
+ * .env.local (3000 is a comfortable number to watch) to see what a slow
+ * connection actually looks like.
+ *
+ * Rides on MOCK_API, so it cannot affect real requests or reach production —
+ * mocks are already disabled outright in production builds.
+ */
+const MOCK_LATENCY_MS =
+  typeof process !== "undefined" ? Number(process.env.NEXT_PUBLIC_MOCK_LATENCY_MS ?? 0) : 0;
+
+function mockLatency(): Promise<void> {
+  if (!MOCK_API || !Number.isFinite(MOCK_LATENCY_MS) || MOCK_LATENCY_MS <= 0) {
+    return Promise.resolve();
+  }
+  return new Promise((resolve) => setTimeout(resolve, MOCK_LATENCY_MS));
+}
 
 /**
  * Which plan the mocked account is on: `free` (default), `individual` or
@@ -219,10 +244,6 @@ export type HealthAssistantReply = {
   message: ChatMessage;
   intent: string;
   tools_used: string[];
-};
-
-export type FeatureFlags = {
-  v2: boolean;
 };
 
 export type MonthlyUsageItem = {
@@ -427,7 +448,37 @@ function logRequestFailure(
   });
 }
 
-async function apiFetch<T>(path: string): Promise<T> {
+/**
+ * Reads that must always hit the network.
+ *
+ * Both are polled while waiting for something the *server* changes — a Razorpay
+ * webhook activating a plan. No client-side write happens, so nothing would
+ * invalidate a cached copy and the poll would spin on stale data until it timed
+ * out. Neither sits on a navigation path, so caching them buys nothing anyway.
+ */
+const NEVER_CACHED = [
+  "/api/billing/checkout/status",
+  "/api/billing/subscription",
+];
+
+function isCacheable(path: string) {
+  return !NEVER_CACHED.some((prefix) => path.startsWith(prefix));
+}
+
+/** Cache key. Scoped by token so one account's reads can't be served to another. */
+function readKey(path: string, token: string | null) {
+  return `${token ?? "anon"}::${path}`;
+}
+
+async function apiFetch<T>(path: string, opts?: { fresh?: boolean }): Promise<T> {
+  const token = typeof window !== "undefined" ? localStorage.getItem("auth_token") : null;
+  if (!opts?.fresh && isCacheable(path)) {
+    return readThrough(readKey(path, token), () => apiFetchUncached<T>(path));
+  }
+  return apiFetchUncached<T>(path);
+}
+
+async function apiFetchUncached<T>(path: string): Promise<T> {
   const token = typeof window !== "undefined" ? localStorage.getItem("auth_token") : null;
 
   let res: Response;
@@ -505,7 +556,7 @@ export type AuthResponse = {
 };
 
 export async function getCurrentUser(token?: string): Promise<User | null> {
-  if (MOCK_API) return MOCK_USER;
+  if (MOCK_API) { await mockLatency(); return MOCK_USER; }
   const sessionToken =
     token ?? (typeof window !== "undefined" ? localStorage.getItem("auth_token") ?? "" : "");
   if (!sessionToken) return null;
@@ -554,23 +605,24 @@ async function chatRequest<T>(path: string, token: string, init?: RequestInit): 
   return body as T;
 }
 
-export async function getFeatureFlags(token?: string): Promise<FeatureFlags> {
-  if (MOCK_API) return { v2: true };
-  const sessionToken =
-    token ?? (typeof window !== "undefined" ? localStorage.getItem("auth_token") ?? "" : "");
-  if (!sessionToken) return { v2: false };
-  const body = await apiFetch<{ feature_flags: Partial<FeatureFlags> }>("/api/feature-flags");
-  return {
-    v2: body.feature_flags.v2 === true,
-  };
-}
-
-export async function getMonthlyUsage(): Promise<MonthlyUsageSnapshot> {
+/**
+ * `fresh` skips the read cache.
+ *
+ * This payload is cached twice — here and again by `useSubscription`, which
+ * keeps its own module-level snapshot. On a normal load both are stamped at the
+ * same moment and expire together, but an explicit refresh clears only the
+ * hook's copy: without `fresh` it would re-adopt a nearly-expired entry from
+ * here and re-stamp it, so a call whose entire purpose is to defeat the cache
+ * would quietly return data up to a minute old.
+ */
+export async function getMonthlyUsage(opts?: { fresh?: boolean }): Promise<MonthlyUsageSnapshot> {
   if (MOCK_API) {
+    await mockLatency();
     const items: MonthlyUsageItem[] = [
-      { key: "reminder_delivered", label: "Reminders", used: 18, limit: 30, warning_at: 24, percentage: 60, blocked: false },
-      { key: "ai_chat_answer", label: "AI Coach answers", used: 8, limit: 20, warning_at: 16, percentage: 40, blocked: false },
-      { key: "whatsapp_text_log", label: "WhatsApp food logs", used: 25, limit: 40, warning_at: 32, percentage: 63, blocked: false },
+      // Limits mirror the backend's usageDefinitions; warning_at is 80% of each.
+      { key: "reminder_delivered", label: "Reminders", used: 6, limit: 10, warning_at: 8, percentage: 60, blocked: false },
+      { key: "ai_chat_answer", label: "AI Coach answers", used: 4, limit: 10, warning_at: 8, percentage: 40, blocked: false },
+      { key: "whatsapp_text_log", label: "WhatsApp food logs", used: 13, limit: 20, warning_at: 16, percentage: 65, blocked: false },
       { key: "whatsapp_image_analysis", label: "WhatsApp photo analyses", used: 2, limit: 5, warning_at: 4, percentage: 40, blocked: false },
     ];
     return {
@@ -589,7 +641,7 @@ export async function getMonthlyUsage(): Promise<MonthlyUsageSnapshot> {
         : items.map((item) => ({ ...item, percentage: 0, blocked: false })),
     };
   }
-  return apiFetch<MonthlyUsageSnapshot>("/api/usage/monthly");
+  return apiFetch<MonthlyUsageSnapshot>("/api/usage/monthly", opts);
 }
 
 const MOCK_PLANS: BillingPlansResponse = {
@@ -642,7 +694,7 @@ const MOCK_PLANS: BillingPlansResponse = {
 };
 
 export async function getBillingPlans(): Promise<BillingPlansResponse> {
-  if (MOCK_API) return MOCK_PLANS;
+  if (MOCK_API) { await mockLatency(); return MOCK_PLANS; }
   return apiFetch<BillingPlansResponse>("/api/billing/plans");
 }
 
@@ -650,6 +702,7 @@ export async function createSubscriptionCheckout(
   planKey: BillingPlanKey,
 ): Promise<SubscriptionCheckout> {
   if (MOCK_API) {
+    await mockLatency();
     return {
       key_id: "rzp_test_famcare",
       subscription_id: `sub_mock_${planKey}`,
@@ -676,6 +729,7 @@ export async function verifySubscriptionCheckout(input: {
   razorpay_signature: string;
 }): Promise<SubscriptionCheckoutVerification> {
   if (MOCK_API) {
+    await mockLatency();
     return {
       verified: true,
       status: "pending",
@@ -694,6 +748,7 @@ export async function verifySubscriptionCheckout(input: {
 
 export async function getCheckoutStatus(subscriptionId: string): Promise<CheckoutStatus> {
   if (MOCK_API) {
+    await mockLatency();
     const planKey = subscriptionId.includes("extra") ? "extra_parent" : "family";
     return {
       subscription_id: subscriptionId,
@@ -717,6 +772,7 @@ export async function getCheckoutStatus(subscriptionId: string): Promise<Checkou
 
 export async function getSubscriptionDetails(): Promise<SubscriptionDetails> {
   if (MOCK_API) {
+    await mockLatency();
     if (MOCK_PLAN === "free") {
       return { active: false, plan_key: "free", status: "free", amount_paise: 0 };
     }
@@ -749,6 +805,7 @@ export async function getSubscriptionDetails(): Promise<SubscriptionDetails> {
 
 export async function getFamilySeats(): Promise<FamilySeatStatus> {
   if (MOCK_API) {
+    await mockLatency();
     const limit = MOCK_PLAN_SEATS[MOCK_PLAN];
     return { plan_key: MOCK_PLAN, used: 0, limit, can_add: 0 < limit, extra_parents: 0 };
   }
@@ -760,6 +817,7 @@ export async function getFamilySeats(): Promise<FamilySeatStatus> {
 
 export async function getBillingInvoices(): Promise<BillingInvoice[]> {
   if (MOCK_API) {
+    await mockLatency();
     if (MOCK_PLAN === "free") return [];
     // One receipt per past month so the billing history has something to show.
     return Array.from({ length: 2 }, (_, i) => {
@@ -786,6 +844,7 @@ export async function getBillingInvoices(): Promise<BillingInvoice[]> {
 
 export async function cancelSubscription(): Promise<CancelSubscriptionResult> {
   if (MOCK_API) {
+    await mockLatency();
     return {
       cancel_at_period_end: true,
       message: "Your plan will stay active until the end of this billing period, then stop renewing.",
@@ -799,6 +858,7 @@ export async function cancelSubscription(): Promise<CancelSubscriptionResult> {
 
 export async function createExtraParentCheckout(): Promise<SubscriptionCheckout> {
   if (MOCK_API) {
+    await mockLatency();
     return {
       key_id: "rzp_test_famcare",
       subscription_id: `sub_mock_extra_parent_${Date.now()}`,
@@ -875,7 +935,7 @@ export async function submitChatFeedback(
  * Phone must include country code, e.g. "+919876543210"
  */
 export async function sendOtp(phone: string): Promise<void> {
-  if (MOCK_API) return;
+  if (MOCK_API) { await mockLatency(); return; }
   let res: Response;
   try {
     res = await fetch(`${BASE_URL}/auth/send-otp`, {
@@ -905,7 +965,7 @@ export async function verifyOtp(
   phone: string,
   code: string
 ): Promise<AuthResponse> {
-  if (MOCK_API) return { token: "mock-token", user: MOCK_USER };
+  if (MOCK_API) { await mockLatency(); return { token: "mock-token", user: MOCK_USER }; }
   let res: Response;
   try {
     res = await fetch(`${BASE_URL}/auth/verify-otp`, {
@@ -934,7 +994,7 @@ export async function updateUserGoals(
   goals: { goal_steps: number | null; goal_protein_g: number | null; goal_calories: number | null; goal_sleep_hours: number | null },
   token: string,
 ): Promise<User> {
-  if (MOCK_API) return { ...MOCK_USER, ...goals };
+  if (MOCK_API) { await mockLatency(); return { ...MOCK_USER, ...goals }; }
   const path = `/api/users/${userId}/goals`;
   let res: Response;
   try {
@@ -960,7 +1020,7 @@ export async function calculateUserCalorieTarget(
   body: CalorieTargetRequest,
   token: string,
 ): Promise<CalorieTargetResponse> {
-  if (MOCK_API) return mockCalculateCalorieTarget(body);
+  if (MOCK_API) { await mockLatency(); return mockCalculateCalorieTarget(body); }
   const path = `/api/users/${userId}/calorie-target`;
   let res: Response;
   try {
@@ -983,7 +1043,7 @@ export async function calculateUserCalorieTarget(
 
 /** Sets the caller's display name. Used by the first-login onboarding step. */
 export async function updateUserName(userId: number, name: string, token: string): Promise<User> {
-  if (MOCK_API) return { ...MOCK_USER, name };
+  if (MOCK_API) { await mockLatency(); return { ...MOCK_USER, name }; }
   const path = `/api/users/${userId}`;
   let res: Response;
   try {
@@ -1014,7 +1074,7 @@ export async function getUserLogs(
   userId: number,
   days = 30
 ): Promise<HealthLog[]> {
-  if (MOCK_API) return MOCK_LOGS.slice(0, days);
+  if (MOCK_API) { await mockLatency(); return MOCK_LOGS.slice(0, days); }
   const data = await apiFetch<{ logs: HealthLog[] }>(
     `/api/users/${userId}/logs?days=${days}`
   );
@@ -1022,7 +1082,7 @@ export async function getUserLogs(
 }
 
 export async function getUserLogEvents(userId: number, days = 7): Promise<HealthLogEvent[]> {
-  if (MOCK_API) return MOCK_LOG_EVENTS.filter((event) => event.user_id === userId);
+  if (MOCK_API) { await mockLatency(); return MOCK_LOG_EVENTS.filter((event) => event.user_id === userId); }
   const data = await apiFetch<{ log_events: HealthLogEvent[] }>(
     `/api/users/${userId}/log-events?days=${days}`
   );
@@ -1034,6 +1094,7 @@ export async function previewYesterdayFood(
   token: string,
 ): Promise<YesterdayFoodPreview> {
   if (MOCK_API) {
+    await mockLatency();
     return {
       message,
       summary: `Estimated nutrition for ${message}`,
@@ -1053,6 +1114,7 @@ export async function backfillYesterdayFood(
   token: string,
 ): Promise<BackfillYesterdayLogResponse> {
   if (MOCK_API) {
+    await mockLatency();
     const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
     const loggedAt = yesterday.toLocaleDateString("en-CA");
@@ -1098,6 +1160,7 @@ export async function getUserFoodPatterns(
   end?: string,
 ): Promise<FoodPatterns> {
   if (MOCK_API) {
+    await mockLatency();
     return {
       unique_foods: 8,
       total_food_logs: 62,
@@ -1123,7 +1186,7 @@ export async function getUserFoodPatterns(
  * Returns null when the backend reports "No data given yet".
  */
 export async function getUserSummary(userId: number): Promise<Summary | null> {
-  if (MOCK_API) return MOCK_SUMMARY;
+  if (MOCK_API) { await mockLatency(); return MOCK_SUMMARY; }
   // Backend returns { message: "No data given yet" } when logs are empty —
   // we catch that and normalise to null. Any real network/server error
   // is re-thrown so the dashboard can surface it.
@@ -1151,7 +1214,29 @@ export type InviteFamilyResponse = {
   method: "otp" | "template";
 };
 
-async function authedFetch<T>(path: string, token: string, options?: RequestInit): Promise<T> {
+async function authedFetch<T>(
+  path: string,
+  token: string,
+  options?: RequestInit,
+  opts?: { fresh?: boolean },
+): Promise<T> {
+  const method = (options?.method ?? "GET").toUpperCase();
+  if (method !== "GET") {
+    // A write can change anything the reads describe, so rather than tracking
+    // which endpoints a mutation touches, drop the lot. Writes are rare and
+    // deliberate; over-invalidating costs one refetch, under-invalidating shows
+    // the user their own change missing.
+    const result = await authedFetchUncached<T>(path, token, options);
+    invalidateReadCache();
+    return result;
+  }
+  if (!opts?.fresh && isCacheable(path)) {
+    return readThrough(readKey(path, token), () => authedFetchUncached<T>(path, token, options));
+  }
+  return authedFetchUncached<T>(path, token, options);
+}
+
+async function authedFetchUncached<T>(path: string, token: string, options?: RequestInit): Promise<T> {
   let res: Response;
   try {
     res = await fetch(`${BASE_URL}${path}`, {
@@ -1179,6 +1264,7 @@ export async function inviteFamilyMember(
   phone: string, label: string, type: string, token: string
 ): Promise<InviteFamilyResponse> {
   if (MOCK_API) {
+    await mockLatency();
     return {
       member: { id: 4, phone, name: null, label, type, status: "pending", created_at: new Date().toISOString() },
       method: "otp",
@@ -1195,6 +1281,7 @@ export async function verifyFamilyInviteOtp(
   phone: string, code: string, token: string
 ): Promise<FamilyMember> {
   if (MOCK_API) {
+    await mockLatency();
     return { id: 4, phone, name: null, label: "Dad", type: "family", status: "active", created_at: new Date().toISOString() };
   }
   return authedFetch<FamilyMember>("/family/invite/verify-otp", token, {
@@ -1204,21 +1291,28 @@ export async function verifyFamilyInviteOtp(
   });
 }
 
-export async function getFamilyMembers(token: string): Promise<FamilyMember[]> {
-  if (MOCK_API) return MOCK_MEMBERS;
-  const data = await authedFetch<{ members: FamilyMember[] }>("/family/members", token);
+/**
+ * `fresh` skips the read cache. Needed by the invite poller, which waits on the
+ * member accepting over WhatsApp — a change no client write would invalidate.
+ */
+export async function getFamilyMembers(
+  token: string,
+  opts?: { fresh?: boolean },
+): Promise<FamilyMember[]> {
+  if (MOCK_API) { await mockLatency(); return MOCK_MEMBERS; }
+  const data = await authedFetch<{ members: FamilyMember[] }>("/family/members", token, undefined, opts);
   return data.members;
 }
 
 export async function removeFamilyMember(memberId: number, token: string): Promise<void> {
-  if (MOCK_API) return;
+  if (MOCK_API) { await mockLatency(); return; }
   await authedFetch<{ message: string }>(`/family/members/${memberId}`, token, {
     method: "DELETE",
   });
 }
 
 export async function getMemberSummary(memberId: number, token: string): Promise<Summary | null> {
-  if (MOCK_API) return MOCK_SUMMARY;
+  if (MOCK_API) { await mockLatency(); return MOCK_SUMMARY; }
   const data = await authedFetch<Summary | { message: string }>(
     `/family/members/${memberId}/summary`, token
   );
@@ -1227,7 +1321,7 @@ export async function getMemberSummary(memberId: number, token: string): Promise
 }
 
 export async function getMemberLogs(memberId: number, token: string, days = 7): Promise<HealthLog[]> {
-  if (MOCK_API) return MOCK_LOGS.slice(0, days);
+  if (MOCK_API) { await mockLatency(); return MOCK_LOGS.slice(0, days); }
   const data = await authedFetch<{ logs: HealthLog[] }>(
     `/family/members/${memberId}/logs?days=${days}`, token
   );
@@ -1235,7 +1329,7 @@ export async function getMemberLogs(memberId: number, token: string, days = 7): 
 }
 
 export async function getMemberLogEvents(memberId: number, token: string, days = 7): Promise<HealthLogEvent[]> {
-  if (MOCK_API) return MOCK_LOG_EVENTS.filter((event) => event.user_id === memberId);
+  if (MOCK_API) { await mockLatency(); return MOCK_LOG_EVENTS.filter((event) => event.user_id === memberId); }
   const data = await authedFetch<{ log_events: HealthLogEvent[] }>(
     `/family/members/${memberId}/log-events?days=${days}`, token
   );
@@ -1249,7 +1343,7 @@ export async function getMemberFoodPatterns(
   start?: string,
   end?: string,
 ): Promise<FoodPatterns> {
-  if (MOCK_API) return getUserFoodPatterns(memberId, days, start, end);
+  if (MOCK_API) { await mockLatency(); return getUserFoodPatterns(memberId, days, start, end); }
   const query = new URLSearchParams({ days: String(days) });
   if (start) query.set("start", start);
   if (end) query.set("end", end);
@@ -1266,7 +1360,7 @@ export async function submitReviewFeedback(input: {
   message: string;
   page_url?: string;
 }): Promise<void> {
-  if (MOCK_API) return;
+  if (MOCK_API) { await mockLatency(); return; }
   const token = typeof window !== "undefined" ? localStorage.getItem("auth_token") : "";
   if (!token) throw new Error("Please log in again before submitting feedback.");
   await authedFetch<{ message: string }>("/api/review", token, {
@@ -1278,6 +1372,7 @@ export async function submitReviewFeedback(input: {
 
 export async function getFoodReminderPreference(token: string, patientUserId?: number): Promise<FoodReminderPreference> {
   if (MOCK_API) {
+    await mockLatency();
     return {
       user_id: patientUserId ?? MOCK_USER.id,
       enabled: true,
@@ -1307,6 +1402,7 @@ export async function updateFoodReminderPreference(
   patientUserId?: number,
 ): Promise<FoodReminderPreference> {
   if (MOCK_API) {
+    await mockLatency();
     return {
       user_id: patientUserId ?? MOCK_USER.id,
       enabled,
@@ -1343,7 +1439,7 @@ export type CorrectLogValuesInput = {
 };
 
 export async function correctLogValues(input: CorrectLogValuesInput): Promise<void> {
-  if (MOCK_API) return;
+  if (MOCK_API) { await mockLatency(); return; }
   const token = typeof window !== "undefined" ? localStorage.getItem("auth_token") : "";
   if (!token) throw new Error("Please log in again before updating this log.");
   await authedFetch<{ message: string }>("/api/log-values", token, {
@@ -1360,7 +1456,7 @@ export type MarkLogIncorrectInput = {
 };
 
 export async function markLogIncorrect(input: MarkLogIncorrectInput): Promise<void> {
-  if (MOCK_API) return;
+  if (MOCK_API) { await mockLatency(); return; }
   const token = typeof window !== "undefined" ? localStorage.getItem("auth_token") : "";
   if (!token) throw new Error("Please log in again before marking this log.");
   await authedFetch<{ message: string }>("/api/log-issues", token, {
@@ -1376,7 +1472,7 @@ export type DeleteLogInput = {
 };
 
 export async function deleteLog(input: DeleteLogInput): Promise<void> {
-  if (MOCK_API) return;
+  if (MOCK_API) { await mockLatency(); return; }
   const token = typeof window !== "undefined" ? localStorage.getItem("auth_token") : "";
   if (!token) throw new Error("Please log in again before deleting this log.");
   await authedFetch<{ message: string }>("/api/log-values", token, {
@@ -1531,7 +1627,7 @@ function buildMockMedicationData(patientUserId: number): { medicines: Medicine[]
 }
 
 export async function getMedicines(patientUserId: number, token: string): Promise<Medicine[]> {
-  if (MOCK_API) return buildMockMedicationData(patientUserId).medicines;
+  if (MOCK_API) { await mockLatency(); return buildMockMedicationData(patientUserId).medicines; }
   const data = await authedFetch<{ medicines: Medicine[] }>(
     `/api/medicines?patientUserId=${patientUserId}`,
     token,
@@ -1540,7 +1636,7 @@ export async function getMedicines(patientUserId: number, token: string): Promis
 }
 
 export async function getTodayMedicineDoses(patientUserId: number, token: string): Promise<TodayDose[]> {
-  if (MOCK_API) return buildMockMedicationData(patientUserId).doses;
+  if (MOCK_API) { await mockLatency(); return buildMockMedicationData(patientUserId).doses; }
   const data = await authedFetch<{ doses: TodayDose[] }>(
     `/api/medicines/today?patientUserId=${patientUserId}`,
     token,
@@ -1576,6 +1672,7 @@ export async function markMedicineDose(
   token: string,
 ): Promise<TodayDose> {
   if (MOCK_API) {
+    await mockLatency();
     MOCK_TAKEN_SCHEDULE_IDS.add(input.schedule_id);
     const mockDose = buildMockMedicationData(1).doses.find((dose) => dose.schedule.id === input.schedule_id);
     if (!mockDose) throw new Error("Mock dose not found");

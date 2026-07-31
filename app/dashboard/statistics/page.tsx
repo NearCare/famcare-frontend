@@ -32,7 +32,6 @@ import {
 } from "recharts";
 import type { NameType, ValueType } from "recharts/types/component/DefaultTooltipContent";
 import Sidebar from "../components/Sidebar";
-import V2RouteGate from "../components/V2RouteGate";
 import { FEProtein } from "../components/FluentEmoji";
 import {
   getFamilyMembers,
@@ -361,7 +360,6 @@ export default function StatisticsPage() {
   }, [foodPatterns, totalFoodLogs]);
 
   return (
-    <V2RouteGate>
     <div className="db-page">
       <Sidebar />
       <main className="db-main stats-main">
@@ -906,6 +904,5 @@ export default function StatisticsPage() {
         </section>
       </main>
     </div>
-    </V2RouteGate>
   );
 }

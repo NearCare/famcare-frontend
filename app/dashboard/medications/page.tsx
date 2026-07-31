@@ -28,7 +28,7 @@ import {
   type TodayDose,
   type User,
 } from "@/lib/api";
-import PageLoader from "../components/PageLoader";
+import { Skeleton, SkeletonCard, SkeletonRegion } from "../components/Skeleton";
 import { captureEvent, identifyUser } from "@/lib/analytics";
 
 type PersonOption = {
@@ -776,12 +776,21 @@ export default function MedicationsPage() {
     <Suspense fallback={
       <div className="db-page">
         <Sidebar />
-        <div className="db-main" style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <PageLoader
-            title="Loading medications..."
-            subtitle="We're loading schedules, reminders, and family medicine data."
-          />
-        </div>
+        <main className="db-main med-main">
+          <header className="med-header">
+            <div>
+              <h1>Medications</h1>
+              <p>Manage medicines, dose times, and reminders for your family.</p>
+            </div>
+          </header>
+          <SkeletonRegion label="Loading medications">
+            <section className="med-stat-grid">
+              <SkeletonCard height={104} />
+              <SkeletonCard height={104} />
+            </section>
+            <SkeletonCard height={320} />
+          </SkeletonRegion>
+        </main>
       </div>
     }>
       <MedicationsContent />
@@ -1154,20 +1163,6 @@ function MedicationsContent() {
     }
   };
 
-  if (initializing) {
-    return (
-      <div className="db-page">
-        <Sidebar />
-        <div className="db-main" style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <PageLoader
-            title="Loading medications..."
-            subtitle="We're loading schedules, reminders, and family medicine data."
-          />
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="db-page">
       <Sidebar />
@@ -1196,7 +1191,10 @@ function MedicationsContent() {
               } as CSSProperties}
             >
               <span className="med-member-filter-slider" aria-hidden="true" />
-              {memberFilters.map((filter) => (
+              {initializing && [0, 1].map((chip) => (
+                <Skeleton key={chip} width={96} height={30} radius={999} />
+              ))}
+              {!initializing && memberFilters.map((filter) => (
                 <button
                   type="button"
                   className={`med-member-filter${selectedPersonId === filter.id ? " active" : ""}`}
@@ -1212,8 +1210,15 @@ function MedicationsContent() {
         </section>
 
         <section className="med-stat-grid" aria-label="Medication overview">
+            {initializing ? (
+              <SkeletonRegion label="Loading medication overview">
+                <SkeletonCard height={104} />
+                <SkeletonCard height={104} />
+              </SkeletonRegion>
+            ) : (<>
             <StatCard icon={<Pill size={20} weight="bold" color="var(--he-green-deep)" />} value={`${activeCount}`} label="Active medicines" detail={hasMedicines ? selectedPersonId === "all" ? "Medicines across your family are tracked." : `All medicines for ${displayName(selectedPerson)} are tracked.` : "No medicines added yet"} tone="green" />
             <StatCard icon={<CheckCircle size={20} weight="bold" color="var(--he-blue-deep)" />} value={`${takenDoses.length}/${dosesToday}`} label="Taken today" detail={dosesToday ? `${takenDoses.length} of ${dosesToday} scheduled doses taken` : "Nothing scheduled today"} tone="blue" />
+            </>)}
         </section>
 
         <section className="med-schedule-card">
@@ -1282,13 +1287,18 @@ function MedicationsContent() {
               </div>
             )}
 
-            {loadingMedicines ? (
-              <div className="med-empty-state">
-                <div style={{ width: 52, height: 52, borderRadius: 17, background: "var(--he-blue-bg)", display: "grid", placeItems: "center", margin: "0 auto 13px" }}>
-                  <Pill size={25} weight="bold" color="var(--he-blue-deep)" />
+            {loadingMedicines || initializing ? (
+              <SkeletonRegion label="Loading medicine schedule">
+                <div className="med-dose-list">
+                  {[0, 1, 2, 3].map((row) => (
+                    <div className="med-dose-row med-dose-row-skeleton" key={row}>
+                      <Skeleton width={62} height={44} radius={13} />
+                      <Skeleton height={16} />
+                      <Skeleton width={84} height={30} radius={999} />
+                    </div>
+                  ))}
                 </div>
-                <h3 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: "var(--he-ink-1)", letterSpacing: "-.25px" }}>Loading medicines...</h3>
-              </div>
+              </SkeletonRegion>
             ) : !hasMedicines ? (
               <div className="med-empty-state">
                 <div style={{ width: 52, height: 52, borderRadius: 17, background: "linear-gradient(150deg, var(--he-coral-bg), var(--he-green-bg))", display: "grid", placeItems: "center", margin: "0 auto 13px" }}>

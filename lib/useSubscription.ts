@@ -24,13 +24,13 @@ function publish() {
   subscribers.forEach((notify) => notify(state));
 }
 
-function loadSnapshot(): Promise<MonthlyUsageSnapshot | null> {
-  if (cachedSnapshot && Date.now() - cachedAt < CACHE_TTL_MS) {
+function loadSnapshot(fresh = false): Promise<MonthlyUsageSnapshot | null> {
+  if (!fresh && cachedSnapshot && Date.now() - cachedAt < CACHE_TTL_MS) {
     return Promise.resolve(cachedSnapshot);
   }
   if (inFlight) return inFlight;
 
-  inFlight = getMonthlyUsage()
+  inFlight = getMonthlyUsage({ fresh })
     .then((snapshot) => {
       cachedSnapshot = snapshot;
       cachedError = null;
@@ -55,13 +55,18 @@ function loadSnapshot(): Promise<MonthlyUsageSnapshot | null> {
  * subscriber. Call this after a plan change (checkout confirmed, add-on bought)
  * so the FamCare+ marker appears without needing a hard reload — client-side
  * navigation alone would keep serving the pre-payment cache.
+ *
+ * Clearing the state below is not enough on its own: the API client keeps its
+ * own short-lived read cache, so the refetch would be answered from there and
+ * this would hand back the very data it was called to replace. `fresh` carries
+ * the intent all the way down to the network.
  */
 export function refreshSubscriptionState(): Promise<MonthlyUsageSnapshot | null> {
   cachedSnapshot = null;
   cachedError = null;
   cachedAt = 0;
   inFlight = null;
-  return loadSnapshot();
+  return loadSnapshot(true);
 }
 
 export type SubscriptionState = {
