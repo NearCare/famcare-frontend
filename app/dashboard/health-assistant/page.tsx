@@ -477,6 +477,11 @@ export default function HealthAssistantPage() {
               </div>
             )}
             {error && <div className="ha-error">{error}<button onClick={() => setError(null)}>Dismiss</button></div>}
+            {/* The composer and starter prompts sat outside the loading branch,
+                so they rendered alongside the loader and collided with it. They
+                also can't be used until the conversation exists — sending
+                before then has nowhere to go — so they wait for the fetch. */}
+            {!loading && (<>
             <div className="ha-starters">
               {starters.map((starter) => {
                 const StarterIcon = starter.icon;
@@ -496,6 +501,7 @@ export default function HealthAssistantPage() {
               />
               <button type="submit" disabled={!input.trim() || sending} aria-label="Send message"><PaperPlaneTilt size={20} weight="fill" /></button>
             </form>
+            </>)}
           </div>
         </section>
       </main>
