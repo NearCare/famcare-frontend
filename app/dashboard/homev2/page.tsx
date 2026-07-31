@@ -49,6 +49,7 @@ import {
   backfillYesterdayFood,
   previewYesterdayFood,
   getFamilyMembers,
+  getFeatureFlags,
   getFoodReminderPreference,
   getCurrentUser,
   getMemberLogEvents,
@@ -69,6 +70,7 @@ import {
   type User as ApiUser,
   type YesterdayFoodPreview,
 } from "@/lib/api";
+import { captureEvent, identifyUser } from "@/lib/analytics";
 import { FAMCARE_WHATSAPP_LINK } from "@/lib/whatsapp";
 import { useSubscription } from "@/lib/useSubscription";
 
@@ -255,6 +257,11 @@ export default function HomeV2Page() {
       return;
     }
     setUser(authUser);
+    identifyUser(authUser);
+    captureEvent("home_v2_viewed", {
+      has_calorie_target: Number(authUser.goal_calories) > 0,
+      has_protein_target: Number(authUser.goal_protein_g) > 0,
+    });
     getCurrentUser(token)
       .then((currentUser) => {
         if (!currentUser) return;
@@ -281,8 +288,11 @@ export default function HomeV2Page() {
       .then(setSelfFoodPref)
       .catch(() => setSelfFoodPref(null));
 
-    getFamilyMembers(token)
-      .then(async (members: FamilyMember[]) => {
+    Promise.all([
+      getFamilyMembers(token),
+      getFeatureFlags(token).catch(() => ({ v2: false })),
+    ])
+      .then(async ([members, featureFlags]: [FamilyMember[], { v2: boolean }]) => {
         const active = members.filter((m) => m.status === "active");
         const results = await Promise.all(
           active.map(async (member) => {
@@ -290,7 +300,9 @@ export default function HomeV2Page() {
               getMemberLogEvents(member.id, token, 7).catch(() => [] as HealthLogEvent[]),
               getMemberSummary(member.id, token).catch(() => null),
               getTodayMedicineDoses(member.id, token).catch(() => [] as TodayDose[]),
-              getFoodReminderPreference(token, member.id).catch(() => null),
+              featureFlags.v2
+                ? getFoodReminderPreference(token, member.id).catch(() => null)
+                : Promise.resolve(null),
             ]);
             const latest = events.length
               ? events.reduce((a, b) => (a.created_at > b.created_at ? a : b))
@@ -609,8 +621,10 @@ export default function HomeV2Page() {
     try {
       const preview = await previewYesterdayFood(message, token);
       setYesterdayPreview(preview);
+      captureEvent("yesterday_backfill_estimated");
     } catch (submitError) {
       setBackfillError(submitError instanceof Error ? submitError.message : "Could not estimate yesterday's food.");
+      captureEvent("yesterday_backfill_estimate_failed");
     } finally {
       setBackfillLoading(false);
     }
@@ -639,8 +653,10 @@ export default function HomeV2Page() {
       setYesterdayMessage("");
       setYesterdayPreview(null);
       setShowYesterdayLogger(false);
+      captureEvent("yesterday_backfill_completed");
     } catch (submitError) {
       setBackfillError(submitError instanceof Error ? submitError.message : "Could not log yesterday's food.");
+      captureEvent("yesterday_backfill_failed");
     } finally {
       setBackfillLoading(false);
     }
@@ -668,7 +684,11 @@ export default function HomeV2Page() {
                 type="button"
                 aria-expanded={showStreakCalendar}
                 aria-haspopup="dialog"
-                onClick={() => setShowStreakCalendar((visible) => !visible)}
+                onClick={() => setShowStreakCalendar((visible) => {
+                  const nextVisible = !visible;
+                  if (nextVisible) captureEvent("streak_calendar_opened");
+                  return nextVisible;
+                })}
               >
                 <Fire size={16} weight="fill" />
                 <strong>{streak}</strong>
@@ -716,7 +736,13 @@ export default function HomeV2Page() {
                 </div>
               )}
             </div>
-            <a className="db-pill cta" href={FAMCARE_WHATSAPP_LINK} target="_blank" rel="noreferrer">
+            <a
+              className="db-pill cta"
+              href={FAMCARE_WHATSAPP_LINK}
+              target="_blank"
+              rel="noreferrer"
+              onClick={() => captureEvent("whatsapp_log_clicked", { source: "home_v2_header" })}
+            >
               <WhatsappLogo size={15} weight="fill" />
               Log via WhatsApp
             </a>
@@ -729,7 +755,10 @@ export default function HomeV2Page() {
             <button
               type="button"
               className="homev2-backfill-dismiss"
-              onClick={() => setYesterdayBannerDismissed(true)}
+              onClick={() => {
+                setYesterdayBannerDismissed(true);
+                captureEvent("yesterday_backfill_banner_dismissed");
+              }}
               aria-label="Dismiss"
             >
               <X size={13} weight="bold" />
@@ -752,6 +781,7 @@ export default function HomeV2Page() {
                 setBackfillError(null);
                 setYesterdayPreview(null);
                 setShowYesterdayLogger(true);
+                captureEvent("yesterday_backfill_started");
               }}
             >
               Log yesterday&apos;s meals
@@ -798,6 +828,10 @@ export default function HomeV2Page() {
                 <a
                   className={`homev2-glance-card homev2-target-card ${card.tone}`}
                   href="/dashboard/calorie-calculator"
+                  onClick={() => captureEvent("calorie_target_entry_clicked", {
+                    source: "home_v2_glance",
+                    target_type: card.label.toLowerCase().includes("protein") ? "protein" : "calories",
+                  })}
                   key={card.label}
                 >
                   {cardContent}
@@ -812,7 +846,14 @@ export default function HomeV2Page() {
         </section>
 
         {monthlyUsage?.status === "past_due" && (
-          <a className="homev2-pastdue-banner" href="/dashboard/payments">
+          <a
+            className="homev2-pastdue-banner"
+            href="/dashboard/payments"
+            onClick={() => captureEvent("billing_entry_clicked", {
+              source: "home_v2_past_due",
+              current_plan: monthlyUsage.plan_key,
+            })}
+          >
             <span className="homev2-pastdue-icon" aria-hidden="true">
               <WarningCircle size={20} weight="fill" />
             </span>
@@ -838,7 +879,15 @@ export default function HomeV2Page() {
         )}
 
         {monthlyUsage?.plan_key === "free" && monthlyUsage.status !== "past_due" && (
-          <a className="homev2-plus-banner" href="/dashboard/payments" aria-label="Explore FamCare Plus plans">
+          <a
+            className="homev2-plus-banner"
+            href="/dashboard/payments"
+            aria-label="Explore FamCare Plus plans"
+            onClick={() => captureEvent("billing_entry_clicked", {
+              source: "home_v2_upgrade_banner",
+              current_plan: "free",
+            })}
+          >
             <span className="homev2-plus-icon" aria-hidden="true">
               <Crown size={20} weight="fill" />
             </span>
@@ -883,17 +932,27 @@ export default function HomeV2Page() {
 
                 <div className="homev2-onboard-actions">
                   {familyMemberRows.length > 0 ? (
-                    <a className="homev2-onboard-cta primary" href="/dashboard/family-overviewv2">
+                    <a
+                      className="homev2-onboard-cta primary"
+                      href="/dashboard/family-overviewv2"
+                      onClick={() => captureEvent("family_overview_entry_clicked", { source: "home_v2_onboarding" })}
+                    >
                       <UsersThree size={16} weight="bold" />
                       View details
                     </a>
                   ) : (
-                    <button className="homev2-onboard-cta primary" type="button" onClick={() => setShowAddFamily(true)}>
+                    <button className="homev2-onboard-cta primary" type="button" onClick={() => {
+                      setShowAddFamily(true);
+                      captureEvent("family_member_add_started", { source: "home_v2_onboarding" });
+                    }}>
                       <UsersThree size={16} weight="bold" />
                       Add parents
                     </button>
                   )}
-                  <button className="homev2-onboard-cta" type="button" onClick={() => setShowAddFamily(true)}>
+                  <button className="homev2-onboard-cta" type="button" onClick={() => {
+                    setShowAddFamily(true);
+                    captureEvent("family_member_add_started", { source: "home_v2_medication_onboarding" });
+                  }}>
                     <Pulse size={16} weight="bold" />
                     Add parent medications
                   </button>
@@ -942,7 +1001,10 @@ export default function HomeV2Page() {
 
           <article
             className="homev2-panel homev2-chart-card"
-            onClick={() => router.push("/dashboard/statistics")}
+            onClick={() => {
+              captureEvent("statistics_entry_clicked", { source: "home_v2_progress_chart" });
+              router.push("/dashboard/statistics");
+            }}
             style={{ cursor: "pointer" }}
           >
             <div className="homev2-chart-head">
@@ -993,6 +1055,7 @@ export default function HomeV2Page() {
                       onClick={() => {
                         setChartRange("week");
                         setShowRangeMenu(false);
+                        captureEvent("home_progress_range_changed", { range: "week" });
                       }}
                       style={{
                         padding: "8px 10px",
@@ -1013,6 +1076,7 @@ export default function HomeV2Page() {
                       onClick={() => {
                         setChartRange("month");
                         setShowRangeMenu(false);
+                        captureEvent("home_progress_range_changed", { range: "month" });
                       }}
                       style={{
                         padding: "8px 10px",
@@ -1037,7 +1101,15 @@ export default function HomeV2Page() {
               <a
                 className="homev2-chart-target-entry"
                 href="/dashboard/calorie-calculator"
-                onClick={(event) => event.stopPropagation()}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  captureEvent("calorie_target_entry_clicked", {
+                    source: "home_v2_progress_chart",
+                    target_type: !hasCalorieTarget && !hasProteinTarget
+                      ? "calories_and_protein"
+                      : !hasCalorieTarget ? "calories" : "protein",
+                  });
+                }}
               >
                 <span className="homev2-chart-target-icon">
                   <Sparkle size={16} weight="fill" />
@@ -1127,7 +1199,10 @@ export default function HomeV2Page() {
         <section className="homev2-panel homev2-family-card homev2-family-card-full">
           <div className="homev2-family-head">
             <h2><UsersThree size={20} weight="fill" className="homev2-family-head-icon" /> Family overview</h2>
-            <a href="/dashboard/family-overviewv2">
+            <a
+              href="/dashboard/family-overviewv2"
+              onClick={() => captureEvent("family_overview_entry_clicked", { source: "home_v2_family_header" })}
+            >
               View all family <CaretRight size={12} weight="bold" />
             </a>
           </div>
@@ -1166,7 +1241,11 @@ export default function HomeV2Page() {
                       <Clock size={13} weight="fill" />
                       {row.loggedToday ? "Logged today" : "No log yet"}
                     </span>
-                    <a className="homev2-family-view" href="/dashboard/family-overviewv2">
+                    <a
+                      className="homev2-family-view"
+                      href="/dashboard/family-overviewv2"
+                      onClick={() => captureEvent("family_overview_entry_clicked", { source: "home_v2_family_row" })}
+                    >
                       View <CaretRight size={12} weight="bold" />
                     </a>
                   </div>
@@ -1182,7 +1261,10 @@ export default function HomeV2Page() {
         <section className="homev2-status-row">
           <article
             className="homev2-status-card"
-            onClick={() => router.push("/dashboard/logs")}
+            onClick={() => {
+              captureEvent("health_logs_entry_clicked", { source: "home_v2_logging_status" });
+              router.push("/dashboard/logs");
+            }}
             style={{ cursor: "pointer" }}
           >
             <div className="homev2-status-head">
@@ -1229,7 +1311,11 @@ export default function HomeV2Page() {
                 <li className="homev2-reminder-empty">No upcoming reminders today.</li>
               )}
             </ul>
-            <a className="homev2-status-link" href="/dashboard/medications">
+            <a
+              className="homev2-status-link"
+              href="/dashboard/medications"
+              onClick={() => captureEvent("medications_entry_clicked", { source: "home_v2_reminders" })}
+            >
               View all reminders <ArrowRight size={13} weight="bold" />
             </a>
           </article>

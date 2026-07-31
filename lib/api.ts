@@ -22,6 +22,20 @@ const MOCK_API =
   !isProductionBuild &&
   typeof process !== "undefined" && process.env.NEXT_PUBLIC_MOCK_API === "true";
 
+/**
+ * Which plan the mocked account is on: `free` (default), `individual` or
+ * `family`. Set NEXT_PUBLIC_MOCK_PLAN in .env.local to preview the dashboard
+ * as a paying subscriber without a backend or a real Razorpay payment.
+ * Seat counts and prices mirror the backend's PLAN_CATALOG.
+ */
+const MOCK_PLAN: BillingPlanKey | "free" =
+  typeof process !== "undefined" && (process.env.NEXT_PUBLIC_MOCK_PLAN === "individual" || process.env.NEXT_PUBLIC_MOCK_PLAN === "family")
+    ? process.env.NEXT_PUBLIC_MOCK_PLAN
+    : "free";
+
+const MOCK_PLAN_AMOUNT_PAISE = { free: 0, individual: 14_900, family: 29_900 } as const;
+const MOCK_PLAN_SEATS = { free: 1, individual: 1, family: 2 } as const;
+
 const MOCK_USER: User = {
   id: 1,
   phone: "+910000000000",
@@ -544,21 +558,26 @@ export async function getFeatureFlags(token?: string): Promise<FeatureFlags> {
 
 export async function getMonthlyUsage(): Promise<MonthlyUsageSnapshot> {
   if (MOCK_API) {
+    const items: MonthlyUsageItem[] = [
+      { key: "reminder_delivered", label: "Reminders", used: 18, limit: 30, warning_at: 24, percentage: 60, blocked: false },
+      { key: "ai_chat_answer", label: "AI Coach answers", used: 8, limit: 20, warning_at: 16, percentage: 40, blocked: false },
+      { key: "whatsapp_text_log", label: "WhatsApp food logs", used: 25, limit: 40, warning_at: 32, percentage: 63, blocked: false },
+      { key: "whatsapp_image_analysis", label: "WhatsApp photo analyses", used: 2, limit: 5, warning_at: 4, percentage: 40, blocked: false },
+    ];
     return {
       billing_user_id: MOCK_USER.id,
       period_start: new Date().toLocaleDateString("en-CA").slice(0, 8) + "01",
       period_end: new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1)
         .toLocaleDateString("en-CA"),
-      plan_key: "free",
-      status: "free",
-      unlimited: false,
+      plan_key: MOCK_PLAN,
+      status: MOCK_PLAN === "free" ? "free" : "active",
+      // Paid plans lift every meter — this is what drives the FamCare+ mark.
+      unlimited: MOCK_PLAN !== "free",
       upgrade_url: "/dashboard/payments",
-      items: [
-        { key: "reminder_delivered", label: "Reminders", used: 18, limit: 30, warning_at: 24, percentage: 60, blocked: false },
-        { key: "ai_chat_answer", label: "AI Coach answers", used: 8, limit: 20, warning_at: 16, percentage: 40, blocked: false },
-        { key: "whatsapp_text_log", label: "WhatsApp food logs", used: 25, limit: 40, warning_at: 32, percentage: 63, blocked: false },
-        { key: "whatsapp_image_analysis", label: "WhatsApp photo analyses", used: 2, limit: 5, warning_at: 4, percentage: 40, blocked: false },
-      ],
+      // Mirrors UsageService: `limit` stays, only percentage/blocked reset.
+      items: MOCK_PLAN === "free"
+        ? items
+        : items.map((item) => ({ ...item, percentage: 0, blocked: false })),
     };
   }
   return apiFetch<MonthlyUsageSnapshot>("/api/usage/monthly");
@@ -689,11 +708,24 @@ export async function getCheckoutStatus(subscriptionId: string): Promise<Checkou
 
 export async function getSubscriptionDetails(): Promise<SubscriptionDetails> {
   if (MOCK_API) {
+    if (MOCK_PLAN === "free") {
+      return { active: false, plan_key: "free", status: "free", amount_paise: 0 };
+    }
+    const periodEnd = new Date();
+    periodEnd.setMonth(periodEnd.getMonth() + 1);
+    const startedAt = new Date();
+    startedAt.setMonth(startedAt.getMonth() - 1);
     return {
-      active: false,
-      plan_key: "free",
-      status: "free",
-      amount_paise: 0,
+      active: true,
+      plan_key: MOCK_PLAN,
+      status: "active",
+      amount_paise: MOCK_PLAN_AMOUNT_PAISE[MOCK_PLAN],
+      provider_subscription_id: `sub_mock_${MOCK_PLAN}`,
+      started_at: startedAt.toISOString(),
+      paid_at: startedAt.toISOString(),
+      current_period_end: periodEnd.toISOString(),
+      cancel_at_period_end: false,
+      extra_parents: 0,
     };
   }
 
@@ -704,7 +736,8 @@ export async function getSubscriptionDetails(): Promise<SubscriptionDetails> {
 
 export async function getFamilySeats(): Promise<FamilySeatStatus> {
   if (MOCK_API) {
-    return { plan_key: "free", used: 0, limit: 1, can_add: true, extra_parents: 0 };
+    const limit = MOCK_PLAN_SEATS[MOCK_PLAN];
+    return { plan_key: MOCK_PLAN, used: 0, limit, can_add: 0 < limit, extra_parents: 0 };
   }
 
   const token = typeof window !== "undefined" ? localStorage.getItem("auth_token") : null;
@@ -713,7 +746,24 @@ export async function getFamilySeats(): Promise<FamilySeatStatus> {
 }
 
 export async function getBillingInvoices(): Promise<BillingInvoice[]> {
-  if (MOCK_API) return [];
+  if (MOCK_API) {
+    if (MOCK_PLAN === "free") return [];
+    // One receipt per past month so the billing history has something to show.
+    return Array.from({ length: 2 }, (_, i) => {
+      const paidAt = new Date();
+      paidAt.setMonth(paidAt.getMonth() - (i + 1));
+      return {
+        id: `inv_mock_${i + 1}`,
+        description: MOCK_PLAN === "family" ? "FamCare Family plan" : "FamCare Individual plan",
+        amount_paise: MOCK_PLAN_AMOUNT_PAISE[MOCK_PLAN],
+        currency: "INR",
+        status: "paid",
+        issued_at: paidAt.toISOString(),
+        paid_at: paidAt.toISOString(),
+        receipt_url: null,
+      };
+    });
+  }
 
   const token = typeof window !== "undefined" ? localStorage.getItem("auth_token") : null;
   if (!token) throw new Error("Please log in again to continue.");

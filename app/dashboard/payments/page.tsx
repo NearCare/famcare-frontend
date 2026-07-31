@@ -5,10 +5,11 @@ import Script from "next/script";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  ArrowsClockwise,
   CalendarCheck,
   CheckCircle,
+  Clock,
   Crown,
+  EnvelopeSimple,
   Heart,
   LockKey,
   Receipt,
@@ -37,6 +38,7 @@ import {
   type SubscriptionCheckout,
   type SubscriptionDetails,
 } from "@/lib/api";
+import { captureEvent } from "@/lib/analytics";
 import { refreshSubscriptionState, useSubscription } from "@/lib/useSubscription";
 
 type RazorpayResponse = {
@@ -84,8 +86,10 @@ const rupees = (amountPaise: number) => currencyFormatter.format(amountPaise / 1
 
 // How long to keep polling for the webhook to land before giving up and
 // telling the user we're still confirming instead of claiming success.
-const RECONCILE_ATTEMPTS = 8;
-const RECONCILE_INTERVAL_MS = 3000;
+const RECONCILE_ATTEMPTS = 6;
+const RECONCILE_INTERVAL_MS = 5000;
+
+const SUPPORT_EMAIL = "famcarehealthbusiness@gmail.com";
 
 export default function PaymentsPage() {
   return (
@@ -113,6 +117,9 @@ function PaymentsPageContent() {
   const [cancelling, setCancelling] = useState(false);
   const [invoices, setInvoices] = useState<BillingInvoice[] | null>(null);
   const [invoicesError, setInvoicesError] = useState(false);
+  const pageViewTracked = useRef(false);
+  const confirmationTracked = useRef(false);
+  const timeoutTracked = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -168,9 +175,20 @@ function PaymentsPageContent() {
   // The URL carries only the opaque Razorpay subscription id. All displayed
   // plan, amount and payment data comes from the authenticated backend record.
   const checkoutSubscriptionId = searchParams.get("checkout") ?? "";
-  const hasSuccessParams = checkoutSubscriptionId.length > 0;
   const [checkoutStatus, setCheckoutStatus] = useState<CheckoutStatus | null>(null);
   const [checkoutStatusError, setCheckoutStatusError] = useState<string | null>(null);
+
+  const hasSuccessParams = checkoutSubscriptionId.length > 0;
+
+  useEffect(() => {
+    if (!subscriptionLoaded || pageViewTracked.current) return;
+    pageViewTracked.current = true;
+    captureEvent("billing_page_viewed", {
+      current_plan: currentPlanKey,
+      has_active_subscription: subscription?.active === true,
+      checkout_confirmation: hasSuccessParams,
+    });
+  }, [currentPlanKey, hasSuccessParams, subscription?.active, subscriptionLoaded]);
 
   const [reconcileAttempt, setReconcileAttempt] = useState(0);
   const reconcileTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -198,7 +216,32 @@ function PaymentsPageContent() {
     };
   }, [hasSuccessParams, confirmed, reconcileAttempt, refreshSubscription, checkoutSubscriptionId]);
 
-  const timedOut = hasSuccessParams && !confirmed && reconcileAttempt >= RECONCILE_ATTEMPTS;
+  // A mid-poll error is not terminal — the next tick may still succeed — so the
+  // outcome is only decided once the 30s window closes. From there the screen
+  // lands on exactly one of three fixed states instead of spinning forever.
+  const pollingExhausted = reconcileAttempt >= RECONCILE_ATTEMPTS;
+  const timedOut = hasSuccessParams && !confirmed && pollingExhausted;
+  const errored = timedOut && checkoutStatusError != null;
+  const stalled = timedOut && !errored;
+  const polling = hasSuccessParams && !confirmed && !timedOut;
+
+  // Pre-fill the reference details support would otherwise have to ask for.
+  const supportMailto = useMemo(() => {
+    const state = confirmed ? "Confirmed" : errored ? "Verification failed" : stalled ? "Under process" : "Confirming";
+    const body = [
+      "Hi FamCare team,",
+      "",
+      "I need help with my payment.",
+      "",
+      `Subscription ID: ${checkoutSubscriptionId || "—"}`,
+      `Payment ID: ${checkoutStatus?.payment_id ?? "—"}`,
+      `Status: ${state}`,
+      "",
+      "What happened:",
+      "",
+    ].join("\n");
+    return `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent("FamCare payment help")}&body=${encodeURIComponent(body)}`;
+  }, [confirmed, errored, stalled, checkoutSubscriptionId, checkoutStatus?.payment_id]);
 
   // The FamCare+ marker (sidebar wordmark, profile menu, Plus upsell banner) is
   // driven by a module-level snapshot that was cached before this payment. Once
@@ -206,8 +249,22 @@ function PaymentsPageContent() {
   // away — "Go to home" is a client-side navigation and would keep the old one.
   useEffect(() => {
     if (!confirmed) return;
+    if (!confirmationTracked.current) {
+      confirmationTracked.current = true;
+      captureEvent("subscription_checkout_confirmed", {
+        plan_key: checkoutStatus?.plan_key ?? null,
+        checkout_kind: checkoutStatus?.kind ?? null,
+        scheduled: checkoutStatus?.scheduled === true,
+      });
+    }
     void refreshSubscriptionState();
-  }, [confirmed]);
+  }, [checkoutStatus?.kind, checkoutStatus?.plan_key, checkoutStatus?.scheduled, confirmed]);
+
+  useEffect(() => {
+    if (!timedOut || timeoutTracked.current) return;
+    timeoutTracked.current = true;
+    captureEvent("subscription_checkout_confirmation_timed_out");
+  }, [timedOut]);
 
   const successPlanInfo = useMemo(() => {
     if (!hasSuccessParams) return null;
@@ -226,18 +283,6 @@ function PaymentsPageContent() {
     };
   }, [hasSuccessParams, plansData, checkoutStatus]);
 
-  // The timeout is not a dead end: let the user re-run the same poll cycle
-  // instead of stranding them with "check back later" and no control.
-  function retryReconcile() {
-    if (reconcileTimer.current) clearTimeout(reconcileTimer.current);
-    setReconcileAttempt(0);
-    setCheckoutStatusError(null);
-    void getCheckoutStatus(checkoutSubscriptionId).then(setCheckoutStatus).catch((error) => {
-      setCheckoutStatusError(error instanceof Error ? error.message : "Checkout status could not be loaded.");
-    });
-    void refreshSubscription();
-  }
-
   async function confirmCancel() {
     setPlanNotice(null);
     setCancelling(true);
@@ -249,10 +294,16 @@ function PaymentsPageContent() {
       // Plan stays live until the period ends, so the FamCare+ marker stays too —
       // but extra-parent seats and renewal copy change, so re-read the snapshot.
       void refreshSubscriptionState();
+      captureEvent("subscription_cancellation_scheduled", {
+        plan_key: subscription?.plan_key ?? null,
+      });
     } catch (error) {
       setPlanNotice({
         tone: "error",
         text: error instanceof Error ? error.message : "Your plan could not be cancelled right now.",
+      });
+      captureEvent("subscription_cancellation_failed", {
+        plan_key: subscription?.plan_key ?? null,
       });
     } finally {
       setCancelling(false);
@@ -261,19 +312,35 @@ function PaymentsPageContent() {
 
   async function openCheckout() {
     setNotice(null);
+    captureEvent("subscription_checkout_started", {
+      plan_key: displayPlanKey,
+      checkout_kind: "base",
+    });
     if (!scriptReady || !window.Razorpay) {
       setNotice({ tone: "error", text: "Secure checkout is still loading. Try again in a moment." });
+      captureEvent("subscription_checkout_blocked", {
+        plan_key: displayPlanKey,
+        reason: "razorpay_not_ready",
+      });
       return;
     }
 
     setSubmitting(true);
     try {
       const checkout = await createSubscriptionCheckout(displayPlanKey);
+      captureEvent("subscription_checkout_created", {
+        plan_key: displayPlanKey,
+        checkout_kind: "base",
+      });
       launchRazorpay(checkout, `FamCare ${plan?.name ?? "plan"} · monthly subscription`);
     } catch (error) {
       setNotice({
         tone: "error",
         text: error instanceof Error ? error.message : "Checkout could not be started.",
+      });
+      captureEvent("subscription_checkout_creation_failed", {
+        plan_key: displayPlanKey,
+        checkout_kind: "base",
       });
       setSubmitting(false);
     }
@@ -281,19 +348,35 @@ function PaymentsPageContent() {
 
   async function openExtraParentCheckout() {
     setNotice(null);
+    captureEvent("subscription_checkout_started", {
+      plan_key: "extra_parent",
+      checkout_kind: "extra_parent",
+    });
     if (!scriptReady || !window.Razorpay) {
       setNotice({ tone: "error", text: "Secure checkout is still loading. Try again in a moment." });
+      captureEvent("subscription_checkout_blocked", {
+        plan_key: "extra_parent",
+        reason: "razorpay_not_ready",
+      });
       return;
     }
 
     setSubmittingExtraParent(true);
     try {
       const checkout = await createExtraParentCheckout();
+      captureEvent("subscription_checkout_created", {
+        plan_key: "extra_parent",
+        checkout_kind: "extra_parent",
+      });
       launchRazorpay(checkout, "FamCare extra parent · monthly add-on");
     } catch (error) {
       setNotice({
         tone: "error",
         text: error instanceof Error ? error.message : "Checkout could not be started.",
+      });
+      captureEvent("subscription_checkout_creation_failed", {
+        plan_key: "extra_parent",
+        checkout_kind: "extra_parent",
       });
       setSubmittingExtraParent(false);
     }
@@ -304,6 +387,7 @@ function PaymentsPageContent() {
     description: string,
   ) {
     if (!window.Razorpay) return;
+    const checkoutKind = checkout.plan_key === "extra_parent" ? "extra_parent" : "base";
     const razorpay = new window.Razorpay({
       key: checkout.key_id,
       subscription_id: checkout.subscription_id,
@@ -325,6 +409,10 @@ function PaymentsPageContent() {
             razorpay_subscription_id: response.razorpay_subscription_id,
             razorpay_signature: response.razorpay_signature,
           });
+          captureEvent("subscription_payment_verified", {
+            plan_key: checkout.plan_key,
+            checkout_kind: checkoutKind,
+          });
           const params = new URLSearchParams({ checkout: response.razorpay_subscription_id });
           window.location.href = `/dashboard/payments?${params.toString()}`;
           return;
@@ -333,6 +421,10 @@ function PaymentsPageContent() {
             tone: "error",
             text: error instanceof Error ? error.message : "Payment verification is pending.",
           });
+          captureEvent("subscription_payment_verification_failed", {
+            plan_key: checkout.plan_key,
+            checkout_kind: checkoutKind,
+          });
         } finally {
           setSubmitting(false);
           setSubmittingExtraParent(false);
@@ -340,6 +432,10 @@ function PaymentsPageContent() {
       },
       modal: {
         ondismiss: () => {
+          captureEvent("subscription_checkout_dismissed", {
+            plan_key: checkout.plan_key,
+            checkout_kind: checkoutKind,
+          });
           setSubmitting(false);
           setSubmittingExtraParent(false);
         },
@@ -352,6 +448,14 @@ function PaymentsPageContent() {
         tone: "error",
         text: response.error?.description ?? "Payment failed. Please try another payment method.",
       });
+      captureEvent("subscription_payment_failed", {
+        plan_key: checkout.plan_key,
+        checkout_kind: checkoutKind,
+      });
+    });
+    captureEvent("subscription_checkout_opened", {
+      plan_key: checkout.plan_key,
+      checkout_kind: checkoutKind,
     });
     razorpay.open();
   }
@@ -365,25 +469,41 @@ function PaymentsPageContent() {
             <header className="payment-page-head">
               <div>
                 <span>Plans & billing</span>
-                <h1>{confirmed ? "You're all set!" : "Almost there…"}</h1>
+                <h1>{confirmed ? "You're all set!" : errored ? "Let's try that again" : "Almost there…"}</h1>
                 <p>
                   {confirmed
                     ? "Here's a summary of your subscription and what to do next."
-                    : "We're confirming your payment with Razorpay — this usually takes a few seconds."}
+                    : errored
+                      ? "We couldn't confirm this payment with Razorpay. No plan change has been applied."
+                      : "We're confirming your payment with Razorpay — this usually takes a few seconds."}
                 </p>
               </div>
             </header>
 
             <section className="payment-success-grid">
-              <div className={`payment-success-card${confirmed ? "" : " pending"}`}>
+              <div className={`payment-success-card${confirmed ? "" : errored ? " error" : " pending"}`}>
                 <div className="payment-success-icon">
-                  {confirmed ? <CheckCircle size={48} weight="fill" /> : <SpinnerGap size={40} className="payment-spin" />}
+                  {confirmed
+                    ? <CheckCircle size={48} weight="fill" />
+                    : errored
+                      ? <WarningCircle size={46} weight="fill" />
+                      : stalled
+                        ? <Clock size={44} weight="duotone" />
+                        : <SpinnerGap size={40} className="payment-spin" />}
                 </div>
-                <h2>{confirmed ? (checkoutStatus?.scheduled ? "Upgrade scheduled!" : "Payment successful!") : "Confirming your payment…"}</h2>
+                <h2>
+                  {confirmed
+                    ? (checkoutStatus?.scheduled ? "Upgrade scheduled!" : "Payment successful!")
+                    : errored
+                      ? "Payment not confirmed"
+                      : stalled
+                        ? "Payment under process"
+                        : "Confirming your payment…"}
+                </h2>
                 {confirmed && (
                   <span className="payment-plus-badge">
-                    <Crown size={14} weight="fill" />
-                    <span className="payment-plus-badge-text">Fam<b>Care</b><sup>+</sup> unlocked</span>
+                    <img className="payment-plus-badge-logo" src="/famcareplus.png" alt="" />
+                    <span className="payment-plus-badge-text">Fam<b>Care</b><sup>+</sup> <i>unlocked</i></span>
                   </span>
                 )}
                 <p className="payment-success-lede">
@@ -391,39 +511,21 @@ function PaymentsPageContent() {
                     ? checkoutStatus?.scheduled
                       ? `Your FamCare ${successPlanInfo?.name} upgrade is scheduled for the end of your current billing period.`
                       : `Your ${checkoutStatus?.kind === "extra_parent" ? "extra parent add-on" : `FamCare ${successPlanInfo?.name}`} is active.`
-                    : checkoutStatusError
-                      ? checkoutStatusError
-                    : timedOut
-                      ? "This is taking longer than usual. Your payment is safe — check back here or on Profile → Payment in a few minutes."
-                      : "Your payment was received. We're waiting for the bank/Razorpay confirmation to activate your plan."}
+                    : errored
+                      ? `${checkoutStatusError} If money left your account it will be refunded automatically.`
+                      : stalled
+                        ? "This is taking longer than usual. Your payment is safe — check back here or on Profile → Payment in a few minutes."
+                        : "Your payment was received. We're waiting for the bank/Razorpay confirmation to activate your plan."}
                 </p>
-
-                {timedOut && (
-                  <button type="button" className="payment-retry-btn" onClick={retryReconcile}>
-                    <ArrowsClockwise size={16} weight="bold" /> Check again
-                  </button>
-                )}
 
                 <div className="payment-success-stats">
                   <div>
                     <span>Payment ID</span>
-                    <strong>{checkoutStatus?.payment_id || "Confirming…"}</strong>
+                    <strong>{polling ? <LoadingDots /> : checkoutStatus?.payment_id || "Confirming…"}</strong>
                   </div>
                   <div>
                     <span>Monthly plan price</span>
-                    <strong>₹{successPlanInfo?.amount}</strong>
-                  </div>
-                </div>
-
-                <div className={`payment-success-banner${confirmed ? "" : " pending"}`}>
-                  {confirmed ? <ShieldCheck size={18} weight="fill" /> : <SpinnerGap size={18} className="payment-spin" />}
-                  <div>
-                    <strong>{confirmed ? "Secure payment confirmed" : "Waiting for confirmation"}</strong>
-                    <span>
-                      {confirmed
-                        ? "Your payment was processed securely by Razorpay."
-                        : "This page checks automatically — no need to refresh."}
-                    </span>
+                    <strong>{polling ? <LoadingDots /> : `₹${successPlanInfo?.amount}`}</strong>
                   </div>
                 </div>
 
@@ -441,10 +543,6 @@ function PaymentsPageContent() {
                   <span>Recurring price</span>
                   <strong>₹{successPlanInfo?.amount}</strong>
                 </div>
-                <div className={`payment-summary-status${confirmed ? "" : " pending"}`}>
-                  {confirmed ? <CheckCircle size={16} weight="fill" /> : <SpinnerGap size={16} className="payment-spin" />}
-                  Payment status <b>{confirmed ? "Verified" : "Processing"}</b>
-                </div>
                 {confirmed && (
                   <div className="payment-summary-renewal">
                     <CalendarCheck size={18} weight="duotone" />
@@ -455,10 +553,23 @@ function PaymentsPageContent() {
                   </div>
                 )}
 
-                <div className="payment-success-close-actions">
-                  <Link href="/dashboard/homev2" className="payment-secondary-btn">Close</Link>
-                  <Link href="/dashboard/homev2" className="payment-submit">Go to home</Link>
-                </div>
+                {/* Leaving mid-poll drops the reconcile loop, so offer no exit
+                    until the 30s window has resolved one way or the other. */}
+                {polling ? (
+                  <p className="payment-hold-note">
+                    Hang tight — don&apos;t refresh or hit back. We&apos;re almost there.
+                  </p>
+                ) : (
+                  <div className="payment-success-close-actions">
+                    <Link href="/dashboard/homev2" className="payment-secondary-btn">Close</Link>
+                    <Link href="/dashboard/homev2" className="payment-submit">Go to home</Link>
+                  </div>
+                )}
+
+                <a className="payment-support-link" href={supportMailto}>
+                  <EnvelopeSimple size={15} weight="duotone" />
+                  <span>Contact support</span>
+                </a>
               </div>
             </section>
           </main>
@@ -507,7 +618,12 @@ function PaymentsPageContent() {
                   plansData?.plans.find((entry) => entry.plan_key === subscription.plan_key)?.name
                   ?? subscription.plan_key
                 }
-                onCancel={() => setCancelOpen(true)}
+                onCancel={() => {
+                  setCancelOpen(true);
+                  captureEvent("subscription_cancellation_opened", {
+                    plan_key: subscription.plan_key,
+                  });
+                }}
               />
             )}
           </header>
@@ -536,14 +652,20 @@ function PaymentsPageContent() {
               <button
                 type="button"
                 className={planKey === "individual" ? "active" : ""}
-                onClick={() => setPlanKey("individual")}
+                onClick={() => {
+                  setPlanKey("individual");
+                  captureEvent("billing_plan_selected", { plan_key: "individual" });
+                }}
               >
                 Individual <small>{planPillPrice(plansData, "individual")}</small>
               </button>
               <button
                 type="button"
                 className={planKey === "family" ? "active" : ""}
-                onClick={() => setPlanKey("family")}
+                onClick={() => {
+                  setPlanKey("family");
+                  captureEvent("billing_plan_selected", { plan_key: "family" });
+                }}
               >
                 Family <small>{planPillPrice(plansData, "family")}</small>
               </button>
@@ -969,3 +1091,13 @@ function ExtraParentBox({
     </div>
   );
 }
+
+/** Placeholder for values still being fetched — three dots pulsing in sequence. */
+function LoadingDots() {
+  return (
+    <span className="payment-dots" role="status" aria-label="Loading">
+      <i /><i /><i />
+    </span>
+  );
+}
+

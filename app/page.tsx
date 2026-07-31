@@ -9,6 +9,7 @@ import {
 } from "@phosphor-icons/react";
 import { FEShoe, FETarget } from "./dashboard/components/FluentEmoji";
 import { getCurrentUser } from "@/lib/api";
+import { captureEvent } from "@/lib/analytics";
 import { authPath, resolvedAuthDestination } from "@/lib/authRedirect";
 import { FAMCARE_WHATSAPP_LINK } from "@/lib/whatsapp";
 
@@ -609,6 +610,10 @@ export default function LandingPage() {
   const router = useRouter();
 
   useEffect(() => {
+    captureEvent("landing_page_viewed");
+  }, []);
+
+  useEffect(() => {
     if (LOCAL_AUTH_BYPASS) {
       localStorage.setItem("auth_token", "local-dashboard-session");
       localStorage.setItem("auth_user", JSON.stringify({
@@ -691,11 +696,11 @@ export default function LandingPage() {
           </span>
         </div>
         <div className="lp-nav-actions" style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <Link href="/login" style={{
+          <Link href="/login" onClick={() => captureEvent("landing_cta_clicked", { action: "login", location: "header" })} style={{
             padding: "8px 20px", border: "1.5px solid #EDE6E6", borderRadius: 8,
             fontSize: 13.5, fontWeight: 600, color: "#1A2744", background: "#fff",
           }}>Log in</Link>
-          <Link href="/login" style={{
+          <Link href="/login" onClick={() => captureEvent("landing_cta_clicked", { action: "get_started", location: "header" })} style={{
             padding: "9px 20px", background: "#E85C5C", color: "#fff", border: "none",
             borderRadius: 8, fontSize: 13.5, fontWeight: 600,
           }}>Get Started</Link>
@@ -739,7 +744,7 @@ export default function LandingPage() {
           </p>
 
           <div className="lp-hero-cta" style={{ display: "flex", alignItems: "center", gap: 18, marginTop: 30 }}>
-            <Link href="/login" style={{
+            <Link href="/login" onClick={() => captureEvent("landing_cta_clicked", { action: "get_started", location: "hero" })} style={{
               padding: "14px 30px", background: "#E85C5C", color: "#fff", border: "none",
               borderRadius: 8, fontSize: 15, fontWeight: 700,
               boxShadow: "0 4px 18px rgba(232,92,92,.32)",
@@ -859,7 +864,7 @@ export default function LandingPage() {
                 </div>
               ))}
             </div>
-            <Link href="/login" style={{
+            <Link href="/login" onClick={() => captureEvent("landing_cta_clicked", { action: "get_started", location: "family_section" })} style={{
               display: "inline-block", marginTop: 32, padding: "13px 28px",
               background: "#E85C5C", color: "#fff", borderRadius: 8,
               fontSize: 14, fontWeight: 700, boxShadow: "0 4px 14px rgba(232,92,92,.3)",
@@ -968,7 +973,7 @@ export default function LandingPage() {
           </div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-          <Link href="/login" style={{
+          <Link href="/login" onClick={() => captureEvent("landing_cta_clicked", { action: "get_started", location: "bottom_cta" })} style={{
             padding: "12px 28px", background: "#E85C5C", color: "#fff", border: "none",
             borderRadius: 8, fontSize: 14, fontWeight: 700,
             boxShadow: "0 4px 14px rgba(232,92,92,.3)",
