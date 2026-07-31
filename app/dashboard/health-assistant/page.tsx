@@ -13,7 +13,6 @@ import {
   getChatConversations,
   getChatMessages,
   getFamilyMembers,
-  getFeatureFlags,
   sendHealthAssistantMessage,
   submitChatFeedback,
   type ChatBlock,
@@ -22,14 +21,6 @@ import {
   type User,
 } from "@/lib/api";
 import { captureEvent, identifyUser } from "@/lib/analytics";
-
-const IS_PRODUCTION = process.env.NODE_ENV === "production";
-
-function shouldRequireFeatureFlags() {
-  if (!IS_PRODUCTION) return false;
-  if (typeof window === "undefined") return true;
-  return !["localhost", "127.0.0.1"].includes(window.location.hostname);
-}
 
 type StarterPrompt = {
   label: string;
@@ -268,21 +259,7 @@ export default function HealthAssistantPage() {
         .catch(() => setMembers([]));
     }
 
-    getFeatureFlags(token)
-      .then((flags) => {
-        if (shouldRequireFeatureFlags() && !flags.v2) {
-          window.location.href = "/dashboard";
-          return;
-        }
-        openHealthAssistant(authUser);
-      })
-      .catch(() => {
-        if (shouldRequireFeatureFlags()) {
-          window.location.href = "/dashboard";
-          return;
-        }
-        openHealthAssistant(authUser);
-      });
+    openHealthAssistant(authUser);
   }, []);
 
   useEffect(() => {

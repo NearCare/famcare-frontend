@@ -126,7 +126,7 @@ export default function LoginPage() {
         identifyUser(authUser);
         captureEvent("session_resumed");
         setRedirecting(true);
-        const destination = await resolvedAuthDestination(token);
+        const destination = await resolvedAuthDestination();
         router.replace(authUser.name ? destination : authPath("/onboarding/name", destination));
       } catch {
         if (!cancelled) {
@@ -235,7 +235,7 @@ export default function LoginPage() {
       captureEvent("login_succeeded", { has_name: Boolean(auth.user.name) });
       setRedirecting(true);
       keepLoading = true;
-      const destination = await resolvedAuthDestination(auth.token);
+      const destination = await resolvedAuthDestination();
       router.replace(auth.user.name ? destination : authPath("/onboarding/name", destination));
     } catch (err) {
       captureEvent("login_failed");

@@ -24,13 +24,13 @@ function titleFor(pathname: string) {
  * those pages have no other way back to Home on mobile once the floating
  * profile icon (which also only shows on desktop-reachable pages) is gone.
  */
-export default function MobileBackBar({ v2Enabled }: { v2Enabled: boolean }) {
+export default function MobileBackBar() {
   const router = useRouter();
   const pathname = usePathname();
 
   if (BOTTOM_NAV_ROUTES.includes(pathname)) return null;
 
-  const fallbackHref = v2Enabled ? "/dashboard/homev2" : "/dashboard";
+  const fallbackHref = "/dashboard/homev2";
 
   function handleBack() {
     // Preserve the exact page, scroll position and filters the user came from.

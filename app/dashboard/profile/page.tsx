@@ -14,7 +14,6 @@ import {
 } from "@phosphor-icons/react";
 import Sidebar from "../components/Sidebar";
 import ProfileTabs from "../components/ProfileTabs";
-import V2RouteGate from "../components/V2RouteGate";
 import { captureEvent, resetAnalytics } from "@/lib/analytics";
 import { clearStoredSession } from "@/lib/session";
 import {
@@ -91,7 +90,6 @@ export default function ProfilePage() {
   const initial = displayName.charAt(0).toUpperCase();
 
   return (
-    <V2RouteGate>
     <div className="db-page">
       <Sidebar />
       <main className="db-main profile-page">
@@ -244,6 +242,5 @@ export default function ProfilePage() {
         document.body
       )}
     </div>
-    </V2RouteGate>
   );
 }

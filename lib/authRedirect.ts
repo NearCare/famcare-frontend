@@ -1,6 +1,4 @@
-import { isV2Enabled } from "@/lib/v2Feature";
-
-const DEFAULT_AUTH_DESTINATION = "/dashboard";
+const DEFAULT_AUTH_DESTINATION = "/dashboard/homev2";
 
 export function safeAuthDestination(
   value: string | null | undefined,
@@ -28,10 +26,14 @@ export function requestedAuthDestination(): string {
   return safeAuthDestination(new URLSearchParams(window.location.search).get("next"));
 }
 
-export async function resolvedAuthDestination(token?: string): Promise<string> {
+/**
+ * Kept async: callers await it, and it used to resolve a feature flag over the
+ * network before it could answer. Now every account lands on the same dashboard.
+ */
+export async function resolvedAuthDestination(): Promise<string> {
   if (typeof window !== "undefined") {
     const requested = new URLSearchParams(window.location.search).get("next");
     if (requested) return safeAuthDestination(requested);
   }
-  return (await isV2Enabled(token)) ? "/dashboard/homev2" : DEFAULT_AUTH_DESTINATION;
+  return DEFAULT_AUTH_DESTINATION;
 }

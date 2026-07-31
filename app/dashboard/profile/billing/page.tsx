@@ -7,7 +7,6 @@ import Sidebar from "../../components/Sidebar";
 import BillingHistory from "../../components/BillingHistory";
 import ProfileTabs from "../../components/ProfileTabs";
 import SubscriptionDetailsCard from "../../components/SubscriptionDetailsCard";
-import V2RouteGate from "../../components/V2RouteGate";
 import { captureEvent } from "@/lib/analytics";
 import {
   getBillingInvoices,
@@ -103,7 +102,6 @@ export default function ProfileBillingPage() {
     : subscription?.amount_paise ?? 0;
 
   return (
-    <V2RouteGate>
       <div className="db-page">
         <Sidebar />
         <main className="db-main profile-page">
@@ -182,6 +180,5 @@ export default function ProfileBillingPage() {
           </div>
         </main>
       </div>
-    </V2RouteGate>
   );
 }

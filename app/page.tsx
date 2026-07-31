@@ -626,7 +626,7 @@ export default function LandingPage() {
         goal_sleep_hours: 8,
         created_at: new Date().toISOString(),
       }));
-      void resolvedAuthDestination("local-dashboard-session").then((destination) => {
+      void resolvedAuthDestination().then((destination) => {
         window.location.replace(destination);
       });
     }
@@ -651,7 +651,7 @@ export default function LandingPage() {
         }
 
         localStorage.setItem("auth_user", JSON.stringify(authUser));
-        const destination = await resolvedAuthDestination(token);
+        const destination = await resolvedAuthDestination();
         router.replace(authUser.name ? destination : authPath("/onboarding/name", destination));
       } catch {
         // Preserve the saved session during temporary network/backend failures.

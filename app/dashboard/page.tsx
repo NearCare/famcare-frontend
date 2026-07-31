@@ -40,7 +40,6 @@ import { FAMCARE_WHATSAPP_LINK } from "@/lib/whatsapp";
 import PageLoader from "./components/PageLoader";
 import { captureEvent, identifyUser, resetAnalytics } from "@/lib/analytics";
 import { clearStoredSession } from "@/lib/session";
-import { bypassV2FeatureFlagLocally, isV2Enabled } from "@/lib/v2Feature";
 
 /** Averages raw logs falling within [minDaysAgo, maxDaysAgo] of today — used to compare this week vs last week. */
 function rangeAverages(logs: HealthLog[], minDaysAgo: number, maxDaysAgo: number) {
@@ -594,8 +593,6 @@ const WaIcon = ({ size = 16 }: { size?: number }) => (
 type MemberRow = { member: FamilyMember; summary: Summary | null; logs: HealthLog[]; events: HealthLogEvent[] };
 
 export default function DashboardPage() {
-  const localV2Bypass = bypassV2FeatureFlagLocally();
-  const [v2Enabled, setV2Enabled] = useState(localV2Bypass);
   const [user, setUser] = useState<User | null>(null);
   const [logs, setLogs] = useState<HealthLog[]>([]);
   const [logEvents, setLogEvents] = useState<HealthLogEvent[]>([]);
@@ -624,13 +621,11 @@ export default function DashboardPage() {
   const scoreInfoRef = useRef<HTMLDivElement>(null);
   const profileCarouselRef = useRef<HTMLDivElement>(null);
 
+  // The v2 dashboard is now the only dashboard, so this legacy route exists
+  // solely to forward anyone still holding its URL.
   useEffect(() => {
-    if (localV2Bypass) return;
-    void isV2Enabled().then((enabled) => {
-      setV2Enabled(enabled);
-      if (enabled) window.location.replace("/dashboard/homev2");
-    });
-  }, [localV2Bypass]);
+    window.location.replace("/dashboard/homev2");
+  }, []);
 
   const handleProfileCarouselScroll = useCallback(() => {
     const carousel = profileCarouselRef.current;
@@ -679,7 +674,7 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (loading) return;
-    if (!user || !v2Enabled) {
+    if (!user) {
       setShowFeatureIntro(false);
       setFeatureIntroChecked(true);
       return;
@@ -690,7 +685,7 @@ export default function DashboardPage() {
     const shouldShow = logs.length === 0 && !seen;
     setShowFeatureIntro(shouldShow);
     setFeatureIntroChecked(true);
-  }, [loading, logs.length, user, v2Enabled]);
+  }, [loading, logs.length, user]);
 
   useEffect(() => {
     setFoodReminderDraftEnabled(foodReminderPreference?.enabled ?? true);
@@ -725,13 +720,11 @@ export default function DashboardPage() {
       setLogs(fetchedLogs);
       setLogEvents(fetchedEvents);
       setSummary(fetchedSummary);
-      if (v2Enabled) {
-        getFoodReminderPreference(token)
-          .then(setFoodReminderPreference)
-          .catch((err) => {
-            console.warn("[Dashboard] Failed to load food reminder preference", err);
-          });
-      }
+      getFoodReminderPreference(token)
+        .then(setFoodReminderPreference)
+        .catch((err) => {
+          console.warn("[Dashboard] Failed to load food reminder preference", err);
+        });
 
       const activeMembers = members.filter((m) => m.status === "active");
       identifyUser(authUser);
@@ -1074,7 +1067,6 @@ export default function DashboardPage() {
               {new Date().toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
             </div>
             <StreakPill streak={streak} />
-            {v2Enabled && (
             <div className="food-reminder-control" ref={foodReminderMenuRef} style={{ position: "relative" }}>
               <button
                 type="button"
@@ -1333,7 +1325,6 @@ export default function DashboardPage() {
                 </div>
               )}
             </div>
-            )}
             <a href={WA_LINK} target="_blank" rel="noopener noreferrer" className="db-pill cta">
               <WaIcon size={15} />
               Log via WhatsApp

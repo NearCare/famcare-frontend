@@ -39,7 +39,6 @@ import {
 } from "@/lib/api";
 import { captureEvent, identifyUser } from "@/lib/analytics";
 import { useSubscription } from "@/lib/useSubscription";
-import { isV2Enabled } from "@/lib/v2Feature";
 
 type FamilyOverviewRow = {
   id: number;
@@ -155,15 +154,7 @@ export default function FamilyOverviewV2Page() {
       setUser(authUser);
       identifyUser(authUser);
       const token = localStorage.getItem("auth_token") ?? "";
-      const [loadedMembers, v2Enabled] = await Promise.all([
-        getFamilyMembers(token),
-        isV2Enabled(token),
-      ]);
-      if (!v2Enabled) {
-        redirecting = true;
-        window.location.replace("/dashboard");
-        return;
-      }
+      const loadedMembers = await getFamilyMembers(token);
       const active = loadedMembers.filter((member) => member.status === "active");
       setMembers(loadedMembers);
       captureEvent("family_overview_v2_viewed", { member_count: active.length });
@@ -179,9 +170,7 @@ export default function FamilyOverviewV2Page() {
           person.isSelf ? getUserLogs(person.id, 7) : getMemberLogs(person.id, token, 7),
           person.isSelf ? getUserLogEvents(person.id, 7) : getMemberLogEvents(person.id, token, 7),
           getTodayMedicineDoses(person.id, token),
-          person.isSelf || v2Enabled
-            ? getFoodReminderPreference(token, person.id)
-            : Promise.resolve(null),
+          getFoodReminderPreference(token, person.id),
         ]);
         const logs = logsResult.status === "fulfilled" ? logsResult.value : [];
         const events = eventsResult.status === "fulfilled" ? eventsResult.value : [];

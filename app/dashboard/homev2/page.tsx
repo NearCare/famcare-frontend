@@ -40,7 +40,6 @@ import {
 import type { NameType, ValueType } from "recharts/types/component/DefaultTooltipContent";
 import Sidebar from "../components/Sidebar";
 import BrandMark from "../components/BrandMark";
-import V2RouteGate from "../components/V2RouteGate";
 import AddFamilyModal from "../components/AddFamilyModal";
 import FoodReminderControl from "../components/FoodReminderControl";
 import ProfileMenu from "../components/ProfileMenu";
@@ -49,7 +48,6 @@ import {
   backfillYesterdayFood,
   previewYesterdayFood,
   getFamilyMembers,
-  getFeatureFlags,
   getFoodReminderPreference,
   getCurrentUser,
   getMemberLogEvents,
@@ -288,11 +286,8 @@ export default function HomeV2Page() {
       .then(setSelfFoodPref)
       .catch(() => setSelfFoodPref(null));
 
-    Promise.all([
-      getFamilyMembers(token),
-      getFeatureFlags(token).catch(() => ({ v2: false })),
-    ])
-      .then(async ([members, featureFlags]: [FamilyMember[], { v2: boolean }]) => {
+    getFamilyMembers(token)
+      .then(async (members: FamilyMember[]) => {
         const active = members.filter((m) => m.status === "active");
         const results = await Promise.all(
           active.map(async (member) => {
@@ -300,9 +295,7 @@ export default function HomeV2Page() {
               getMemberLogEvents(member.id, token, 7).catch(() => [] as HealthLogEvent[]),
               getMemberSummary(member.id, token).catch(() => null),
               getTodayMedicineDoses(member.id, token).catch(() => [] as TodayDose[]),
-              featureFlags.v2
-                ? getFoodReminderPreference(token, member.id).catch(() => null)
-                : Promise.resolve(null),
+              getFoodReminderPreference(token, member.id).catch(() => null),
             ]);
             const latest = events.length
               ? events.reduce((a, b) => (a.created_at > b.created_at ? a : b))
@@ -663,7 +656,6 @@ export default function HomeV2Page() {
   }
 
   return (
-    <V2RouteGate>
     <div className="db-page">
       <Sidebar />
       <main className="db-main homev2-main">
@@ -1482,6 +1474,5 @@ export default function HomeV2Page() {
         document.body
       )}
     </div>
-    </V2RouteGate>
   );
 }

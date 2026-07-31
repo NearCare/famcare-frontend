@@ -22,7 +22,6 @@ import {
 } from "@phosphor-icons/react";
 import Sidebar from "../components/Sidebar";
 import BillingHistory from "../components/BillingHistory";
-import V2RouteGate from "../components/V2RouteGate";
 import {
   cancelSubscription,
   createExtraParentCheckout,
@@ -476,7 +475,6 @@ function PaymentsPageContent() {
 
   if (hasSuccessParams) {
     return (
-      <V2RouteGate>
         <div className="db-page">
           <Sidebar />
           <main className="db-main payment-page">
@@ -598,12 +596,10 @@ function PaymentsPageContent() {
             </section>
           </main>
         </div>
-      </V2RouteGate>
     );
   }
 
   return (
-    <V2RouteGate>
       <div className="db-page">
         <Sidebar />
         <main className="db-main payment-page">
@@ -874,7 +870,6 @@ function PaymentsPageContent() {
           </footer>
         </main>
       </div>
-    </V2RouteGate>
   );
 }
 
