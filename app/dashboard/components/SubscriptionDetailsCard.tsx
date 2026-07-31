@@ -36,6 +36,10 @@ export default function SubscriptionDetailsCard({
   // accounts Razorpay currently calls active — a cancelled subscriber still
   // needs to see what they were on and when it ends.
   const hasPlan = subscription.plan_key !== "free";
+  // Whether the plan is still live, which `status` alone can't tell you: an
+  // `active` mandate whose period has lapsed is not, and a cancelled one inside
+  // its paid period still is. Without this a finished plan read as "Active".
+  const entitled = subscription.entitled === true;
   const endsOn = formatDate(subscription.current_period_end);
 
   return (
@@ -51,8 +55,8 @@ export default function SubscriptionDetailsCard({
           </p>
         </div>
         {hasPlan && (
-          <span className={`profile-payment-badge${cancelled ? " cancelled" : pastDue ? " past-due" : ""}`}>
-            {cancelled ? "Cancelled" : pastDue ? "Payment due" : "Active"}
+          <span className={`profile-payment-badge${pastDue ? " past-due" : cancelled || !entitled ? " cancelled" : ""}`}>
+            {pastDue ? "Payment due" : cancelled ? "Cancelled" : entitled ? "Active" : "Ended"}
           </span>
         )}
       </div>
@@ -80,7 +84,9 @@ export default function SubscriptionDetailsCard({
             )}
             {(cancelled || endsOn) && (
               <div>
-                <dt>Next renewal</dt>
+                {/* A finished plan has no renewal to name, so the same date is
+                    relabelled rather than presented as something still coming. */}
+                <dt>{!cancelled && !entitled ? "Ended on" : "Next renewal"}</dt>
                 <dd>{cancelled ? "Cancelled" : endsOn}</dd>
               </div>
             )}
@@ -96,9 +102,20 @@ export default function SubscriptionDetailsCard({
               here instead of being dropped. */}
           {cancelled && (
             <p className="profile-payment-note">
-              {endsOn
-                ? `This subscription won't renew. You keep FamCare+ until ${endsOn}.`
-                : "This subscription won't renew."}
+              {!entitled
+                ? endsOn
+                  ? `This subscription ended on ${endsOn}. Your logs and history are all still here.`
+                  : "This subscription has ended. Your logs and history are all still here."
+                : endsOn
+                  ? `This subscription won't renew. You keep FamCare+ until ${endsOn}.`
+                  : "This subscription won't renew."}
+            </p>
+          )}
+          {/* Ended without an explicit cancellation — a lapsed mandate or a plan
+              that ran out its total_count. Same outcome, different cause. */}
+          {!cancelled && !pastDue && !entitled && (
+            <p className="profile-payment-note">
+              This plan is no longer active. You can start a new one from Plans &amp; billing.
             </p>
           )}
           {pastDue && (
