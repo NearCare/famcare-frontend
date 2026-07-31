@@ -9853,64 +9853,8 @@ a {
   .payment-history-link { grid-column: 2; grid-row: 2; justify-self: end; }
 }
 
-/* Current-plan strip on the billing page: state first, exit second. */
-.payment-current-plan {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  flex-wrap: wrap;
-  padding: 16px 20px;
-  border: 1px solid #e4e9f2;
-  border-radius: 18px;
-  background: #fff;
-}
-.payment-current-plan.past-due { border-color: #f6c9b6; background: #fff6f1; }
-.payment-current-plan.ending { border-color: #e6d7a8; background: #fffbee; }
-.payment-current-plan-icon.has-mark { width: auto; padding: 0 10px; }
-.payment-current-plan-mark { color: #148a4d; font-size: 13px; font-weight: 800; letter-spacing: -.01em; text-transform: none; white-space: nowrap; }
-.payment-current-plan-mark b { color: var(--pay-coral-deep); font-weight: inherit; }
-.payment-current-plan-mark sup { font-size: .7em; font-weight: 900; vertical-align: super; }
-.payment-current-plan.compact {
-  flex: 0 0 auto;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 10px;
-  width: min(230px, 100%);
-  margin-right: 56px;
-  padding: 12px 14px;
-  border-radius: 14px;
-}
-.payment-current-plan.compact .payment-current-plan-icon { width: 32px; height: 32px; border-radius: 10px; }
-.payment-current-plan.compact .payment-current-plan-icon.has-mark { width: auto; height: 26px; padding: 0 8px; }
-.payment-current-plan.compact .payment-current-plan-mark { font-size: 11px; }
-.payment-current-plan.compact .payment-current-plan-eyebrow { font-size: 10px; }
-.payment-current-plan.compact h2 { font-size: 14px; }
-.payment-current-plan.compact p { font-size: 12px; }
-.payment-current-plan.compact .payment-cancel-link { padding: 6px 12px; font-size: 12px; }
-.payment-current-plan-main { display: flex; align-items: center; gap: 14px; min-width: 0; }
-.payment-current-plan-icon {
-  display: grid;
-  place-items: center;
-  width: 42px;
-  height: 42px;
-  flex: none;
-  border-radius: 13px;
-  background: #e7f8ef;
-  color: #148a4d;
-}
-.payment-current-plan.past-due .payment-current-plan-icon { background: #fde5da; color: var(--pay-coral-deep); }
-.payment-current-plan.ending .payment-current-plan-icon { background: #fbf0cd; color: #9a7b12; }
-.payment-current-plan-eyebrow {
-  display: block;
-  color: #7c879c;
-  font-size: 11.5px;
-  font-weight: 800;
-  letter-spacing: .07em;
-  text-transform: uppercase;
-}
-.payment-current-plan h2 { margin: 2px 0 3px; font-size: 17px; font-weight: 800; letter-spacing: -.02em; }
-.payment-current-plan p { margin: 0; color: #556076; font-size: 13.5px; line-height: 1.45; }
+/* Sole cancellation exit, sitting below the receipts it ends. */
+.payment-cancel-row { display: flex; justify-content: center; }
 .payment-cancel-link {
   padding: 9px 16px;
   border: 1px solid #e0e5ef;
@@ -9956,7 +9900,6 @@ a {
 .payment-danger-btn:disabled, .payment-modal-actions .payment-secondary-btn:disabled { opacity: .6; cursor: default; }
 
 @media (max-width: 560px) {
-  .payment-current-plan { align-items: flex-start; }
   .payment-cancel-link { width: 100%; }
 }
 
@@ -10283,6 +10226,19 @@ span.payment-dots {
   background: linear-gradient(145deg, #FFFFFF, #F8FCF9);
   box-shadow: 0 6px 20px rgba(23, 36, 67, .05);
 }
+/* Billing history and the upcoming charge are shared with the payments page,
+   which owns the --pay-* palette on `.payment-page`. Inside the profile shell
+   those variables are out of scope, so restate the one the receipt links need
+   and match the card padding the rest of this page uses. */
+.profile-page .payment-history {
+  margin-bottom: 18px;
+  padding: 15px;
+  border-color: #EEEAF2;
+  box-shadow: 0 6px 20px rgba(23, 36, 67, .05);
+}
+/* The next charge and the past ones read as one pair, so sit them closer. */
+.profile-page .payment-upcoming { margin-bottom: 12px; }
+.profile-page .payment-history-link { color: #2f6fc4; }
 .profile-payment-head {
   display: flex;
   align-items: center;
@@ -10309,7 +10265,12 @@ span.payment-dots {
   background: var(--pay-green-soft, #eaf9f1);
   font-size: 10.5px;
   font-weight: 800;
+  white-space: nowrap;
 }
+/* A cancelled plan is a neutral fact, not a failure — only a stalled payment,
+   which the user has to act on, gets the alarming colour. */
+.profile-payment-badge.cancelled { color: #6B7285; background: #EFF1F5; }
+.profile-payment-badge.past-due { color: #9a6a12; background: #fdf1e3; }
 .profile-payment-rows { margin: 0; }
 .profile-payment-rows > div {
   display: flex;
@@ -10355,7 +10316,6 @@ span.payment-dots {
   }
   .payment-page-head { flex-wrap: wrap; gap: 10px; }
   .payment-page-head > div { min-width: 0; }
-  .payment-current-plan.compact { width: 100%; margin-right: 0; }
   .payment-page-head span { font-size: 9px; }
   .payment-page-head h1 { font-size: 23px; }
   .payment-page-head h1,

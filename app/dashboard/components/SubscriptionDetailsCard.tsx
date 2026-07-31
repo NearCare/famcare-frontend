@@ -26,22 +26,38 @@ export default function SubscriptionDetailsCard({
   subscription: SubscriptionDetails;
   source: string;
 }) {
+  // Two different cancellations reach this card: ours sets cancel_at_period_end
+  // and leaves the plan running to the end of the paid period, while one made
+  // in the Razorpay dashboard arrives as a cancelled status. Both are "no next
+  // renewal" as far as the user is concerned.
+  const cancelled = subscription.cancel_at_period_end === true || subscription.status === "cancelled";
+  const pastDue = ["past_due", "halted", "pending"].includes(subscription.status);
+  // Billing facts belong to anyone who has ever been on a plan, not only to
+  // accounts Razorpay currently calls active — a cancelled subscriber still
+  // needs to see what they were on and when it ends.
+  const hasPlan = subscription.plan_key !== "free";
+  const endsOn = formatDate(subscription.current_period_end);
+
   return (
     <section className="profile-payment-card" aria-label="Payment details">
       <div className="profile-payment-head">
         <span><CreditCard size={18} weight="duotone" /></span>
         <div>
-          <h2>{subscription.active ? "FamCare+ subscription" : "Payment"}</h2>
+          <h2>{hasPlan ? "FamCare+ subscription" : "Payment"}</h2>
           <p>
-            {subscription.active
+            {hasPlan
               ? "Your plan and billing details"
               : "No active subscription on this account"}
           </p>
         </div>
-        {subscription.active && <span className="profile-payment-badge">Active</span>}
+        {hasPlan && (
+          <span className={`profile-payment-badge${cancelled ? " cancelled" : pastDue ? " past-due" : ""}`}>
+            {cancelled ? "Cancelled" : pastDue ? "Payment due" : "Active"}
+          </span>
+        )}
       </div>
 
-      {subscription.active ? (
+      {hasPlan ? (
         <>
           <dl className="profile-payment-rows">
             <div>
@@ -62,10 +78,10 @@ export default function SubscriptionDetailsCard({
                 <dd>{formatDate(subscription.paid_at)}</dd>
               </div>
             )}
-            {formatDate(subscription.current_period_end) && (
+            {(cancelled || endsOn) && (
               <div>
-                <dt>{subscription.cancel_at_period_end ? "Ends on" : "Next renewal"}</dt>
-                <dd>{formatDate(subscription.current_period_end)}</dd>
+                <dt>Next renewal</dt>
+                <dd>{cancelled ? "Cancelled" : endsOn}</dd>
               </div>
             )}
             {subscription.provider_subscription_id && (
@@ -75,9 +91,20 @@ export default function SubscriptionDetailsCard({
               </div>
             )}
           </dl>
-          {subscription.cancel_at_period_end && (
+          {/* The renewal row only says "Cancelled", so the date the plan
+              actually stops — which the user has already paid for — is carried
+              here instead of being dropped. */}
+          {cancelled && (
             <p className="profile-payment-note">
-              This subscription is set to cancel at the end of the current period.
+              {endsOn
+                ? `This subscription won't renew. You keep FamCare+ until ${endsOn}.`
+                : "This subscription won't renew."}
+            </p>
+          )}
+          {pastDue && (
+            <p className="profile-payment-note">
+              Your renewal is pending. Razorpay will retry it automatically and notify you if your
+              payment method needs attention.
             </p>
           )}
         </>

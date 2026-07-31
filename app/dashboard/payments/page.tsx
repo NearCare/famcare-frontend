@@ -21,6 +21,7 @@ import {
   WhatsappLogo,
 } from "@phosphor-icons/react";
 import Sidebar from "../components/Sidebar";
+import BillingHistory from "../components/BillingHistory";
 import V2RouteGate from "../components/V2RouteGate";
 import {
   cancelSubscription,
@@ -610,23 +611,18 @@ function PaymentsPageContent() {
                     : "Choose a monthly plan. Payments and AutoPay are handled securely by Razorpay."}
               </p>
             </div>
-
-            {subscription && subscription.plan_key !== "free" && (
-              <CurrentPlanCard
-                subscription={subscription}
-                planName={
-                  plansData?.plans.find((entry) => entry.plan_key === subscription.plan_key)?.name
-                  ?? subscription.plan_key
-                }
-                onCancel={() => {
-                  setCancelOpen(true);
-                  captureEvent("subscription_cancellation_opened", {
-                    plan_key: subscription.plan_key,
-                  });
-                }}
-              />
-            )}
           </header>
+
+          {/* Razorpay reports a failed/retrying charge as "pending" or "halted";
+              the webhook maps both to a past_due account. Without this, a failed
+              renewal silently strips FamCare+ with no explanation anywhere. */}
+          {subscription && ["past_due", "halted", "pending"].includes(subscription.status) && (
+            <div className="payment-notice error" role="alert">
+              <WarningCircle size={18} weight="fill" />
+              Your renewal is pending. Razorpay will retry it automatically and notify you if your
+              payment method needs attention.
+            </div>
+          )}
 
           {planNotice && (
             <div className={`payment-notice ${planNotice.tone}`} role="status">
@@ -800,6 +796,25 @@ function PaymentsPageContent() {
             <BillingHistory invoices={invoices} failed={invoicesError} />
           )}
 
+          {/* The only cancellation entry point in the product — a recurring plan
+              has to stay cancellable from the screen that sells it. */}
+          {subscription?.active && subscription.cancel_at_period_end !== true && (
+            <div className="payment-cancel-row">
+              <button
+                type="button"
+                className="payment-cancel-link"
+                onClick={() => {
+                  setCancelOpen(true);
+                  captureEvent("subscription_cancellation_opened", {
+                    plan_key: subscription.plan_key,
+                  });
+                }}
+              >
+                Cancel plan
+              </button>
+            </div>
+          )}
+
           {cancelOpen && subscription && (
             <CancelPlanDialog
               planName={
@@ -826,65 +841,6 @@ function PaymentsPageContent() {
         </main>
       </div>
     </V2RouteGate>
-  );
-}
-
-/**
- * Live plan state on the main billing view: what you're on, whether a renewal
- * failed, and the way out. `past_due` is the important one — without it a failed
- * renewal silently strips FamCare+ with no explanation anywhere.
- */
-function CurrentPlanCard({
-  subscription,
-  planName,
-  onCancel,
-}: {
-  subscription: SubscriptionDetails;
-  planName: string;
-  onCancel: () => void;
-}) {
-  // Razorpay reports a failed/retrying charge as "pending" or "halted"; the
-  // webhook maps both to a past_due account. Match all three so the warning
-  // shows whichever status this endpoint happens to surface.
-  const pastDue = ["past_due", "halted", "pending"].includes(subscription.status);
-  const ending = subscription.cancel_at_period_end === true;
-  const periodEnd = subscription.current_period_end
-    ? renewalDateFormatter.format(new Date(subscription.current_period_end))
-    : null;
-
-  return (
-    <section className={`payment-current-plan compact${pastDue ? " past-due" : ""}${ending ? " ending" : ""}`}>
-      <div className="payment-current-plan-main">
-        <span className={`payment-current-plan-icon${pastDue ? "" : " has-mark"}`}>
-          {pastDue
-            ? <WarningCircle size={20} weight="fill" />
-            : <span className="payment-current-plan-mark">Fam<b>Care</b><sup>+</sup></span>}
-        </span>
-        <div>
-          <span className="payment-current-plan-eyebrow">
-            {pastDue ? "Payment needs attention" : ending ? "Plan ending" : "Your current plan"}
-          </span>
-          <h2>FamCare {planName}</h2>
-          <p>
-            {pastDue
-              ? "Your renewal is pending. Razorpay will retry it automatically and notify you if your payment method needs attention."
-              : ending
-                ? periodEnd
-                  ? `Active until ${periodEnd}. It won't renew after that.`
-                  : "Active until the end of this billing period. It won't renew after that."
-                : periodEnd
-                  ? `Renews on ${periodEnd} · ₹${rupees(subscription.amount_paise)}/month`
-                  : `₹${rupees(subscription.amount_paise)}/month`}
-          </p>
-        </div>
-      </div>
-
-      {subscription.active && !ending && (
-        <button type="button" className="payment-cancel-link" onClick={onCancel}>
-          Cancel plan
-        </button>
-      )}
-    </section>
   );
 }
 
@@ -933,63 +889,6 @@ function CancelPlanDialog({
         </div>
       </div>
     </div>
-  );
-}
-
-/**
- * Receipts, straight from Razorpay. Each row links to Razorpay's own hosted
- * invoice page rather than a receipt we render ourselves, so what the user
- * downloads always matches what they were actually charged.
- */
-function BillingHistory({ invoices, failed }: { invoices: BillingInvoice[] | null; failed: boolean }) {
-  return (
-    <section className="payment-history">
-      <h3><Receipt size={18} weight="duotone" /> Billing history</h3>
-
-      {failed ? (
-        <p className="payment-history-empty">
-          Your billing history could not be loaded right now. Refresh to try again.
-        </p>
-      ) : invoices === null ? (
-        <p className="payment-history-empty">
-          <SpinnerGap size={18} className="payment-spin" /> Loading receipts…
-        </p>
-      ) : invoices.length === 0 ? (
-        <p className="payment-history-empty">
-          No receipts yet. Your first one appears here once a payment is collected.
-        </p>
-      ) : (
-        <ul className="payment-history-list">
-          {invoices.map((invoice) => {
-            const when = invoice.paid_at ?? invoice.issued_at;
-            return (
-              <li key={invoice.id}>
-                <div className="payment-history-main">
-                  <strong>{invoice.description}</strong>
-                  <span>{when ? renewalDateFormatter.format(new Date(when)) : "Date pending"}</span>
-                </div>
-                <span className={`payment-history-status ${invoice.status === "paid" ? "paid" : "other"}`}>
-                  {invoice.status === "paid" ? "Paid" : invoice.status.replace(/_/g, " ")}
-                </span>
-                <strong className="payment-history-amount">₹{rupees(invoice.amount_paise)}</strong>
-                {invoice.receipt_url ? (
-                  <a
-                    className="payment-history-link"
-                    href={invoice.receipt_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    Receipt
-                  </a>
-                ) : (
-                  <span className="payment-history-link disabled">—</span>
-                )}
-              </li>
-            );
-          })}
-        </ul>
-      )}
-    </section>
   );
 }
 
