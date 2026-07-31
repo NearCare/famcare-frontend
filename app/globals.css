@@ -10112,14 +10112,16 @@ span.payment-dots {
 
 .profile-page-link-icon.red { color: var(--he-coral-deep); background: var(--he-coral-bg); }
 
-/* FamCare+ subscription marker on the wordmark */
+/* FamCare+ subscription marker on the wordmark.
+   Sits on the wordmark's midline rather than raised as a superscript, and takes
+   the same coral as "Care" so the "+" reads as part of the logo. */
 .brand-plus {
   margin-left: 1px;
-  color: var(--pay-green, #24b76b);
+  color: var(--he-coral);
   font-size: .68em;
   font-weight: 900;
   line-height: 1;
-  vertical-align: super;
+  vertical-align: middle;
 }
 
 /* Profile dropdown (home top bar) */
