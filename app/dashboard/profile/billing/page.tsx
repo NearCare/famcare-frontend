@@ -86,10 +86,10 @@ export default function ProfileBillingPage() {
     : null;
   const renewalValid = renewsOn != null && !Number.isNaN(renewsOn.getTime());
   // A cancelled plan runs to the end of the period it was paid for and then
-  // stops, so there is no next charge to promise.
-  const upcoming = subscription?.active === true
-    && subscription.cancel_at_period_end !== true
-    && renewalValid;
+  // stops, so there is no next charge to promise. Matches the detail card:
+  // our own cancel sets the flag, a Razorpay-side one arrives as a status.
+  const cancelled = subscription?.cancel_at_period_end === true || subscription?.status === "cancelled";
+  const upcoming = subscription?.active === true && !cancelled && renewalValid;
   const extraParents = subscription?.extra_parents ?? 0;
   // Suppress the total while the add-on price is still loading rather than
   // briefly showing a figure that leaves the add-ons out.
@@ -142,7 +142,7 @@ export default function ProfileBillingPage() {
                 </ul>
               ) : (
                 <p className="payment-history-empty">
-                  {subscription?.cancel_at_period_end && renewalValid
+                  {cancelled && renewalValid
                     ? `No upcoming payments — your plan ends on ${dateFormatter.format(renewsOn!)}.`
                     : "No upcoming payments scheduled."}
                 </p>

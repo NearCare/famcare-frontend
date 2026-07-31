@@ -611,23 +611,18 @@ function PaymentsPageContent() {
                     : "Choose a monthly plan. Payments and AutoPay are handled securely by Razorpay."}
               </p>
             </div>
-
-            {subscription && subscription.plan_key !== "free" && (
-              <CurrentPlanCard
-                subscription={subscription}
-                planName={
-                  plansData?.plans.find((entry) => entry.plan_key === subscription.plan_key)?.name
-                  ?? subscription.plan_key
-                }
-                onCancel={() => {
-                  setCancelOpen(true);
-                  captureEvent("subscription_cancellation_opened", {
-                    plan_key: subscription.plan_key,
-                  });
-                }}
-              />
-            )}
           </header>
+
+          {/* Razorpay reports a failed/retrying charge as "pending" or "halted";
+              the webhook maps both to a past_due account. Without this, a failed
+              renewal silently strips FamCare+ with no explanation anywhere. */}
+          {subscription && ["past_due", "halted", "pending"].includes(subscription.status) && (
+            <div className="payment-notice error" role="alert">
+              <WarningCircle size={18} weight="fill" />
+              Your renewal is pending. Razorpay will retry it automatically and notify you if your
+              payment method needs attention.
+            </div>
+          )}
 
           {planNotice && (
             <div className={`payment-notice ${planNotice.tone}`} role="status">
@@ -801,6 +796,25 @@ function PaymentsPageContent() {
             <BillingHistory invoices={invoices} failed={invoicesError} />
           )}
 
+          {/* The only cancellation entry point in the product — a recurring plan
+              has to stay cancellable from the screen that sells it. */}
+          {subscription?.active && subscription.cancel_at_period_end !== true && (
+            <div className="payment-cancel-row">
+              <button
+                type="button"
+                className="payment-cancel-link"
+                onClick={() => {
+                  setCancelOpen(true);
+                  captureEvent("subscription_cancellation_opened", {
+                    plan_key: subscription.plan_key,
+                  });
+                }}
+              >
+                Cancel plan
+              </button>
+            </div>
+          )}
+
           {cancelOpen && subscription && (
             <CancelPlanDialog
               planName={
@@ -827,65 +841,6 @@ function PaymentsPageContent() {
         </main>
       </div>
     </V2RouteGate>
-  );
-}
-
-/**
- * Live plan state on the main billing view: what you're on, whether a renewal
- * failed, and the way out. `past_due` is the important one — without it a failed
- * renewal silently strips FamCare+ with no explanation anywhere.
- */
-function CurrentPlanCard({
-  subscription,
-  planName,
-  onCancel,
-}: {
-  subscription: SubscriptionDetails;
-  planName: string;
-  onCancel: () => void;
-}) {
-  // Razorpay reports a failed/retrying charge as "pending" or "halted"; the
-  // webhook maps both to a past_due account. Match all three so the warning
-  // shows whichever status this endpoint happens to surface.
-  const pastDue = ["past_due", "halted", "pending"].includes(subscription.status);
-  const ending = subscription.cancel_at_period_end === true;
-  const periodEnd = subscription.current_period_end
-    ? renewalDateFormatter.format(new Date(subscription.current_period_end))
-    : null;
-
-  return (
-    <section className={`payment-current-plan compact${pastDue ? " past-due" : ""}${ending ? " ending" : ""}`}>
-      <div className="payment-current-plan-main">
-        <span className={`payment-current-plan-icon${pastDue ? "" : " has-mark"}`}>
-          {pastDue
-            ? <WarningCircle size={20} weight="fill" />
-            : <span className="payment-current-plan-mark">Fam<b>Care</b><sup>+</sup></span>}
-        </span>
-        <div>
-          <span className="payment-current-plan-eyebrow">
-            {pastDue ? "Payment needs attention" : ending ? "Plan ending" : "Your current plan"}
-          </span>
-          <h2>FamCare {planName}</h2>
-          <p>
-            {pastDue
-              ? "Your renewal is pending. Razorpay will retry it automatically and notify you if your payment method needs attention."
-              : ending
-                ? periodEnd
-                  ? `Active until ${periodEnd}. It won't renew after that.`
-                  : "Active until the end of this billing period. It won't renew after that."
-                : periodEnd
-                  ? `Renews on ${periodEnd} · ₹${rupees(subscription.amount_paise)}/month`
-                  : `₹${rupees(subscription.amount_paise)}/month`}
-          </p>
-        </div>
-      </div>
-
-      {subscription.active && !ending && (
-        <button type="button" className="payment-cancel-link" onClick={onCancel}>
-          Cancel plan
-        </button>
-      )}
-    </section>
   );
 }
 
