@@ -56,6 +56,45 @@ a {
   100% { background-position: -200% 0; }
 }
 
+/* Log list placeholder. `.logs-row` styles its base layout inline in the page
+   and only its mobile overrides live here, so the skeleton carries its own
+   layout rather than half-inheriting that. */
+.logs-row-skeleton {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border-bottom: 1px solid #F0F1F5;
+}
+.logs-row-skeleton-copy {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+/* Loading placeholders. Used instead of a full-screen loader so page chrome
+   stays put and only the network-dependent regions wait. */
+.skeleton {
+  display: block;
+  width: 100%;
+  background: linear-gradient(90deg, #EEF1F6 25%, #F7F9FC 50%, #EEF1F6 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+.skeleton-card {
+  border: 1px solid #EAEDF4;
+  border-radius: 18px;
+}
+.skeleton-region {
+  display: contents;
+}
+/* A still placeholder still communicates "not ready"; the movement is the part
+   that causes trouble, so drop only that. */
+@media (prefers-reduced-motion: reduce) {
+  .skeleton { animation: none; }
+}
+
 @keyframes dbHeartBeat {
   0%, 100% { transform: translate(-50%, -50%) scale(1); }
   20%      { transform: translate(-50%, -50%) scale(1.08); }
@@ -3172,6 +3211,9 @@ a {
   border-radius: 13px;
   background: #FFFFFF;
 }
+/* Placeholder doses keep the real row's flex layout, so the list is the same
+   height before and after the schedule loads. */
+.med-dose-row-skeleton .skeleton:nth-child(2) { flex: 1; }
 .med-dose-time {
   width: 60px;
   min-width: 60px;
@@ -8672,6 +8714,10 @@ a {
   border-bottom: 1px solid #ECEEF2;
 }
 .familyv2-table-row:last-child { border-bottom: 0; }
+/* Placeholder rows reuse the real row grid so the table doesn't reflow when
+   the data lands and the skeletons are swapped out. */
+.familyv2-row-skeleton { min-height: 145px; }
+.familyv2-row-skeleton .skeleton { align-self: center; }
 .familyv2-member-cell {
   min-width: 0;
   display: grid;

@@ -18,7 +18,7 @@ import {
 import Sidebar from "../components/Sidebar";
 import AddFamilyModal from "../components/AddFamilyModal";
 import FamilyFoodReminderDrawer from "../components/FamilyFoodReminderDrawer";
-import PageLoader from "../components/PageLoader";
+import { Skeleton, SkeletonRegion } from "../components/Skeleton";
 import {
   getFamilyMembers,
   getFoodReminderPreference,
@@ -207,17 +207,6 @@ export default function FamilyOverviewV2Page() {
     void load();
   }, [load]);
 
-  if (loading) {
-    return (
-      <div className="db-page">
-        <Sidebar />
-        <main className="db-main familyv2-main">
-          <PageLoader title="Loading family overview…" subtitle="We’re getting your family details ready." />
-        </main>
-      </div>
-    );
-  }
-
   return (
     <div className="db-page">
       <Sidebar />
@@ -228,7 +217,9 @@ export default function FamilyOverviewV2Page() {
               <h1>Family Overview</h1>
               <span className="familyv2-member-count">
                 <UsersThree size={15} weight="bold" />
-                {activeMembers.length} {activeMembers.length === 1 ? "member" : "members"}
+                {loading
+                  ? <Skeleton width={58} height={11} />
+                  : `${activeMembers.length} ${activeMembers.length === 1 ? "member" : "members"}`}
               </span>
             </div>
             <p>Track everyone&apos;s health in one place.</p>
@@ -313,7 +304,18 @@ export default function FamilyOverviewV2Page() {
           </div>
 
           <div className="familyv2-table-body">
-            {rows.map((row) => {
+            {loading && (
+              <SkeletonRegion label="Loading family overview">
+                {[0, 1, 2].map((row) => (
+                  <div className="familyv2-table-row familyv2-row-skeleton" key={row}>
+                    {[0, 1, 2, 3, 4, 5].map((cell) => (
+                      <Skeleton key={cell} height={cell === 0 ? 34 : 14} radius={cell === 0 ? 10 : 7} />
+                    ))}
+                  </div>
+                ))}
+              </SkeletonRegion>
+            )}
+            {!loading && rows.map((row) => {
               const latestEvent = row.recentEvents[0];
               const nextDose = nextMedicineDose(row.doses);
               const takenDoses = row.doses.filter((dose) => dose.status === "taken").length;

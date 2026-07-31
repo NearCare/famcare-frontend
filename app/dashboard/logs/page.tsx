@@ -18,7 +18,7 @@ import {
 } from "@phosphor-icons/react";
 import { Dumbbell, Footprints } from "lucide-react";
 import Sidebar from "../components/Sidebar";
-import PageLoader from "../components/PageLoader";
+import { Skeleton, SkeletonRegion } from "../components/Skeleton";
 import { FEFlame } from "../components/FluentEmoji";
 import { captureEvent } from "@/lib/analytics";
 import {
@@ -727,20 +727,6 @@ export default function LogsPage() {
     }
   }
 
-  if (loading) {
-    return (
-      <div className="db-page">
-        <Sidebar />
-        <div className="db-main">
-          <PageLoader
-            title="Loading health logs..."
-            subtitle="We're fetching WhatsApp logs and the values added to totals."
-          />
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="db-page">
       <Sidebar />
@@ -852,9 +838,18 @@ export default function LogsPage() {
 
               <div className="logs-row-list" style={{ display: "flex", flexDirection: "column", maxHeight: 530, overflowY: "auto" }}>
                 {loading && (
-                  <div style={{ padding: "28px 20px", color: "#9AA0AD", fontSize: 13, fontWeight: 800, textAlign: "center" }}>
-                    Loading WhatsApp logs...
-                  </div>
+                  <SkeletonRegion label="Loading WhatsApp logs">
+                    {[0, 1, 2, 3, 4, 5].map((row) => (
+                      <div className="logs-row-skeleton" key={row}>
+                        <Skeleton width={34} height={34} radius={11} />
+                        <div className="logs-row-skeleton-copy">
+                          <Skeleton width="62%" height={13} />
+                          <Skeleton width="34%" height={11} />
+                        </div>
+                        <Skeleton width={58} height={22} radius={999} />
+                      </div>
+                    ))}
+                  </SkeletonRegion>
                 )}
                 {!loading && filteredLogs.map((log) => {
                   const selectedRow = log.id === selected?.id;
