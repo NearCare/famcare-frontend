@@ -605,7 +605,17 @@ async function chatRequest<T>(path: string, token: string, init?: RequestInit): 
   return body as T;
 }
 
-export async function getMonthlyUsage(): Promise<MonthlyUsageSnapshot> {
+/**
+ * `fresh` skips the read cache.
+ *
+ * This payload is cached twice — here and again by `useSubscription`, which
+ * keeps its own module-level snapshot. On a normal load both are stamped at the
+ * same moment and expire together, but an explicit refresh clears only the
+ * hook's copy: without `fresh` it would re-adopt a nearly-expired entry from
+ * here and re-stamp it, so a call whose entire purpose is to defeat the cache
+ * would quietly return data up to a minute old.
+ */
+export async function getMonthlyUsage(opts?: { fresh?: boolean }): Promise<MonthlyUsageSnapshot> {
   if (MOCK_API) {
     await mockLatency();
     const items: MonthlyUsageItem[] = [
@@ -631,7 +641,7 @@ export async function getMonthlyUsage(): Promise<MonthlyUsageSnapshot> {
         : items.map((item) => ({ ...item, percentage: 0, blocked: false })),
     };
   }
-  return apiFetch<MonthlyUsageSnapshot>("/api/usage/monthly");
+  return apiFetch<MonthlyUsageSnapshot>("/api/usage/monthly", opts);
 }
 
 const MOCK_PLANS: BillingPlansResponse = {

@@ -86,9 +86,6 @@ a {
   border: 1px solid #EAEDF4;
   border-radius: 18px;
 }
-.skeleton-region {
-  display: contents;
-}
 /* A still placeholder still communicates "not ready"; the movement is the part
    that causes trouble, so drop only that. */
 @media (prefers-reduced-motion: reduce) {

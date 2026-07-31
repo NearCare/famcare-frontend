@@ -31,6 +31,13 @@ export function Skeleton({
 /**
  * Wrapper for a whole loading region. `label` is what a screen reader announces
  * — the shimmer blocks themselves are decorative and hidden from the tree.
+ *
+ * The placeholders are returned bare rather than inside a wrapper: they sit
+ * directly in grids and flex rows whose layout a wrapper element would break.
+ * `display: contents` would hide a wrapper from layout, but assistive tech is
+ * inconsistent about elements styled that way and can drop the live region
+ * entirely — so the announcement rides on its own visually-hidden node, which
+ * is a real element in both trees.
  */
 export function SkeletonRegion({
   label,
@@ -40,9 +47,10 @@ export function SkeletonRegion({
   children: React.ReactNode;
 }) {
   return (
-    <div role="status" aria-label={label} className="skeleton-region">
+    <>
+      <span role="status" className="sr-only">{label}</span>
       {children}
-    </div>
+    </>
   );
 }
 
