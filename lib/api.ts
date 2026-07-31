@@ -609,9 +609,10 @@ export async function getMonthlyUsage(): Promise<MonthlyUsageSnapshot> {
   if (MOCK_API) {
     await mockLatency();
     const items: MonthlyUsageItem[] = [
-      { key: "reminder_delivered", label: "Reminders", used: 18, limit: 30, warning_at: 24, percentage: 60, blocked: false },
-      { key: "ai_chat_answer", label: "AI Coach answers", used: 8, limit: 20, warning_at: 16, percentage: 40, blocked: false },
-      { key: "whatsapp_text_log", label: "WhatsApp food logs", used: 25, limit: 40, warning_at: 32, percentage: 63, blocked: false },
+      // Limits mirror the backend's usageDefinitions; warning_at is 80% of each.
+      { key: "reminder_delivered", label: "Reminders", used: 6, limit: 10, warning_at: 8, percentage: 60, blocked: false },
+      { key: "ai_chat_answer", label: "AI Coach answers", used: 4, limit: 10, warning_at: 8, percentage: 40, blocked: false },
+      { key: "whatsapp_text_log", label: "WhatsApp food logs", used: 13, limit: 20, warning_at: 16, percentage: 65, blocked: false },
       { key: "whatsapp_image_analysis", label: "WhatsApp photo analyses", used: 2, limit: 5, warning_at: 4, percentage: 40, blocked: false },
     ];
     return {
