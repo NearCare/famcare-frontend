@@ -21,6 +21,7 @@ import {
   WhatsappLogo,
 } from "@phosphor-icons/react";
 import Sidebar from "../components/Sidebar";
+import BillingHistory from "../components/BillingHistory";
 import V2RouteGate from "../components/V2RouteGate";
 import {
   cancelSubscription,
@@ -933,63 +934,6 @@ function CancelPlanDialog({
         </div>
       </div>
     </div>
-  );
-}
-
-/**
- * Receipts, straight from Razorpay. Each row links to Razorpay's own hosted
- * invoice page rather than a receipt we render ourselves, so what the user
- * downloads always matches what they were actually charged.
- */
-function BillingHistory({ invoices, failed }: { invoices: BillingInvoice[] | null; failed: boolean }) {
-  return (
-    <section className="payment-history">
-      <h3><Receipt size={18} weight="duotone" /> Billing history</h3>
-
-      {failed ? (
-        <p className="payment-history-empty">
-          Your billing history could not be loaded right now. Refresh to try again.
-        </p>
-      ) : invoices === null ? (
-        <p className="payment-history-empty">
-          <SpinnerGap size={18} className="payment-spin" /> Loading receipts…
-        </p>
-      ) : invoices.length === 0 ? (
-        <p className="payment-history-empty">
-          No receipts yet. Your first one appears here once a payment is collected.
-        </p>
-      ) : (
-        <ul className="payment-history-list">
-          {invoices.map((invoice) => {
-            const when = invoice.paid_at ?? invoice.issued_at;
-            return (
-              <li key={invoice.id}>
-                <div className="payment-history-main">
-                  <strong>{invoice.description}</strong>
-                  <span>{when ? renewalDateFormatter.format(new Date(when)) : "Date pending"}</span>
-                </div>
-                <span className={`payment-history-status ${invoice.status === "paid" ? "paid" : "other"}`}>
-                  {invoice.status === "paid" ? "Paid" : invoice.status.replace(/_/g, " ")}
-                </span>
-                <strong className="payment-history-amount">₹{rupees(invoice.amount_paise)}</strong>
-                {invoice.receipt_url ? (
-                  <a
-                    className="payment-history-link"
-                    href={invoice.receipt_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    Receipt
-                  </a>
-                ) : (
-                  <span className="payment-history-link disabled">—</span>
-                )}
-              </li>
-            );
-          })}
-        </ul>
-      )}
-    </section>
   );
 }
 

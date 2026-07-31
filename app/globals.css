@@ -10283,6 +10283,19 @@ span.payment-dots {
   background: linear-gradient(145deg, #FFFFFF, #F8FCF9);
   box-shadow: 0 6px 20px rgba(23, 36, 67, .05);
 }
+/* Billing history and the upcoming charge are shared with the payments page,
+   which owns the --pay-* palette on `.payment-page`. Inside the profile shell
+   those variables are out of scope, so restate the one the receipt links need
+   and match the card padding the rest of this page uses. */
+.profile-page .payment-history {
+  margin-bottom: 18px;
+  padding: 15px;
+  border-color: #EEEAF2;
+  box-shadow: 0 6px 20px rgba(23, 36, 67, .05);
+}
+/* The next charge and the past ones read as one pair, so sit them closer. */
+.profile-page .payment-upcoming { margin-bottom: 12px; }
+.profile-page .payment-history-link { color: #2f6fc4; }
 .profile-payment-head {
   display: flex;
   align-items: center;
