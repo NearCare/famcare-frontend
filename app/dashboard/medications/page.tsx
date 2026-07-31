@@ -776,7 +776,7 @@ export default function MedicationsPage() {
     <Suspense fallback={
       <div className="db-page">
         <Sidebar />
-        <div className="db-main" style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div className="db-main">
           <PageLoader
             title="Loading medications..."
             subtitle="We're loading schedules, reminders, and family medicine data."
@@ -1158,7 +1158,7 @@ function MedicationsContent() {
     return (
       <div className="db-page">
         <Sidebar />
-        <div className="db-main" style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div className="db-main">
           <PageLoader
             title="Loading medications..."
             subtitle="We're loading schedules, reminders, and family medicine data."

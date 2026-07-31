@@ -731,7 +731,7 @@ export default function LogsPage() {
     return (
       <div className="db-page">
         <Sidebar />
-        <div className="db-main" style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div className="db-main">
           <PageLoader
             title="Loading health logs..."
             subtitle="We're fetching WhatsApp logs and the values added to totals."

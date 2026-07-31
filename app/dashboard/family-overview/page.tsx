@@ -211,7 +211,7 @@ export default function FamilyOverviewV2Page() {
     return (
       <div className="db-page">
         <Sidebar />
-        <main className="db-main familyv2-main familyv2-loading">
+        <main className="db-main familyv2-main">
           <PageLoader title="Loading family overview…" subtitle="We’re getting your family details ready." />
         </main>
       </div>

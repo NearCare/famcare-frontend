@@ -32,8 +32,11 @@ export default function PageLoader({
     { icon: <FEMoon size={24} />, bg: "#F0EEFF", style: { bottom: 4, right: 6 } },
   ];
 
+  // Centring lives here rather than in each caller: every page that showed this
+  // wrapped it in its own flex box, and `align-items: center` centres nothing
+  // vertically when the parent has no height — which is why it sat at the top.
   return (
-    <div style={{ textAlign: "center", fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+    <div className="page-loader" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
       <div style={{ position: "relative", width: 220, height: 200, margin: "0 auto" }}>
         <svg width="220" height="200" style={{ position: "absolute", inset: 0 }} viewBox="0 0 220 200">
           <line x1="58" y1="38" x2="98" y2="88" stroke="#F0D9D9" strokeWidth="2" strokeDasharray="3 6" strokeLinecap="round" />

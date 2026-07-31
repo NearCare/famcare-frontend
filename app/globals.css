@@ -8490,7 +8490,20 @@ a {
   padding: 28px 30px;
   background: radial-gradient(circle at 82% 0%, rgba(255, 107, 107, .055), transparent 28%), #fff;
 }
-.familyv2-loading { display: flex; align-items: center; justify-content: center; }
+/* Full-page loading state. Owns its own centring so callers can drop it in
+   without wrapping it in a flex box of their own; the viewport-based height is
+   what actually centres it, since the dashboard main column has no set height
+   and align-items alone would leave it pinned to the top. */
+.page-loader {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 68vh;
+  text-align: center;
+}
+
 .familyv2-header {
   min-height: 106px;
   display: flex;
