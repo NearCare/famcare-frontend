@@ -42,10 +42,10 @@ const FEEDBACK_REASONS = [
   { value: "other", label: "Other" },
 ] as const;
 
-function shouldShowStructuredDetails(message: ChatMessage, previousMessage?: ChatMessage) {
-  if (message.role !== "assistant") return false;
+function visibleBlocks(message: ChatMessage, previousMessage?: ChatMessage) {
+  if (message.role !== "assistant") return [];
   const question = previousMessage?.role === "user" ? previousMessage.content.toLowerCase() : "";
-  return [
+  const wantsDetails = [
     "show details",
     "show data",
     "show me data",
@@ -65,6 +65,13 @@ function shouldShowStructuredDetails(message: ChatMessage, previousMessage?: Cha
     "what did i log",
     "meals checked",
   ].some((phrase) => question.includes(phrase));
+  const primaryTypes = new Set([
+    "progress", "dated_progress", "weekly_progress", "comparison", "estimate",
+    "recommendations", "target_gap", "warning", "notice", "family",
+  ]);
+  return (message.blocks ?? []).filter((block) => (
+    block.type !== "ai_takeaway" && (wantsDetails || primaryTypes.has(block.type))
+  ));
 }
 
 function metricValue(value: number | null, unit: string) {
@@ -215,6 +222,7 @@ export default function HealthAssistantPage() {
   const [typingStep, setTypingStep] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [feedbackMessageId, setFeedbackMessageId] = useState<number | null>(null);
+  const [failedMessageIds, setFailedMessageIds] = useState<Set<number>>(() => new Set());
   const endRef = useRef<HTMLDivElement>(null);
 
   const people = useMemo(() => user ? [
@@ -272,7 +280,7 @@ export default function HealthAssistantPage() {
         const existing = (await getChatConversations(token)).find((item) => item.subject_user_id === subjectId);
         const conversation = existing ?? await createChatConversation(token, subjectId!);
         const history = await getChatMessages(token, conversation.id);
-        if (!cancelled) { setConversationId(conversation.id); setMessages(history); }
+        if (!cancelled) { setConversationId(conversation.id); setMessages(history); setFailedMessageIds(new Set()); }
       } catch (err) {
         if (!cancelled) setError(err instanceof Error ? err.message : "Could not open the assistant.");
       } finally {
@@ -319,11 +327,21 @@ export default function HealthAssistantPage() {
       setMessages((current) => [...current, reply.message]);
       setStreamingMessageId(reply.message.id);
     } catch (err) {
+      setFailedMessageIds((current) => new Set(current).add(optimistic.id));
       setError(err instanceof Error ? err.message : "The assistant could not respond.");
     } finally { setSending(false); }
   }
 
   function submit(event: FormEvent) { event.preventDefault(); send(input); }
+
+  function retryMessage(message: ChatMessage) {
+    if (sending) return;
+    setMessages((current) => current.filter((item) => item.id !== message.id));
+    setFailedMessageIds((current) => {
+      const next = new Set(current); next.delete(message.id); return next;
+    });
+    void send(message.content);
+  }
 
   async function clearChat() {
     if (!conversationId || sending || clearing || messages.length === 0) return;
@@ -332,6 +350,7 @@ export default function HealthAssistantPage() {
     try {
       await clearChatMessages(localStorage.getItem("auth_token") ?? "", conversationId);
       setMessages([]);
+      setFailedMessageIds(new Set());
       captureEvent("health_assistant_chat_cleared");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not clear chat history.");
@@ -404,7 +423,7 @@ export default function HealthAssistantPage() {
                   </article>
                 )}
                 {messages.map((message, index) => {
-                  const showDetails = shouldShowStructuredDetails(message, messages[index - 1]);
+                  const blocks = visibleBlocks(message, messages[index - 1]);
                   return (
                     <article className={`ha-message ${message.role}`} key={message.id}>
                       {message.role === "assistant" && <div className="ha-message-mark"><Image src="/mascot.png" alt="" width={30} height={30} /></div>}
@@ -419,9 +438,7 @@ export default function HealthAssistantPage() {
                               onProgress={() => scrollToLatest("auto")}
                             />
                           </p>
-                          {showDetails && (message.blocks ?? [])
-                            .filter((block) => block.type !== "ai_takeaway")
-                            .map((block, blockIndex) => <AssistantBlock block={block} key={`${message.id}-${blockIndex}`} />)}
+                          {blocks.map((block, blockIndex) => <AssistantBlock block={block} key={`${message.id}-${blockIndex}`} />)}
                         </div>
                         {message.role === "assistant" && message.id > 0 && (
                           <div className="ha-feedback">
@@ -463,7 +480,12 @@ export default function HealthAssistantPage() {
                           </div>
                         )}
                       </div>
-                      {message.role === "user" && <div className="ha-user-avatar">{user?.name?.charAt(0).toUpperCase() ?? "Y"}</div>}
+                      {message.role === "user" && <div>
+                        <div className="ha-user-avatar">{user?.name?.charAt(0).toUpperCase() ?? "Y"}</div>
+                        {failedMessageIds.has(message.id) && (
+                          <button type="button" className="ha-message-retry" disabled={sending} onClick={() => retryMessage(message)}>Retry</button>
+                        )}
+                      </div>}
                     </article>
                   );
                 })}
