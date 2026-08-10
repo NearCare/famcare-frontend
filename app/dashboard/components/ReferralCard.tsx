@@ -15,7 +15,7 @@ function formatRewardDate(value: string | null) {
   return date.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
 }
 
-export default function ReferralCard() {
+export default function ReferralCard({ placement = "dashboard" }: { placement?: "dashboard" | "sidebar" }) {
   const [summary, setSummary] = useState<ReferralSummary | null>(null);
   const [copied, setCopied] = useState(false);
   const [loadFailed, setLoadFailed] = useState(false);
@@ -49,7 +49,7 @@ export default function ReferralCard() {
       setShareFailed(false);
       setCopied(true);
       window.setTimeout(() => setCopied(false), 2200);
-      captureEvent("referral_message_copied", { source: "dashboard_referral_card" });
+      captureEvent("referral_message_copied", { source: `${placement}_referral_card` });
     } catch {
       setShareFailed(true);
     }
@@ -59,7 +59,7 @@ export default function ReferralCard() {
     if (!summary || !referralUrl) return;
     const fullMessage = `${SHARE_GREETING}\n${referralUrl}`;
     captureEvent("referral_card_clicked", {
-      source: "dashboard",
+      source: placement,
       joined: summary.joined,
       qualified: summary.qualified,
     });
@@ -71,7 +71,7 @@ export default function ReferralCard() {
           text: SHARE_GREETING,
           url: referralUrl,
         });
-        captureEvent("referral_native_share_completed", { source: "dashboard_referral_card" });
+        captureEvent("referral_native_share_completed", { source: `${placement}_referral_card` });
         return;
       } catch (shareError) {
         if (shareError instanceof DOMException && shareError.name === "AbortError") return;
@@ -82,7 +82,7 @@ export default function ReferralCard() {
 
   return (
     <button
-      className="homev2-referral-card"
+      className={`homev2-referral-card ${placement}-referral-card`}
       type="button"
       onClick={() => void shareReferral()}
       disabled={!summary}
