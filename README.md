@@ -27,6 +27,7 @@ Key highlights:
 - **Food reminders** — configure up to 5 custom meal/reminder names and times
 - **Medicine tracking** — manage family medicines, schedules, reminders, and dose status
 - **First-run intro** — elevated swipe/tap onboarding slides for new/returning users
+- **Referral rewards** — native device sharing with a greeting and stable referral link; verified subscriptions unlock 30 days of the same plan for the free-plan referrer
 - **Animated charts** — line graph with dots (Recharts) showing weekly step trends
 - **KPI hover lift** — dashboard cards lift on hover with a shadow transition
 - **Mixed icon system** — Phosphor bold icons for UI chrome, hand-crafted Fluent Emoji-style SVGs for data slots
