@@ -7273,7 +7273,10 @@ a {
   }
   .homev2-onboard-steps {
     flex-direction: column;
-    align-items: flex-start;
+    align-items: center;
+  }
+  .homev2-onboard-steps li {
+    width: min(100%, 220px);
   }
   .homev2-onboard-step-arrow {
     display: none;
