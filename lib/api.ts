@@ -269,15 +269,6 @@ export type MonthlyUsageSnapshot = {
 
 export type BillingPlanKey = "individual" | "family";
 
-export type ReferralSummary = {
-  code: string;
-  eligible: boolean;
-  joined: number;
-  qualified: number;
-  reward_plan_key: BillingPlanKey | null;
-  reward_ends_at: string | null;
-};
-
 export type SubscriptionCheckout = {
   key_id: string;
   subscription_id: string;
@@ -653,21 +644,6 @@ export async function getMonthlyUsage(opts?: { fresh?: boolean }): Promise<Month
   return apiFetch<MonthlyUsageSnapshot>("/api/usage/monthly", opts);
 }
 
-export async function getReferralSummary(opts?: { fresh?: boolean }): Promise<ReferralSummary> {
-  if (MOCK_API) {
-    await mockLatency();
-    return {
-      code: "SAM7K2QP",
-      eligible: MOCK_PLAN === "free",
-      joined: 0,
-      qualified: 0,
-      reward_plan_key: null,
-      reward_ends_at: null,
-    };
-  }
-  return apiFetch<ReferralSummary>("/api/referrals/me", opts);
-}
-
 const MOCK_PLANS: BillingPlansResponse = {
   plans: [
     {
@@ -987,8 +963,7 @@ export async function sendOtp(phone: string): Promise<void> {
  */
 export async function verifyOtp(
   phone: string,
-  code: string,
-  referralCode?: string | null,
+  code: string
 ): Promise<AuthResponse> {
   if (MOCK_API) { await mockLatency(); return { token: "mock-token", user: MOCK_USER }; }
   let res: Response;
@@ -996,7 +971,7 @@ export async function verifyOtp(
     res = await fetch(`${BASE_URL}/auth/verify-otp`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ phone, code, referral_code: referralCode || undefined }),
+      body: JSON.stringify({ phone, code }),
     });
   } catch (err) {
     logRequestFailure("verifyOtp", "/auth/verify-otp", { error: err });

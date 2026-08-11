@@ -43,7 +43,6 @@ import BrandMark from "./components/BrandMark";
 import AddFamilyModal from "./components/AddFamilyModal";
 import FoodReminderControl from "./components/FoodReminderControl";
 import ProfileMenu from "./components/ProfileMenu";
-import ReferralCard from "./components/ReferralCard";
 import { computeScore, scoreTier } from "./components/Score";
 import {
   backfillYesterdayFood,
@@ -911,8 +910,6 @@ export default function HomeV2Page() {
             </span>
           </a>
         )}
-
-        <ReferralCard />
 
         <section className="homev2-hero-row">
           <article className="homev2-panel homev2-onboard">
