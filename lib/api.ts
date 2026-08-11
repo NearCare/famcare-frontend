@@ -653,7 +653,7 @@ export async function getMonthlyUsage(opts?: { fresh?: boolean }): Promise<Month
   return apiFetch<MonthlyUsageSnapshot>("/api/usage/monthly", opts);
 }
 
-export async function getReferralSummary(): Promise<ReferralSummary> {
+export async function getReferralSummary(opts?: { fresh?: boolean }): Promise<ReferralSummary> {
   if (MOCK_API) {
     await mockLatency();
     return {
@@ -665,7 +665,7 @@ export async function getReferralSummary(): Promise<ReferralSummary> {
       reward_ends_at: null,
     };
   }
-  return apiFetch<ReferralSummary>("/api/referrals/me");
+  return apiFetch<ReferralSummary>("/api/referrals/me", opts);
 }
 
 const MOCK_PLANS: BillingPlansResponse = {
