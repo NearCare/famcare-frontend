@@ -983,7 +983,7 @@ export default function HomeV2Page() {
                   <CaretRight size={13} weight="bold" className="homev2-onboard-step-arrow" />
                   <li>
                     <span className="homev2-onboard-step-icon"><CheckCircle size={15} weight="fill" /></span>
-                    <span>3. You track adherence</span>
+                    <span>3. You track doses</span>
                   </li>
                 </>
               ) : (
