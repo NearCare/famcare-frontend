@@ -92,12 +92,6 @@ export default function Sidebar() {
           })}
         </nav>
 
-        <div className="db-motiv">
-          <span className="leaf">🌱</span>
-          <h4>Stay consistent,<br />see the change!</h4>
-          <p>Small steps today,<br />a healthier tomorrow.</p>
-        </div>
-
         <div className="db-sidebar-referral-wrap">
           <ReferralCard placement="sidebar" />
         </div>
