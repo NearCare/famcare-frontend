@@ -7273,10 +7273,7 @@ a {
   }
   .homev2-onboard-steps {
     flex-direction: column;
-    align-items: center;
-  }
-  .homev2-onboard-steps li {
-    width: min(100%, 220px);
+    align-items: flex-start;
   }
   .homev2-onboard-step-arrow {
     display: none;
@@ -7417,6 +7414,12 @@ a {
   }
 }
 @media(max-width: 560px) {
+  .homev2-onboard-steps {
+    align-items: center;
+  }
+  .homev2-onboard-steps li {
+    width: min(100%, 220px);
+  }
   .homev2-referral-card {
     grid-template-columns: 46px minmax(0, 1fr) 18px;
     gap: 12px;
