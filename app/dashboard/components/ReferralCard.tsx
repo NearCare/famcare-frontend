@@ -6,7 +6,7 @@ import { captureEvent } from "@/lib/analytics";
 import { getReferralSummary, type ReferralSummary } from "@/lib/api";
 
 const SHARE_GREETING =
-  "Hi 👋 I’ve been using FamCare to track meals, medicines and family health through WhatsApp. You can try it using my referral link:";
+  "Hi 👋 I’ve been using FamCare to track my family health habits through WhatsApp. You can try it using my referral link:";
 
 function formatRewardDate(value: string | null) {
   if (!value) return null;
@@ -74,8 +74,7 @@ export default function ReferralCard({ placement = "dashboard" }: { placement?: 
       try {
         await navigator.share({
           title: "Try FamCare with me",
-          text: SHARE_GREETING,
-          url: referralUrl,
+          text: fullMessage,
         });
         captureEvent("referral_native_share_completed", { source: `${placement}_referral_card` });
         return;
