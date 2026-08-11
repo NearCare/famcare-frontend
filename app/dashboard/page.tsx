@@ -912,7 +912,7 @@ export default function HomeV2Page() {
           </a>
         )}
 
-        {monthlyUsage?.status === "free" && <ReferralCard />}
+        <ReferralCard />
 
         <section className="homev2-hero-row">
           <article className="homev2-panel homev2-onboard">
