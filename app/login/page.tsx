@@ -5,6 +5,7 @@ import { useState, useEffect, useRef } from "react";
 import { getCurrentUser, sendOtp, verifyOtp } from "@/lib/api";
 import { authPath, requestedAuthDestination, resolvedAuthDestination } from "@/lib/authRedirect";
 import { captureEvent, identifyUser, resetAnalytics } from "@/lib/analytics";
+import { captureReferralFromCurrentUrl, clearStoredReferralCode, getStoredReferralCode } from "@/lib/referral";
 
 type Step = "phone" | "otp";
 const EMPTY_OTP = ["", "", "", ""];
@@ -104,6 +105,7 @@ export default function LoginPage() {
     let cancelled = false;
 
     async function resumeSavedSession() {
+      captureReferralFromCurrentUrl();
       const token = localStorage.getItem("auth_token");
       if (!token) {
         setCheckingSession(false);
@@ -123,6 +125,7 @@ export default function LoginPage() {
         }
 
         localStorage.setItem("auth_user", JSON.stringify(authUser));
+        clearStoredReferralCode();
         identifyUser(authUser);
         captureEvent("session_resumed");
         setRedirecting(true);
@@ -227,10 +230,11 @@ export default function LoginPage() {
     setLoading(true);
     let keepLoading = false;
     try {
-      const auth = await verifyOtp(phone, otp.trim());
+      const auth = await verifyOtp(phone, otp.trim(), getStoredReferralCode());
       // Save session to localStorage
       localStorage.setItem("auth_token", auth.token);
       localStorage.setItem("auth_user", JSON.stringify(auth.user));
+      clearStoredReferralCode();
       identifyUser(auth.user);
       captureEvent("login_succeeded", { has_name: Boolean(auth.user.name) });
       setRedirecting(true);

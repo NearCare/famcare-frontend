@@ -43,6 +43,7 @@ import BrandMark from "./components/BrandMark";
 import AddFamilyModal from "./components/AddFamilyModal";
 import FoodReminderControl from "./components/FoodReminderControl";
 import ProfileMenu from "./components/ProfileMenu";
+import ReferralCard from "./components/ReferralCard";
 import { computeScore, scoreTier } from "./components/Score";
 import {
   backfillYesterdayFood,
@@ -911,6 +912,8 @@ export default function HomeV2Page() {
           </a>
         )}
 
+        <ReferralCard />
+
         <section className="homev2-hero-row">
           <article className="homev2-panel homev2-onboard">
             <div className="homev2-onboard-top">
@@ -980,7 +983,7 @@ export default function HomeV2Page() {
                   <CaretRight size={13} weight="bold" className="homev2-onboard-step-arrow" />
                   <li>
                     <span className="homev2-onboard-step-icon"><CheckCircle size={15} weight="fill" /></span>
-                    <span>3. You track adherence</span>
+                    <span>3. You track progress</span>
                   </li>
                 </>
               ) : (

@@ -10,6 +10,7 @@ import BrandName from "./BrandName";
 import MobileBackBar from "./MobileBackBar";
 import MobileBottomNav from "./MobileBottomNav";
 import ProfileMenu from "./ProfileMenu";
+import ReferralCard from "./ReferralCard";
 
 type NavigationItem = {
   label: string;
@@ -91,10 +92,8 @@ export default function Sidebar() {
           })}
         </nav>
 
-        <div className="db-motiv">
-          <span className="leaf">🌱</span>
-          <h4>Stay consistent,<br />see the change!</h4>
-          <p>Small steps today,<br />a healthier tomorrow.</p>
+        <div className="db-sidebar-referral-wrap">
+          <ReferralCard placement="sidebar" />
         </div>
       </aside>
 
